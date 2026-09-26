@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 17;
+const SET = 18;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -337,6 +337,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 15) set15(store);
     if (at < 16) set16(store);
     if (at < 17) set17(store);
+    if (at < 18) set18(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1193,3 +1194,56 @@ function set17(store: Store): void {
   });
 }
 
+function set18(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string | null, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'leave', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  interface Leave {
+    nhi: string; service: string; kind: string; purpose: string; destination: string; companion: string; contact: string; conditions: string;
+    legal: string; leave: number; back: number; by: string; asked: number; approvedBy?: string; approved?: number; departed?: { by: string; mins: number; note: string };
+  }
+  const add = (l: Leave) => {
+    const pid = person(l.nhi);
+    const by = who(l.by);
+    if (!pid || !by) return;
+    const id = newId();
+    const approver = l.approvedBy ? who(l.approvedBy) : null;
+    const leaver = l.departed ? who(l.departed.by) : null;
+    const state = l.departed ? 'AWAY' : approver ? 'APPROVED' : 'REQUESTED';
+    store.insert('leave_of_absence', {
+      id, person_id: pid, service_id: l.service, kind: l.kind, purpose: l.purpose, destination: l.destination, companion: l.companion,
+      contact: l.contact, conditions: l.conditions, legal: l.legal, leave_at: at(l.leave), return_by: at(l.back), state,
+      requested_by: by, requested_at: at(l.asked), approved_by: approver, approved_at: approver ? at(l.approved ?? l.asked) : null,
+      departed_by: leaver, departed_at: l.departed ? at(l.departed.mins) : null, departure_note: l.departed?.note ?? null,
+    });
+    step(id, null, 'REQUESTED', by, l.asked, l.purpose);
+    if (approver) step(id, 'REQUESTED', 'APPROVED', approver, l.approved ?? l.asked, 'Approved');
+    if (l.departed) step(id, 'APPROVED', 'AWAY', leaver, l.departed.mins, l.departed.note);
+  };
+  store.tx(() => {
+    add({
+      nhi: 'ZZZ0083', service: 'svc-arc', kind: 'OUTING', purpose: 'Sunday service and lunch with the church family', destination: 'Tongan Methodist Church, Onehunga',
+      companion: 'Mele (daughter)', contact: 'Mele 021 555 0183', conditions: 'Lunchtime metformin given before leaving. Walker with her. Mele to call if Losa is tired or unwell.',
+      legal: 'NONE', leave: -180, back: 120, by: 'nicki', asked: -60 * 26, approvedBy: 'nicki',
+      departed: { by: 'nicki', mins: -175, note: 'Went through the plan with Mele. Metformin given 09:50. Walker and cardigan packed.' },
+    });
+    add({
+      nhi: 'ZZZ0091', service: 'svc-arc', kind: 'OUTING', purpose: 'Lunch out with his son', destination: 'Cornwall Park café',
+      companion: 'Robert Grant (son)', contact: 'Robert 027 555 0191', conditions: 'Back before afternoon medicines at 14:00. Uses a wheelchair outdoors.',
+      legal: 'NONE', leave: -210, back: -35, by: 'nicki', asked: -60 * 30, approvedBy: 'nicki',
+      departed: { by: 'nicki', mins: -205, note: 'Robert shown how to fold the wheelchair. Bill in good spirits.' },
+    });
+    add({
+      nhi: 'ZZZ0059', service: 'svc-arc', kind: 'OVERNIGHT', purpose: 'Mokopuna\'s 21st birthday at the family home', destination: 'Family home, Kaikohe',
+      companion: 'Aroha Hēnare (granddaughter)', contact: 'Aroha 022 555 0159', conditions: 'Medicines packed for the night and morning in a labelled pack. Needs help in the shower.',
+      legal: 'NONE', leave: 60 * 20, back: 60 * 44, by: 'nicki', asked: -60 * 48, approvedBy: 'nicki',
+    });
+    add({
+      nhi: 'ZZZ0032', service: 'svc-genmed', kind: 'TRIAL', purpose: 'Afternoon at home to try the stairs and bathroom before going home', destination: 'Her home, Epsom',
+      companion: 'Karen Oliver (daughter)', contact: 'Karen 021 555 0132', conditions: 'Low bed and walking frame at home already. Back for evening medicines.',
+      legal: 'NONE', leave: 60 * 22, back: 60 * 26, by: 'nicki', asked: -45,
+    });
+  });
+}

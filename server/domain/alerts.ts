@@ -7,6 +7,7 @@ import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 import { overdue as monitoringOverdue } from './monitoring.ts';
 import { reviewOverdue as restrictionReviewOverdue } from './restrictions.ts';
+import { overdue as leaveOverdue } from './leave.ts';
 import { swallowConcerns } from './diets.ts';
 import { inUseOverdue as equipmentOverdue } from './equipment.ts';
 
@@ -60,6 +61,10 @@ const RULES: Rule[] = [
   {
     rule: 'SWALLOW_CONCERN', objectType: 'diet_order', capability: 'diet.order',
     current: (store, serviceId) => swallowConcerns(store, serviceId),
+  },
+  {
+    rule: 'LEAVE_OVERDUE', objectType: 'leave_of_absence', capability: 'leave.manage',
+    current: (store, serviceId) => leaveOverdue(store, serviceId),
   },
   {
     rule: 'EQUIPMENT_SERVICE_OVERDUE', objectType: 'equipment', capability: 'equipment.manage',
