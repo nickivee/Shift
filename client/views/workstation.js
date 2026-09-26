@@ -17,6 +17,7 @@ import { dietPanel } from './diets.js';
 import { equipmentPanel } from './equipment.js';
 import { locationPanel } from './locations.js';
 import { leavePanel } from './leave.js';
+import { preferencesPanel } from './preferences.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -337,6 +338,7 @@ export async function workstationView(personId, initialView) {
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
+      case 'preferences': return preferencesPanel(personId, d, () => go(`/work/patient/${personId}/preferences`));
       case 'leave': return leavePanel(personId, d, () => go(`/work/patient/${personId}/absence`));
       case 'location': return locationPanel(personId, d, () => go(`/work/patient/${personId}/location`));
       case 'equipment': return equipmentPanel(personId, d, () => openView('equipment'));
@@ -400,6 +402,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.preferences) {
+      block.append(h('button', { class: 'patient-pref', onclick: () => openView('preferences') }, icon('preferences'),
+        h('span', {}, h('b', {}, patient.preferences.count === 1 ? 'PREFERENCE' : `${patient.preferences.count} PREFERENCES`),
+          patient.preferences.first.join(' · '))));
     }
     if (patient.leave) {
       const l = patient.leave;

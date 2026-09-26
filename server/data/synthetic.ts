@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 18;
+const SET = 19;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -338,6 +338,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 16) set16(store);
     if (at < 17) set17(store);
     if (at < 18) set18(store);
+    if (at < 19) set19(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1244,6 +1245,44 @@ function set18(store: Store): void {
       nhi: 'ZZZ0032', service: 'svc-genmed', kind: 'TRIAL', purpose: 'Afternoon at home to try the stairs and bathroom before going home', destination: 'Her home, Epsom',
       companion: 'Karen Oliver (daughter)', contact: 'Karen 021 555 0132', conditions: 'Low bed and walking frame at home already. Back for evening medicines.',
       legal: 'NONE', leave: 60 * 22, back: 60 * 26, by: 'nicki', asked: -45,
+    });
+  });
+}
+
+function set19(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const add = (nhi: string, service: string, category: string, statement: string, source: string, by: string, mins: number,
+    extra: { sourceName?: string; context?: string; relevance?: string; outcome?: [string, string | null, string, number] } = {}) => {
+    const pid = person(nhi);
+    const author = who(by);
+    if (!pid || !author) return;
+    const id = newId();
+    store.insert('preference', {
+      id, person_id: pid, service_id: service, category, statement, source, source_name: extra.sourceName ?? null, context: extra.context ?? null,
+      relevance: extra.relevance ?? 'ALWAYS', state: 'ACTIVE', recorded_by: author, recorded_at: ago(mins),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'preference', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: author, work_context_id: null, at: ago(mins), reason: statement, transaction_id: null });
+    store.insert('preference_ack', { preference_id: id, worker_id: author, at: ago(mins) });
+    if (extra.outcome) {
+      const [outcome, note, u, m] = extra.outcome;
+      store.insert('preference_outcome', { id: newId(), preference_id: id, outcome, note, by_id: who(u), at: ago(m) });
+      store.run('INSERT OR IGNORE INTO preference_ack (preference_id, worker_id, at) VALUES (?, ?, ?)', id, who(u), ago(m));
+    }
+  };
+  store.tx(() => {
+    add('ZZZ0032', 'svc-genmed', 'NAME', 'Please call me Peggy. Only the bank calls me Margaret.', 'PERSON', 'nicki', 60 * 30);
+    add('ZZZ0032', 'svc-genmed', 'ROUTINE', 'I like my shower in the evening so I sleep well, not first thing.', 'PERSON', 'nicki', 60 * 29, { relevance: 'THIS_STAY' });
+    add('ZZZ0024', 'svc-genmed', 'PRIVACY', 'I want my wife Ana with me when the doctors talk about my results.', 'PERSON', 'hannah', 60 * 20, { context: 'Results and any big decisions' });
+    add('ZZZ0083', 'svc-arc', 'COMMUNICATION', 'Speak to Mum in Tongan if you can, and have me there for anything important.', 'WHANAU', 'nicki', 60 * 50, { sourceName: 'Mele Faleolo (daughter)' });
+    add('ZZZ0083', 'svc-arc', 'CULTURAL', 'The tapa cloth on her wall stays up. Please ask before moving it.', 'WHANAU', 'nicki', 60 * 49, { sourceName: 'Mele Faleolo (daughter)' });
+    add('ZZZ0059', 'svc-arc', 'CULTURAL', 'Keep my pillow and hairbrush away from where food goes, and do not sit on my pillow.', 'PERSON', 'nicki', 60 * 24 * 20);
+    add('ZZZ0067', 'svc-arc', 'ROUTINE', 'Vera Lynn records help her settle in the late afternoon.', 'OBSERVED', 'tama', 60 * 24 * 6, {
+      context: 'When she starts calling out or pacing', outcome: ['MET', null, 'tama', 60 * 20],
+    });
+    add('ZZZ0075', 'svc-arc', 'PERSONAL_CARE', 'I would rather a man helps me in the shower.', 'PERSON', 'nicki', 60 * 24 * 40, {
+      outcome: ['NOT_MET', 'No male caregiver on the afternoon shift. Frank chose a sponge wash tonight and a shower with Ravi in the morning.', 'tama', 60 * 26],
     });
   });
 }

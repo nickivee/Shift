@@ -20,6 +20,7 @@ import * as communications from '../domain/communications.ts';
 import * as monitoring from '../domain/monitoring.ts';
 import * as restrictions from '../domain/restrictions.ts';
 import * as leave from '../domain/leave.ts';
+import * as preferences from '../domain/preferences.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -165,6 +166,15 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
+  const preferenceFields = (b: Record<string, unknown>) => ({
+    category: str(b.category), statement: str(b.statement), source: str(b.source), sourceName: str(b.sourceName),
+    context: str(b.context), relevance: str(b.relevance), reviewDate: str(b.reviewDate),
+  });
+  r.on('GET', '/api/work/preferences', (req) => preferences.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/preferences', (req) => preferences.record(store, work(req), req.params.id, preferenceFields(req.body)));
+  r.on('POST', '/api/work/preferences/:id/:action', (req) => preferences.act(store, work(req), req.params.id, req.params.action, {
+    ...preferenceFields(req.body), note: str(req.body.note), outcome: str(req.body.outcome),
   }));
   r.on('GET', '/api/work/leave', (req) => leave.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/leave', (req) => leave.request(store, work(req), req.params.id, {
