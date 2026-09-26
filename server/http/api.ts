@@ -19,6 +19,7 @@ import * as alerts from '../domain/alerts.ts';
 import * as communications from '../domain/communications.ts';
 import * as monitoring from '../domain/monitoring.ts';
 import * as restrictions from '../domain/restrictions.ts';
+import * as leave from '../domain/leave.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -165,6 +166,12 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
   }));
+  r.on('GET', '/api/work/leave', (req) => leave.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/leave', (req) => leave.request(store, work(req), req.params.id, {
+    kind: str(req.body.kind), purpose: str(req.body.purpose), destination: str(req.body.destination), companion: str(req.body.companion),
+    contact: str(req.body.contact), conditions: str(req.body.conditions), legal: str(req.body.legal), leaveAt: str(req.body.leaveAt), returnBy: str(req.body.returnBy),
+  }));
+  r.on('POST', '/api/work/leave/:id/:action', (req) => leave.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), returnBy: str(req.body.returnBy), legal: str(req.body.legal) }));
   r.on('GET', '/api/work/moves', (req) => locations.board(store, work(req)));
   r.on('GET', '/api/work/beds/:id/history', (req) => locations.bedHistory(store, work(req), req.params.id));
   r.on('POST', '/api/work/patients/:id/moves', (req) => locations.request(store, work(req), req.params.id, { needs: str(req.body.needs), reason: str(req.body.reason), urgency: str(req.body.urgency) }));

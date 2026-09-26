@@ -1,6 +1,6 @@
 import { h, icon, mount } from '../lib/dom.js';
 import { get, post } from '../lib/api.js';
-import { showError, ask, pageTitle, fmtDate } from '../lib/ui.js';
+import { showError, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { state, go } from '../app.js';
 import { workHeader } from './entry.js';
 
@@ -33,6 +33,7 @@ export async function recordsView(openTab) {
             board ? (p.triage?.category ? h('span', { class: `tag ats ats-${p.triage.category.replace(/\D/g, '')}` }, p.triage.category) : h('span', { class: 'tag warn' }, 'Not yet triaged')) : null,
             board ? h('span', { class: 'tag' }, waited(p.arrivedAt)) : null,
             p.escalation ? h('span', { class: `tag ${p.escalation === 'IMMEDIATE' ? 'danger' : 'warn'}` }, `Escalated · ${p.escalation.toLowerCase()}`) : null,
+            p.away ? h('span', { class: `tag ${p.away.state === 'NOT_RETURNED' || p.away.returnBy < new Date().toISOString() ? 'danger' : 'warn'}` }, p.away.state === 'NOT_RETURNED' ? 'Not back from leave' : `On leave, back ${fmtDateTime(p.away.returnBy)}`) : null,
             p.discharge ? h('span', { class: `tag ${p.discharge.state === 'DECIDED' ? 'ok' : 'warn'}` }, p.discharge.state === 'DECIDED' ? `Discharge ${p.discharge.expected ? fmtDate(p.discharge.expected) : 'decided'}` : 'Discharge being planned') : null,
             p.transfer ? h('span', { class: 'tag paua' }, { REQUESTED: `Referred to ${p.transfer.to}`, ACCEPTED: `Accepted by ${p.transfer.to}`, BED_ALLOCATED: `Bed ready in ${p.transfer.to}`, ARRIVED: 'Arrived, responsibility not yet accepted' }[p.transfer.state]) : null,
             p.hasAllergy ? h('span', { class: 'tag danger' }, 'Allergy') : null,

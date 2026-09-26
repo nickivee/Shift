@@ -171,6 +171,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-LEAVE-001',
+    question: 'Who may grant leave to a person under a legal order (for example the Mental Health Act, the Substance Addiction (Compulsory Assessment and Treatment) Act 2017, the Intellectual Disability (Compulsory Care and Rehabilitation) Act 2003, or a court or Corrections order), what conditions and paperwork apply, and what must happen if they do not return.',
+    blocks: 'Approving leave for a person under a legal order. SHIFT records the request and it stays waiting.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

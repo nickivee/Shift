@@ -16,6 +16,7 @@ import { forPerson as restrictionsFor, current as restrictionsNow } from './rest
 import { forPerson as dietFor, current as dietNow } from './diets.ts';
 import { forPerson as equipmentFor } from './equipment.ts';
 import { forPerson as locationFor } from './locations.ts';
+import { forPerson as leaveFor, current as leaveNow } from './leave.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -68,7 +69,8 @@ export function patientList(store: Store, ctx: WorkContext) {
               WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer,
             (SELECT x.urgency FROM escalation x WHERE x.person_id = p.id AND x.state IN ('RAISED','RECEIVED','ACKNOWLEDGED','RESPONDED')
               ORDER BY CASE x.urgency WHEN 'IMMEDIATE' THEN 0 WHEN 'URGENT' THEN 1 ELSE 2 END LIMIT 1) AS escalation,
-            (SELECT d.state || '|' || COALESCE(d.expected_date, '') FROM discharge d WHERE d.person_id = p.id AND d.service_id = ? AND d.state IN ('CONSIDERED','DECIDED') LIMIT 1) AS discharge
+            (SELECT d.state || '|' || COALESCE(d.expected_date, '') FROM discharge d WHERE d.person_id = p.id AND d.service_id = ? AND d.state IN ('CONSIDERED','DECIDED') LIMIT 1) AS discharge,
+            (SELECT l.state || '|' || l.return_by FROM leave_of_absence l WHERE l.person_id = p.id AND l.state IN ('AWAY','NOT_RETURNED') LIMIT 1) AS away
        FROM person p
        LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
       WHERE e.id IS NOT NULL
@@ -87,6 +89,7 @@ export function patientList(store: Store, ctx: WorkContext) {
       escalation: r.escalation ?? null,
       discharge: r.discharge ? { state: String(r.discharge).split('|')[0], expected: String(r.discharge).split('|')[1] || null } : null,
       transfer: r.transfer ? { state: String(r.transfer).split('|')[0], to: String(r.transfer).split('|')[1] } : null,
+      away: r.away ? { state: String(r.away).split('|')[0], returnBy: String(r.away).split('|')[1] } : null,
     };
   });
   // Board order: triage category as recorded by the triage nurse, untriaged first so they
@@ -177,6 +180,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     alerts: activeRaised(store, personId),
     restrictions: restrictionsNow(store, personId),
     diet: dietNow(store, personId),
+    leave: leaveNow(store, personId),
   };
 }
 
@@ -327,6 +331,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'location':
       body = locationFor(store, ctx, personId);
+      break;
+    case 'leave':
+      body = leaveFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

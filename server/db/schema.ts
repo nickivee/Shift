@@ -1248,5 +1248,57 @@ CREATE TABLE bed_move (
 CREATE INDEX bed_move_service ON bed_move(service_id, state);
 `,
   },
+  {
+    version: 18,
+    name: 'leave and temporary absence lifecycle',
+    sql: `
+-- Leave / temporary absence (Shared Lifecycle Object 248): leave considered or requested →
+-- clinical or legal authority where applicable → conditions → authorised → departure → current
+-- absence → expected return → return, or failure or delay to return → reassessment.
+-- Who may approve is organisational configuration. Leave for a person under a legal order is
+-- recorded but not approved in SHIFT until RR-LEAVE-001 is researched.
+CREATE TABLE leave_of_absence (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- OUTING | DAY | OVERNIGHT | WEEKEND | TRIAL | OTHER
+  purpose TEXT NOT NULL,
+  destination TEXT,
+  companion TEXT,                       -- who they are going with
+  contact TEXT,                         -- how to reach them while away
+  conditions TEXT,                      -- medicines, supports, limits and when to come back early
+  legal TEXT NOT NULL,                  -- NONE | ORDER | UNSURE
+  leave_at TEXT NOT NULL,               -- planned departure
+  return_by TEXT NOT NULL,              -- expected return, moved on when leave is extended
+  state TEXT NOT NULL,                  -- REQUESTED | APPROVED | DECLINED | AWAY | NOT_RETURNED | RETURNED | CANCELLED
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  approved_by TEXT,
+  approved_at TEXT,
+  departed_by TEXT,
+  departed_at TEXT,
+  departure_note TEXT,
+  returned_by TEXT,
+  returned_at TEXT,
+  return_note TEXT,                     -- reassessment on return
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX leave_person ON leave_of_absence(person_id, state);
+CREATE INDEX leave_service ON leave_of_absence(service_id, state);
+
+-- Anything that happens while the person is away: extended, contact made, not back on time.
+CREATE TABLE leave_event (
+  id TEXT PRIMARY KEY,
+  leave_id TEXT NOT NULL REFERENCES leave_of_absence(id),
+  kind TEXT NOT NULL,                   -- EXTENDED | CONTACT | NOT_RETURNED
+  note TEXT NOT NULL,
+  return_by TEXT,
+  by_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+`,
+  },
 ];
 

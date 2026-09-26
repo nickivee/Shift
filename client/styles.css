@@ -185,12 +185,12 @@ a { color: var(--line); }
 .link-btn { background: none; border: 0; color: var(--line); font-weight: 700; padding: 4px; text-decoration: underline; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-.stack { display: grid; gap: 10px; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .muted { color: var(--ink-soft); }
 .small { font-size: 14px; }
-label.field { display: grid; gap: 4px; font-weight: 600; }
+label.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; font-weight: 600; }
 input[type=text], input[type=number], input[type=password], input[type=search], input[type=date], input[type=datetime-local], select, textarea {
-  border: 2px solid #b8d6dd; border-radius: 12px; padding: 10px 12px; background: #fff; width: 100%;
+  border: 2px solid #b8d6dd; border-radius: 12px; padding: 10px 12px; background: #fff; width: 100%; min-width: 0;
 }
 textarea { min-height: 110px; resize: vertical; }
 input:focus, select:focus, textarea:focus { border-color: var(--line); outline: none; }
@@ -270,6 +270,14 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .patient-restriction svg { width: 26px; height: 26px; flex: none; }
 .patient-restriction b { display: block; font-size: 13px; letter-spacing: .6px; }
 .restriction-on { border-left: 6px solid #5a3fa0; }
+.patient-leave {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #2f6fb0, #1d4f86); color: #fff;
+  border-radius: 14px; padding: 8px 14px; border: 0; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-leave.late { background: linear-gradient(180deg, #c0392b, #922b21); }
+.patient-leave svg { width: 26px; height: 26px; flex: none; }
+.patient-leave b { display: block; font-size: 13px; letter-spacing: .6px; }
 .patient-diet {
   display: flex; align-items: center; gap: 10px;
   background: linear-gradient(180deg, #1f8a5b, #146343); color: #fff;
@@ -306,7 +314,7 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .live { border: 2px solid var(--line); border-radius: var(--radius); background: var(--card); display: flex; flex-direction: column; min-height: 62vh; overflow: hidden; }
 .live-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; }
 .live-title h2 { margin: 0; font-size: 22px; }
-.live-body { flex: 1; padding: 14px; overflow: auto; display: grid; gap: 12px; align-content: start; }
+.live-body { flex: 1; padding: 14px; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
 .live-hint { color: #9fb4bd; text-align: center; padding: 40px 10px; }
 
 @media (max-width: 760px) {

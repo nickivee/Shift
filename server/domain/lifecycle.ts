@@ -149,6 +149,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  leave: {
+    table: 'leave_of_absence',
+    initial: 'REQUESTED',
+    next: {
+      REQUESTED: ['APPROVED', 'DECLINED', 'CANCELLED'],
+      APPROVED: ['AWAY', 'CANCELLED'],
+      AWAY: ['RETURNED', 'NOT_RETURNED'],
+      NOT_RETURNED: ['RETURNED'],
+    },
+  },
   restriction: {
     table: 'restriction',
     initial: 'PROPOSED',
