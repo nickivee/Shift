@@ -276,7 +276,7 @@ export const KEY_BY_CODE = new Map(KEYS.map((k) => [k.code, k]));
 export interface RetrieveView {
   code: string;
   label: string;
-  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet';
+  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment';
   categories?: string[];
   key?: string;   // the .key a worker would use to add to this view
 }
@@ -328,6 +328,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'monitoring', label: 'Monitoring', kind: 'monitoring' },
   { code: 'restrictions', label: 'Restrictions', kind: 'restrictions' },
   { code: 'diet', label: 'Diet and meals', kind: 'diet' },
+  { code: 'equipment', label: 'Equipment', kind: 'equipment' },
 ];
 
 export const VIEW_BY_CODE = new Map(VIEWS.map((v) => [v.code, v]));

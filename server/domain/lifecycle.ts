@@ -129,6 +129,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       FOLLOW_UP: ['COMPLETED'],
     },
   },
+  equipment: {
+    table: 'equipment',
+    initial: 'AVAILABLE',
+    next: {
+      AVAILABLE: ['IN_USE', 'QUARANTINED', 'IN_REPAIR', 'RETIRED'],
+      IN_USE: ['AVAILABLE', 'QUARANTINED'],
+      QUARANTINED: ['IN_REPAIR', 'AVAILABLE', 'RETIRED'],
+      IN_REPAIR: ['AVAILABLE', 'RETIRED'],
+    },
+  },
   diet: {
     table: 'diet_order',
     initial: 'ACTIVE',
