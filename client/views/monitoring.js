@@ -68,7 +68,7 @@ function reviewDialog(m, options, reload) {
   const finding = h('textarea', { placeholder: 'What the monitoring shows' });
   const action = h('input', { type: 'text', placeholder: 'Optional: what is being done' });
   const next = h('input', { type: 'date', value: inDays(1) });
-  const change = planFields(options, m);
+  const change = planFields(options, { ...m, reviewDate: undefined });
   const continueBox = h('label', { class: 'field' }, 'Next review', next);
   const changeBox = h('div', { class: 'stack' }, h('p', { class: 'small muted' }, 'The current plan is kept in the history and the new one replaces it.'), change.body(false));
   const sync = () => { continueBox.hidden = outcome.value !== 'CONTINUE'; changeBox.hidden = outcome.value !== 'CHANGED'; };
