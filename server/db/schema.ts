@@ -1089,4 +1089,62 @@ CREATE TABLE restriction_review (
 );
 `,
   },
+  {
+    version: 15,
+    name: 'diet order lifecycle',
+    sql: `
+-- Nutrition / diet order (Shared Lifecycle Object 244): nutrition or swallowing requirement →
+-- assessment → authorised diet → preparation and provision → delivery → intake → tolerance →
+-- monitoring → review → modification (superseded, never overwritten) or cessation. Texture
+-- and drink levels use the IDDSI framework names. SHIFT sets no nutritional targets itself.
+CREATE TABLE diet_order (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  diets TEXT NOT NULL,                  -- comma-separated: STANDARD, DIABETIC, LOW_SALT, RENAL, HIGH_ENERGY, GLUTEN_FREE, VEGETARIAN, CULTURAL
+  texture TEXT NOT NULL,                -- IDDSI food level: 7 | 7EC | 6 | 5 | 4 | 3
+  drinks TEXT NOT NULL,                 -- IDDSI drink level: 0 | 1 | 2 | 3 | 4
+  assistance TEXT NOT NULL,             -- INDEPENDENT | SET_UP | SUPERVISION | FULL
+  supplements TEXT,
+  preferences TEXT,                     -- likes, dislikes, cultural and religious needs, in the person's words
+  assessment TEXT,                      -- the swallowing or nutrition assessment this rests on
+  reason TEXT NOT NULL,
+  review_date TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | SUPERSEDED | CEASED
+  ordered_by TEXT NOT NULL,
+  ordered_at TEXT NOT NULL,
+  supersedes_id TEXT REFERENCES diet_order(id),
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX diet_person ON diet_order(person_id, state);
+CREATE INDEX diet_service ON diet_order(service_id, state);
+
+-- Each meal: provided and delivered (or withheld), how much was eaten, how it was tolerated.
+CREATE TABLE meal_record (
+  id TEXT PRIMARY KEY,
+  diet_order_id TEXT NOT NULL REFERENCES diet_order(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  meal_date TEXT NOT NULL,
+  meal TEXT NOT NULL,                   -- BREAKFAST | LUNCH | DINNER | SNACK
+  outcome TEXT NOT NULL,                -- GIVEN | REFUSED | WITHHELD | AWAY
+  intake TEXT,                          -- ALL | MOST | HALF | LITTLE | NONE
+  tolerance TEXT,                       -- FINE | COUGHING | CHOKING | NAUSEA | OTHER
+  note TEXT,
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL
+);
+CREATE INDEX meal_person ON meal_record(person_id, meal_date);
+
+CREATE TABLE diet_review (
+  id TEXT PRIMARY KEY,
+  diet_order_id TEXT NOT NULL REFERENCES diet_order(id),
+  reviewed_by TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- CONTINUE | CHANGED | STOPPED
+  finding TEXT NOT NULL
+);
+`,
+  },
 ];

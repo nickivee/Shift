@@ -95,6 +95,8 @@ const PATHS = {
   referrals: 'M4 6h9v12H4zM13 12h7m-3-3 3 3-3 3',
   appointments: 'M4 6h16v14H4zM4 10h16M8 3v5m8-5v5m-6 7 2 2 4-4',
   monitoring: 'M3 12h4l2-6 4 12 2-6h6',
+  meals: 'M7 3v8m-2-8v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1-3 4-3 7h3v11',
+  diet: 'M7 3v8m-2-8v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1-3 4-3 7h3v11',
   restrictions: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM5.6 5.6l12.8 12.8',
   communications: 'M5 4h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z',
   alerts: 'M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6Zm-2 16a2 2 0 0 0 4 0',

@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 14;
+const SET = 15;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -334,6 +334,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 12) set12(store);
     if (at < 13) set13(store);
     if (at < 14) set14(store);
+    if (at < 15) set15(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1028,6 +1029,70 @@ function set14(store: Store): void {
       reason: 'Head injury on apixaban, CT pending', view: 'AGREED', review: today,
     });
     read(tom, 'mere', 40);
+  });
+}
+
+// Set 15: diets and meals. Elsie is on minced and moist food with mildly thick drinks and
+// coughed at dinner last night; Losa has a diabetic diet with her own food preferences; Frank
+// has a high-energy diet with supplements; Wiremu, Aroha and James have ward diets.
+function set15(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return todayLocal(d); })();
+  const at = (date: string, time: string) => new Date(`${date}T${time}:00`).toISOString();
+  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return todayLocal(d); };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const diet = (pid: string | null, service: string, by: string | null, mins: number, v: {
+    diets: string; texture: string; drinks: string; assistance: string; supplements?: string; preferences?: string; assessment?: string; reason: string; review?: string;
+  }) => {
+    if (!pid || !by) return null;
+    const id = newId();
+    store.insert('diet_order', {
+      id, person_id: pid, service_id: service, diets: v.diets, texture: v.texture, drinks: v.drinks, assistance: v.assistance, supplements: v.supplements ?? null,
+      preferences: v.preferences ?? null, assessment: v.assessment ?? null, reason: v.reason, review_date: v.review ?? null, state: 'ACTIVE', ordered_by: by, ordered_at: minsAgo(mins),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'diet', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: by, work_context_id: null, at: minsAgo(mins), reason: v.reason, transaction_id: null });
+    return { id, pid };
+  };
+  const meal = (d: { id: string; pid: string } | null, u: string, meal: string, time: string, intake: string, tolerance = 'FINE', note: string | null = null) => {
+    const w = who(u);
+    if (!d || !w) return;
+    store.insert('meal_record', {
+      id: newId(), diet_order_id: d.id, person_id: d.pid, meal_date: yesterday, meal, outcome: 'GIVEN', intake, tolerance, note, recorded_by: w, recorded_at: at(yesterday, time),
+    });
+  };
+  store.tx(() => {
+    const elsie = diet(person('ZZZ0067'), 'svc-arc', who('kate'), 60 * 24 * 14, {
+      diets: 'STANDARD', texture: '5', drinks: '2', assistance: 'SUPERVISION',
+      assessment: 'Speech-language therapist, 12 Sept: delayed swallow, coughs on thin drinks; safe on minced and moist with mildly thick drinks',
+      reason: 'Swallowing difficulty after a stroke', preferences: 'Likes porridge and custard; sits fully upright to eat', review: day(14),
+    });
+    meal(elsie, 'tama', 'BREAKFAST', '07:50', 'ALL');
+    meal(elsie, 'tama', 'LUNCH', '12:20', 'MOST');
+    meal(elsie, 'tama', 'DINNER', '17:25', 'HALF', 'COUGHING', 'Coughed on the mince twice; settled when sat more upright');
+    const losa = diet(person('ZZZ0083'), 'svc-arc', who('kate'), 60 * 24 * 30, {
+      diets: 'DIABETIC,CULTURAL', texture: '7', drinks: '0', assistance: 'SET_UP',
+      reason: 'Type 2 diabetes', preferences: 'Likes taro, fish and coconut; her family bring food on Sundays. Tongan is her first language.', review: day(30),
+    });
+    meal(losa, 'tama', 'BREAKFAST', '08:00', 'ALL');
+    meal(losa, 'tama', 'LUNCH', '12:15', 'HALF');
+    meal(losa, 'tama', 'DINNER', '17:20', 'MOST');
+    const frank = diet(person('ZZZ0075'), 'svc-arc', who('kate'), 60 * 24 * 3, {
+      diets: 'HIGH_ENERGY', texture: '7EC', drinks: '0', assistance: 'SET_UP', supplements: 'Two nutritional supplement drinks a day, mid-morning and mid-afternoon',
+      assessment: 'RN assessment: loose lower denture, tires chewing tough meat', reason: 'Weight loss and pressure injuries on both heels', review: day(7),
+    });
+    meal(frank, 'tama', 'BREAKFAST', '08:10', 'MOST');
+    meal(frank, 'tama', 'LUNCH', '12:30', 'LITTLE', 'OTHER', 'Said his heels hurt too much to sit up for long');
+    meal(frank, 'tama', 'DINNER', '17:30', 'HALF');
+    diet(person('ZZZ0016'), 'svc-genmed', who('hannah'), 60 * 72, {
+      diets: 'LOW_SALT', texture: '7', drinks: '0', assistance: 'INDEPENDENT', reason: 'Heart failure; fluid restriction as set in restrictions', preferences: 'No mushrooms',
+    });
+    diet(person('ZZZ9999'), 'svc-genmed', who('nicki'), 60 * 48, {
+      diets: 'DIABETIC', texture: '7', drinks: '0', assistance: 'INDEPENDENT', reason: 'Type 2 diabetes',
+    });
+    diet(person('ZZZ0040'), 'svc-genmed', who('hannah'), 60 * 30, {
+      diets: 'STANDARD,VEGETARIAN', texture: '7', drinks: '0', assistance: 'INDEPENDENT', reason: 'Ward diet; nil by mouth from midnight for his gastroscopy',
+    });
   });
 }
 

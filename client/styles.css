@@ -270,6 +270,19 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .patient-restriction svg { width: 26px; height: 26px; flex: none; }
 .patient-restriction b { display: block; font-size: 13px; letter-spacing: .6px; }
 .restriction-on { border-left: 6px solid #5a3fa0; }
+.patient-diet {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #1f8a5b, #146343); color: #fff;
+  border-radius: 14px; padding: 8px 14px; border: 0; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-diet svg { width: 26px; height: 26px; flex: none; }
+.patient-diet b { display: block; font-size: 13px; letter-spacing: .6px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; font-weight: 400; }
+.meals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.meal { border: 1px solid #cfe3e6; border-radius: 10px; padding: 6px 10px; font-size: 14px; }
+.meal.missing { border-color: #d99a1c; background: #fff6e0; }
+.meal.concern { border-color: #c0392b; background: #fdecea; }
+.texture { border-left: 4px solid #1f8a5b; }
 .synthetic { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 /* Live Workstation ------------------------------------------------------------------- */

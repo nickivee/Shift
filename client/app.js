@@ -21,6 +21,7 @@ import { alertsView } from './views/alerts.js';
 import { communicationsView } from './views/communications.js';
 import { monitoringView } from './views/monitoring.js';
 import { restrictionsView } from './views/restrictions.js';
+import { mealsView } from './views/diets.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -82,6 +83,7 @@ const routes = [
   [/^\/work\/communications$/, () => communicationsView(), { work: true }],
   [/^\/work\/monitoring$/, () => monitoringView(), { work: true }],
   [/^\/work\/restrictions$/, () => restrictionsView(), { work: true }],
+  [/^\/work\/meals$/, () => mealsView(), { work: true }],
   [/^\/notes$/, () => notesView()],
   [/^\/personal$/, () => personalView()],
   [/^\/personal\/([a-z-]+)$/, (m) => personalFunctionView(m[1])],
