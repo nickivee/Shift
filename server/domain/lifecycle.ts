@@ -129,6 +129,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       FOLLOW_UP: ['COMPLETED'],
     },
   },
+  monitoring: {
+    table: 'monitoring_plan',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
