@@ -10,6 +10,7 @@ import { forPerson as consultationsFor } from './consultations.ts';
 import { forPerson as referralsFor } from './referrals.ts';
 import { forPerson as appointmentsFor } from './appointments.ts';
 import { forPerson as alertsFor, activeRaised } from './alerts.ts';
+import { forPerson as communicationsFor } from './communications.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -301,6 +302,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'alerts':
       body = alertsFor(store, ctx, personId);
+      break;
+    case 'communications':
+      body = communicationsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

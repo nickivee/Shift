@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 11;
+const SET = 12;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -331,6 +331,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 9) set9(store);
     if (at < 10) set10(store);
     if (at < 11) set11(store);
+    if (at < 12) set12(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -872,4 +873,59 @@ function set11(store: Store): void {
     'Losa understands everyday English. For consent and care planning, her daughter Mele interprets or book an interpreter.', 60 * 24 * 30);
   raised(person('ZZZ0148'), 'svc-ed', who('mere'), 'CLINICAL', 'On apixaban with a head injury',
     'Takes apixaban for atrial fibrillation. Fell and hit his head at home.', 45);
+}
+
+// Set 12: communications. Ward K has tried Peggy's daughter twice about the discharge plan;
+// Wiremu's GP practice needs to hear about his held cilazapril; Residential Care has told
+// Losa's daughter about the care plan meeting and is waiting to confirm a time.
+function set12(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'communication', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const attempt = (id: string, by: string, mins: number, method: string, outcome: string, note: string | null = null) =>
+    store.insert('communication_attempt', { id: newId(), communication_id: id, attempted_by: by, attempted_at: minsAgo(mins), method, outcome, note });
+  const nicki = who('nicki');
+  const alex = who('alex');
+  const hannah = who('hannah');
+  const peggy = person('ZZZ0032');
+  const wiremu = person('ZZZ0016');
+  const losa = person('ZZZ0083');
+  if (alex && nicki && peggy) {
+    const id = newId();
+    store.insert('communication', {
+      id, person_id: peggy, service_id: 'svc-genmed', purpose: 'Tell her daughter the discharge plan and ask if she can be here for the home visit',
+      recipient_kind: 'WHANAU', recipient: 'Sarah Oliver (daughter)', contact: '021 555 0182', method: 'PHONE', sharing: 'AGREED', due_at: `${today}T15:00`,
+      state: 'ATTEMPTED', created_by: nicki, created_at: minsAgo(60 * 5),
+    });
+    step(id, null, 'REQUIRED', nicki, 60 * 5, 'Whānau: Sarah Oliver (daughter)');
+    attempt(id, nicki, 60 * 4, 'PHONE', 'NO_ANSWER');
+    step(id, 'REQUIRED', 'ATTEMPTED', nicki, 60 * 4, 'No answer');
+    attempt(id, alex, 60, 'PHONE', 'LEFT_MESSAGE', 'Asked her to call Ward K');
+    step(id, 'ATTEMPTED', 'ATTEMPTED', alex, 60, 'Left a message: Asked her to call Ward K');
+  }
+  if (hannah && wiremu) {
+    const id = newId();
+    store.insert('communication', {
+      id, person_id: wiremu, service_id: 'svc-genmed', purpose: 'Cilazapril held for high potassium. Ask the practice to recheck potassium and creatinine in one week before restarting.',
+      recipient_kind: 'EXTERNAL_PROVIDER', recipient: 'Te Awa Health Centre (GP practice)', contact: '07 555 0140', method: 'PHONE', sharing: 'AGREED',
+      state: 'REQUIRED', created_by: hannah, created_at: minsAgo(40),
+    });
+    step(id, null, 'REQUIRED', hannah, 40, 'Another provider: Te Awa Health Centre (GP practice)');
+  }
+  if (nicki && losa) {
+    const id = newId();
+    store.insert('communication', {
+      id, person_id: losa, service_id: 'svc-arc', purpose: 'Invite her daughter to the care plan meeting and agree a time',
+      recipient_kind: 'WHANAU', recipient: 'Mele Faleolo (daughter)', contact: '022 555 0917', method: 'PHONE', language: 'Tongan', sharing: 'AGREED',
+      state: 'FOLLOW_UP', created_by: nicki, created_at: minsAgo(60 * 26), conveyed: 'Care plan meeting is due this month. Explained what we will talk about.',
+      response: 'Happy to come. Will check her work roster and call back with a day.', follow_up: 'Confirm the meeting day with Mele',
+    });
+    step(id, null, 'REQUIRED', nicki, 60 * 26, 'Whānau: Mele Faleolo (daughter)');
+    attempt(id, nicki, 60 * 25, 'PHONE', 'CONVEYED');
+    step(id, 'REQUIRED', 'CONVEYED', nicki, 60 * 25, 'Phone');
+    step(id, 'CONVEYED', 'FOLLOW_UP', nicki, 60 * 25, 'Confirm the meeting day with Mele');
+  }
 }

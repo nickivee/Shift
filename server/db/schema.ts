@@ -945,4 +945,47 @@ CREATE INDEX alert_person ON alert(person_id, state);
 CREATE INDEX alert_object ON alert(rule, object_id);
 `,
   },
+  {
+    version: 12,
+    name: 'communication lifecycle',
+    sql: `
+-- Communication (Shared Lifecycle Object 224): communication required → intended recipient
+-- → method → attempted → successful / unsuccessful → information conveyed → response →
+-- follow-up required / completed. Every attempt is kept, including the ones that failed.
+CREATE TABLE communication (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  purpose TEXT NOT NULL,                 -- what needs to be conveyed
+  recipient_kind TEXT NOT NULL,          -- PATIENT | WHANAU | EXTERNAL_PROVIDER | TEAM
+  recipient TEXT NOT NULL,               -- who, in words
+  contact TEXT,                          -- how to reach them
+  method TEXT NOT NULL,                  -- PHONE | IN_PERSON | VIDEO | TEXT | EMAIL | LETTER
+  language TEXT,                         -- interpreter language, when one is needed
+  sharing TEXT,                          -- patient's view on sharing: AGREED | DECLINED | UNABLE | NOT_ASKED
+  due_at TEXT,                           -- local date and time, YYYY-MM-DDTHH:MM
+  state TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  conveyed TEXT,
+  response TEXT,
+  follow_up TEXT,
+  completed_by TEXT,
+  completed_at TEXT,
+  completion_note TEXT
+);
+CREATE INDEX communication_service ON communication(service_id, state);
+CREATE INDEX communication_person ON communication(person_id);
+
+CREATE TABLE communication_attempt (
+  id TEXT PRIMARY KEY,
+  communication_id TEXT NOT NULL REFERENCES communication(id),
+  attempted_by TEXT NOT NULL,
+  attempted_at TEXT NOT NULL,
+  method TEXT NOT NULL,
+  outcome TEXT NOT NULL,                 -- CONVEYED | NO_ANSWER | LEFT_MESSAGE | WRONG_CONTACT | NOT_AVAILABLE | DECLINED
+  note TEXT
+);
+`,
+  },
 ];
