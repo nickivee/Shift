@@ -1347,5 +1347,45 @@ CREATE TABLE preference_outcome (
 );
 `,
   },
+  {
+    version: 20,
+    name: 'decision-making capacity assessment lifecycle',
+    sql: `
+-- Decision-making capacity assessment (Shared Lifecycle Object 251): decision requiring
+-- assessment → reason for concern → functional assessment → communication and support measures
+-- → determination within the applicable framework → the decision and time it covers →
+-- reassessment. Capacity is presumed and is about one decision at one time. What follows in law
+-- from a finding (who then decides) is a research requirement (RR-CAP-001).
+CREATE TABLE capacity_assessment (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  decision TEXT NOT NULL,               -- the specific decision, in plain words
+  decision_kind TEXT NOT NULL,          -- TREATMENT | LIVING | DISCHARGE | PERSONAL_CARE | MONEY | OTHER
+  concern TEXT NOT NULL,                -- why capacity for this decision is in question
+  state TEXT NOT NULL,                  -- RAISED | DETERMINED | WITHDRAWN | SUPERSEDED
+  raised_by TEXT NOT NULL,
+  raised_at TEXT NOT NULL,
+  understand TEXT,                      -- YES | NO | UNSURE: understands the information relevant to the decision
+  retain TEXT,                          -- retains it long enough to decide
+  weigh TEXT,                           -- uses or weighs it
+  communicate TEXT,                     -- communicates a decision by any means
+  findings TEXT,                        -- what was asked and what the person said
+  supports TEXT,                        -- communication and support measures used
+  present TEXT,                         -- who else was there
+  determination TEXT,                   -- HAS | LACKS | NOT_YET
+  determination_note TEXT,
+  assessed_by TEXT,
+  assessed_at TEXT,
+  reassess_by TEXT,
+  supersedes_id TEXT REFERENCES capacity_assessment(id),
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX capacity_person ON capacity_assessment(person_id, state);
+CREATE INDEX capacity_service ON capacity_assessment(service_id, state);
+`,
+  },
 ];
 

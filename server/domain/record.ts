@@ -18,6 +18,7 @@ import { forPerson as equipmentFor } from './equipment.ts';
 import { forPerson as locationFor } from './locations.ts';
 import { forPerson as leaveFor, current as leaveNow } from './leave.ts';
 import { forPerson as preferencesFor, current as preferencesNow } from './preferences.ts';
+import { forPerson as capacityFor, current as capacityNow } from './capacity.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -183,6 +184,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     diet: dietNow(store, personId),
     leave: leaveNow(store, personId),
     preferences: preferencesNow(store, personId),
+    capacity: capacityNow(store, personId),
   };
 }
 
@@ -339,6 +341,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'preferences':
       body = preferencesFor(store, ctx, personId);
+      break;
+    case 'capacity':
+      body = capacityFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

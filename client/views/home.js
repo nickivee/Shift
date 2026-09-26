@@ -25,6 +25,7 @@ const DESCRIPTIONS = {
   alerts: () => 'Alerts from the record for your role, and alerts staff have raised.',
   communications: () => 'People your service needs to contact, every attempt, and follow-ups.',
   monitoring: () => 'Monitoring that is overdue or due soon for your patients.',
+  capacity: () => 'Capacity concerns waiting for you to assess, and reassessments due.',
   preferences: () => 'What matters to the people you are caring for, in their words, and any new to you.',
   absences: () => `Who is away on leave and when they are due back, and leave waiting to be approved.`,
   moves: () => 'Patients who need to move bed, beds held for them, and each bed\'s history.',
@@ -36,7 +37,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity',
 };
 
 export function openTab(tabId) {
@@ -66,6 +67,7 @@ export async function homeView() {
     if (want.includes('alerts')) jobs.push(get('/api/work/alerts/count').then((d) => (counts.alerts = d.open)));
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
+    if (want.includes('capacity')) jobs.push(get('/api/work/capacity').then((d) => (counts.capacity = d.assessments.filter((c) => c.state === 'RAISED' || c.reassessDue).length)));
     if (want.includes('preferences')) jobs.push(get('/api/work/preferences').then((d) => (counts.preferences = d.preferences.filter((p) => !p.read || p.reviewDue).length)));
     if (want.includes('absences')) jobs.push(get('/api/work/leave').then((d) => (counts.absences = d.leave.filter((l) => l.state === 'NOT_RETURNED' || l.overdue || l.actions.includes('approve') || l.actions.includes('depart')).length)));
     if (want.includes('moves')) jobs.push(get('/api/work/moves').then((d) => (counts.moves = d.moves.length)));
