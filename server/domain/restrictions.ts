@@ -143,6 +143,15 @@ export function current(store: Store, personId: string) {
     .map((r) => ({ id: r.id, label: label(r), detail: r.detail }));
 }
 
+// Nil by mouth in force now, for anything that gives food or drink.
+export function nilByMouth(store: Store, personId: string) {
+  expire(store);
+  return store.get<{ detail: string; until: string | null }>(
+    "SELECT detail, effective_until AS until FROM restriction WHERE person_id = ? AND kind = 'NBM' AND state = 'ACTIVE' AND effective_from <= ? ORDER BY effective_from DESC LIMIT 1",
+    personId, now(),
+  ) ?? null;
+}
+
 interface Fields {
   kind?: string; side?: string; detail?: string; instructions?: string; reason?: string; patientView?: string;
   effectiveFrom?: string; effectiveUntil?: string; reviewDate?: string;

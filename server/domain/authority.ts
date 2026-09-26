@@ -36,6 +36,8 @@ export type Operation =
   | { op: 'COMMUNICATION'; personId: string }
   | { op: 'MONITORING_PLAN'; personId: string }
   | { op: 'RESTRICTION'; personId: string }
+  | { op: 'DIET_ORDER'; personId: string }
+  | { op: 'MEAL_RECORD'; personId: string }
   | { op: 'RESTRICTION_CHECK'; personId: string }
   | { op: 'COMMUNICATION_ACT'; serviceId: string }
   | { op: 'ALERT_RECEIVE'; serviceId: string; capability: string }
@@ -173,6 +175,15 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'restriction.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can set restrictions`));
+    case 'DIET_ORDER':
+      // Only a service caring for the person orders their diet.
+      return need(ctx, 'diet.order') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can order their diet`));
+    case 'MEAL_RECORD':
+      return need(ctx, 'meal.record') ?? (rel === 'ENCOUNTER'
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Meals are recorded by the service where this ${ctx.subjectLabel.toLowerCase()} is staying`));
     case 'RESTRICTION_CHECK':
       return need(ctx, 'restriction.check') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])

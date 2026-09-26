@@ -129,6 +129,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       FOLLOW_UP: ['COMPLETED'],
     },
   },
+  diet: {
+    table: 'diet_order',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
+  },
   restriction: {
     table: 'restriction',
     initial: 'PROPOSED',

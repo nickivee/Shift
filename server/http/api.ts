@@ -19,6 +19,7 @@ import * as alerts from '../domain/alerts.ts';
 import * as communications from '../domain/communications.ts';
 import * as monitoring from '../domain/monitoring.ts';
 import * as restrictions from '../domain/restrictions.ts';
+import * as diets from '../domain/diets.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -162,6 +163,16 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
   }));
+  r.on('GET', '/api/work/meals', (req) => diets.list(store, work(req)));
+  const dietFields = (b: Record<string, unknown>) => ({
+    diets: str(b.diets), texture: str(b.texture), drinks: str(b.drinks), assistance: str(b.assistance), supplements: str(b.supplements),
+    preferences: str(b.preferences), assessment: str(b.assessment), reason: str(b.reason), reviewDate: str(b.reviewDate),
+  });
+  r.on('POST', '/api/work/patients/:id/diet', (req) => diets.order(store, work(req), req.params.id, dietFields(req.body)));
+  r.on('POST', '/api/work/diets/:id/meal', (req) => diets.meal(store, work(req), req.params.id, {
+    meal: str(req.body.meal), outcome: str(req.body.outcome), intake: str(req.body.intake), tolerance: str(req.body.tolerance), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/diets/:id/review', (req) => diets.review(store, work(req), req.params.id, { ...dietFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding) }));
   r.on('GET', '/api/work/restrictions', (req) => restrictions.list(store, work(req)));
   const restrictionFields = (b: Record<string, unknown>) => ({
     kind: str(b.kind), side: str(b.side), detail: str(b.detail), instructions: str(b.instructions), reason: str(b.reason), patientView: str(b.patientView),

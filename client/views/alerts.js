@@ -16,9 +16,10 @@ const SOURCE = {
   CAREPLAN_REVIEW_OVERDUE: 'From the care plan: the review date has passed.',
   MONITORING_OVERDUE: 'From the monitoring plan: nothing has been recorded since it was due. Recording it closes this alert.',
   RESTRICTION_REVIEW_OVERDUE: 'From restrictions: the review date has passed. Reviewing it closes this alert.',
+  SWALLOW_CONCERN: 'From meals: coughing or choking was recorded since the diet was last reviewed. Reviewing the diet closes this alert.',
 };
 const OPEN = ['GENERATED', 'VISIBLE', 'ACKNOWLEDGED', 'ACTIONED'];
-const WHERE = { RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan', MONITORING_OVERDUE: 'monitoring', RESTRICTION_REVIEW_OVERDUE: 'restrictions' };
+const WHERE = { RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan', MONITORING_OVERDUE: 'monitoring', RESTRICTION_REVIEW_OVERDUE: 'restrictions', SWALLOW_CONCERN: 'diet' };
 
 function steps(a) {
   if (a.state === 'EXPIRED') return null;

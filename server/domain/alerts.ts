@@ -7,6 +7,7 @@ import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 import { overdue as monitoringOverdue } from './monitoring.ts';
 import { reviewOverdue as restrictionReviewOverdue } from './restrictions.ts';
+import { swallowConcerns } from './diets.ts';
 
 // Alert (Shared Lifecycle Object 218):
 //   trigger condition → alert generated → visible to an authorised recipient →
@@ -54,6 +55,10 @@ const RULES: Rule[] = [
   {
     rule: 'RESTRICTION_REVIEW_OVERDUE', objectType: 'restriction', capability: 'restriction.manage',
     current: (store, serviceId) => restrictionReviewOverdue(store, serviceId),
+  },
+  {
+    rule: 'SWALLOW_CONCERN', objectType: 'diet_order', capability: 'diet.order',
+    current: (store, serviceId) => swallowConcerns(store, serviceId),
   },
 ];
 
