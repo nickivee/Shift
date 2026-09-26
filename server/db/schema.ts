@@ -1590,4 +1590,42 @@ CREATE TABLE coding_query (
 CREATE INDEX coding_query_service ON coding_query(service_id, state);
 `,
   },
+  {
+    version: 25,
+    name: 'patient-reported information lifecycle',
+    sql: `
+-- Patient-reported information (Shared Lifecycle Object 256): patient report → source/time/
+-- context → structured or narrative information → clinical review where applicable →
+-- incorporated into assessment/decision where appropriate → updated/corrected by source.
+-- What the person said is kept in their words. A later update or correction from them replaces
+-- it as current and the earlier version is kept (HIPC 2020 rule 7, LAW-NZ-002).
+CREATE TABLE patient_report (
+  id TEXT PRIMARY KEY,
+  lineage_id TEXT NOT NULL,             -- the same report across updates and corrections
+  version INTEGER NOT NULL,
+  supersedes TEXT REFERENCES patient_report(id),
+  change_kind TEXT,                     -- UPDATE (things changed) | CORRECTION (it was wrong)
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  source TEXT NOT NULL,                 -- PATIENT | WHANAU | FORM
+  source_name TEXT,                     -- who, when not the person themselves
+  how TEXT NOT NULL,                    -- IN_PERSON | PHONE | VIDEO | WRITTEN | INTERPRETER
+  topic TEXT NOT NULL,                  -- SYMPTOM | PAIN | SLEEP | MOOD | EATING | TOILETING | MOBILITY | MEDICINES | GOALS | WORRIES | OTHER
+  words TEXT NOT NULL,                  -- in their own words
+  rating INTEGER,                       -- 0-10, where the topic has one
+  about_when TEXT,                      -- the time it is about, e.g. "last night"
+  reported_at TEXT NOT NULL,            -- when they said it
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  needs_review INTEGER NOT NULL,
+  state TEXT NOT NULL,                  -- RECORDED | REVIEWED | SUPERSEDED
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_outcome TEXT,                  -- INCORPORATED | NOTED
+  review_note TEXT
+);
+CREATE INDEX patient_report_person ON patient_report(person_id, state);
+CREATE INDEX patient_report_service ON patient_report(service_id, needs_review, state);
+`,
+  },
 ];

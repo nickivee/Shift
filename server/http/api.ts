@@ -26,6 +26,7 @@ import * as whanau from '../domain/whanau.ts';
 import * as access from '../domain/access.ts';
 import * as external from '../domain/external.ts';
 import * as coding from '../domain/coding.ts';
+import * as reports from '../domain/reports.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -204,6 +205,16 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/external/:id/:action', (req) => external.act(store, work(req), req.params.id, req.params.action, {
     ...receivedFields(req.body), personId: str(req.body.personId), summary: str(req.body.summary), outcome: str(req.body.outcome),
     outcomeNote: str(req.body.outcomeNote), note: str(req.body.note),
+  }));
+  const reportFields = (b: Record<string, unknown>) => ({
+    source: str(b.source), sourceName: str(b.sourceName), how: str(b.how), topic: str(b.topic), words: str(b.words),
+    rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
+    needsReview: b.needsReview === true || b.needsReview === 'true',
+  });
+  r.on('GET', '/api/work/reports', (req) => reports.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/reports', (req) => reports.record(store, work(req), req.params.id, reportFields(req.body)));
+  r.on('POST', '/api/work/reports/:id/:action', (req) => reports.act(store, work(req), req.params.id, req.params.action, {
+    ...reportFields(req.body), outcome: str(req.body.outcome), note: str(req.body.note),
   }));
   r.on('GET', '/api/work/coding', (req) => coding.list(store, work(req)));
   r.on('GET', '/api/work/coding/queries', (req) => coding.queries(store, work(req)));

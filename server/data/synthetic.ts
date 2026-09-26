@@ -23,7 +23,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 24;
+const SET = 25;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -345,6 +345,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 22) set22(store);
     if (at < 23) set23(store);
     if (at < 24) set24(store, password);
+    if (at < 25) set25(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1633,6 +1634,69 @@ function set24(store: Store, password: string): void {
       step('coding', elsie.cid, 'IN_PROGRESS', 'FINALISED', lee, ago(10 * DAY), 'Coding finalised');
       entry(elsie.cid, 'ICD10AM', 'S51.8', 'Open wound of other parts of forearm', 'PRINCIPAL', elsie.ids[0], 11 * DAY);
       entry(elsie.cid, 'ICD10AM', 'W19', 'Unspecified fall', 'ADDITIONAL', elsie.ids[0], 11 * DAY);
+    }
+  });
+}
+
+// Patient-reported information (Object 256): what people told staff, in their words.
+function set25(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'report', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Said {
+    nhi: string; service: string; topic: string; words: string; u: string; mins: number; source?: string; sourceName?: string; how?: string;
+    rating?: number; about?: string; review?: boolean; reviewed?: { u: string; outcome: string; note?: string; mins: number };
+    lineage?: string; version?: number; supersedes?: string; change?: string; state?: string;
+  }
+  const add = (x: Said) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return null;
+    const id = newId();
+    const rv = x.reviewed ? who(x.reviewed.u) : null;
+    const state = x.state ?? (x.reviewed ? 'REVIEWED' : 'RECORDED');
+    store.insert('patient_report', {
+      id, lineage_id: x.lineage ?? id, version: x.version ?? 1, supersedes: x.supersedes ?? null, change_kind: x.change ?? null, person_id: pid, service_id: x.service,
+      source: x.source ?? 'PATIENT', source_name: x.sourceName ?? null, how: x.how ?? 'IN_PERSON', topic: x.topic, words: x.words, rating: x.rating ?? null,
+      about_when: x.about ?? null, reported_at: ago(x.mins), recorded_by: by, recorded_at: ago(x.mins - 5), needs_review: x.review || (x.rating ?? 0) >= 7 ? 1 : 0,
+      state, reviewed_by: rv, reviewed_at: x.reviewed ? ago(x.reviewed.mins) : null, review_outcome: x.reviewed?.outcome ?? null, review_note: x.reviewed?.note ?? null,
+    });
+    step(id, null, 'RECORDED', by, ago(x.mins - 5), x.words.slice(0, 200));
+    if (x.reviewed && rv) step(id, 'RECORDED', 'REVIEWED', rv, ago(x.reviewed.mins), x.reviewed.note ?? 'Read; no change to care');
+    return id;
+  };
+  store.tx(() => {
+    add({
+      nhi: 'ZZZ0032', service: 'svc-genmed', topic: 'PAIN', rating: 7, about: 'the last two nights', u: 'nicki', mins: 50,
+      words: 'My left hip aches at night, worse when I lie on that side. The tablets at tea time wear off by about 2 o\'clock.',
+    });
+    add({
+      nhi: 'ZZZ0016', service: 'svc-genmed', topic: 'GOALS', source: 'WHANAU', sourceName: 'Rawiri, son', how: 'PHONE', u: 'nicki', mins: 60 * 20,
+      words: 'Dad really wants to be home for the kapa haka at his mokopuna\'s school on the 10th. It matters more to him than anything.',
+      reviewed: { u: 'hannah', outcome: 'INCORPORATED', note: 'Discharge planning aims for before the 10th; told Rawiri.', mins: 60 * 18 },
+    });
+    add({
+      nhi: 'ZZZ9999', service: 'svc-genmed', topic: 'SLEEP', about: 'last night', u: 'nicki', mins: 60 * 9, review: true,
+      words: 'I can\'t sleep with the oxygen tubing. It dries my nose right out and I wake up every hour.',
+      reviewed: { u: 'hannah', outcome: 'INCORPORATED', note: 'Humidified oxygen at night; nasal gel added to the chart.', mins: 60 * 7 },
+    });
+    add({
+      nhi: 'ZZZ0083', service: 'svc-arc', topic: 'EATING', how: 'INTERPRETER', u: 'kate', mins: 60 * 30, review: true,
+      words: 'The food has no taste. I would eat more if my family could bring in food from home, like they do at church.',
+    });
+    add({ nhi: 'ZZZ0075', service: 'svc-arc', topic: 'MOOD', u: 'tama', mins: 60 * 4, words: 'I miss my dog Bess. My neighbour has her now. Some days that is the hardest thing.' });
+    const first = add({
+      nhi: 'ZZZ0091', service: 'svc-arc', topic: 'MEDICINES', u: 'tama', mins: 60 * 24 * 3, state: 'SUPERSEDED',
+      words: 'I take my inhaler twice a day.',
+    });
+    if (first) {
+      add({
+        nhi: 'ZZZ0091', service: 'svc-arc', topic: 'MEDICINES', u: 'kate', mins: 60 * 5, review: true, lineage: first, version: 2, supersedes: first, change: 'CORRECTION',
+        words: 'I only use the brown inhaler in the morning. I got muddled before; the blue one is just for when I\'m puffed, and I\'ve needed it most days this week.',
+      });
+      step(first, 'RECORDED', 'SUPERSEDED', who('kate')!, ago(60 * 5 - 5), 'Replaced by their correction');
     }
   });
 }

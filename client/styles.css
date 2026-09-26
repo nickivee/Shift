@@ -277,6 +277,8 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 }
 .patient-whanau svg { width: 24px; height: 24px; flex: none; color: #2d6a4f; }
 .patient-whanau b { display: block; font-size: 13px; letter-spacing: .6px; color: #2d6a4f; }
+.said { margin: 0; padding: 8px 12px; border-left: 4px solid #1f5f8b; background: var(--tint); border-radius: 0 10px 10px 0; font-style: italic; white-space: pre-wrap; }
+.report-review { border-left: 6px solid #c0392b; }
 .coding-row { text-align: left; width: 100%; }
 .coding-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 760px) { .coding-grid { grid-template-columns: minmax(0, 1fr); } }
