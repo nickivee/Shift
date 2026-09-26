@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 21;
+const SET = 22;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -341,6 +341,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 19) set19(store);
     if (at < 20) set20(store);
     if (at < 21) set21(store);
+    if (at < 22) set22(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1381,5 +1382,58 @@ function set21(store: Store): void {
     add({ nhi: 'ZZZ0024', name: 'Ana Tuilagi', relationship: 'PARTNER', note: 'Wife', phone: '021 555 0124', first: true, wishes: 'ASKED', share: 'ALL', involve: 'Results and big decisions', by: 'hannah', mins: 60 * 20 });
     add({ nhi: 'ZZZ0083', name: 'Mele Faleolo', relationship: 'CHILD', note: 'Daughter', phone: '021 555 0183', first: true, wishes: 'ASKED', share: 'ALL', involve: 'Anything important, and to interpret', by: 'nicki', mins: 60 * 24 * 50 });
     add({ nhi: 'ZZZ0059', name: 'Aroha Hēnare', relationship: 'GRANDCHILD', note: 'Mokopuna', phone: '022 555 0159', wishes: 'NOT_YET', share: 'UNKNOWN', by: 'nicki', mins: 60 * 24 * 3 });
+  });
+}
+
+// Interpreters and communication needs (Object 253).
+function set22(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  const need = (nhi: string, kind: string, language: string | null, detail: string, when: string, u: string, mins: number, reviewDate?: string) => {
+    const pid = person(nhi);
+    const by = who(u);
+    if (!pid || !by) return null;
+    const id = newId();
+    store.insert('comm_need', { id, person_id: pid, kind, language, detail, when_needed: when, review_date: reviewDate ?? null, state: 'ACTIVE', recorded_by: by, recorded_at: ago(mins) });
+    step('commneed', id, null, 'ACTIVE', by, ago(mins), detail);
+    return { id, pid, by };
+  };
+  interface Booking { purpose: string; mode: string; neededIn: number; service: string; u: string; mins: number; provider?: string; reference?: string; interpreter?: string; outcome?: string; family?: boolean; state: string }
+  const book = (n: { id: string; pid: string } | null, x: Booking) => {
+    const by = who(x.u);
+    if (!n || !by) return;
+    const id = newId();
+    const booked = x.state !== 'REQUESTED';
+    const closed = ['PROVIDED', 'NOT_PROVIDED'].includes(x.state);
+    const needed = new Date(Date.now() + x.neededIn * 60_000).toISOString();
+    store.insert('interpreter_booking', {
+      id, need_id: n.id, person_id: n.pid, service_id: x.service, purpose: x.purpose, mode: x.mode, needed_at: needed, state: x.state,
+      requested_by: by, requested_at: ago(x.mins), provider: x.provider ?? null, reference: x.reference ?? null, interpreter: x.interpreter ?? null,
+      booked_by: booked ? by : null, booked_at: booked ? ago(x.mins - 30) : null, outcome: x.outcome ?? null, family_interpreted: x.family ? 1 : 0,
+      closed_by: closed ? by : null, closed_at: closed ? needed : null,
+    });
+    step('interpreter', id, null, 'REQUESTED', by, ago(x.mins), x.purpose);
+    if (booked) step('interpreter', id, 'REQUESTED', 'BOOKED', by, ago(x.mins - 30), x.provider ?? 'Arranged on the spot');
+    if (closed) step('interpreter', id, 'BOOKED', x.state, by, needed, x.outcome ?? '');
+  };
+  store.tx(() => {
+    const losa = need('ZZZ0083', 'INTERPRETER', 'Tongan', 'Speaks some English day to day but Tongan for anything about her health. Mele (daughter) often helps.', 'IMPORTANT', 'nicki', 60 * 24 * 58);
+    book(losa, {
+      purpose: 'Six-monthly care review with Losa and her family', mode: 'IN_PERSON', neededIn: 60 * 26, service: 'svc-arc', u: 'kate', mins: 60 * 3, state: 'REQUESTED',
+    });
+    book(losa, {
+      purpose: 'Admission meeting', mode: 'PHONE', neededIn: -60 * 24 * 57, service: 'svc-arc', u: 'nicki', mins: 60 * 24 * 58, state: 'PROVIDED', family: true,
+      outcome: 'Mele interpreted. The phone interpreter could not be reached after two tries and Losa asked for Mele. Losa agreed the care plan.',
+    });
+    const wiremu = need('ZZZ0016', 'INTERPRETER', 'Te reo Māori', 'Wiremu and Rawiri want kōrero about big decisions in te reo Māori.', 'IMPORTANT', 'nicki', 60 * 24 * 3);
+    book(wiremu, {
+      purpose: 'Whānau hui with Dr Li about going home', mode: 'IN_PERSON', neededIn: 60 * 5, service: 'svc-genmed', u: 'nicki', mins: 60 * 20, state: 'BOOKED',
+      provider: 'Te Awa Hospital Māori health service', reference: 'KH-2291', interpreter: 'Matua Hemi',
+    });
+    need('ZZZ0075', 'HEARING', null, 'Hearing aid in the left ear; check the battery each morning. Face Frank and speak slowly; he lip-reads.', 'ALWAYS', 'kate', 60 * 24 * 140, new Date(Date.now() - 60 * 60_000 * 24).toISOString().slice(0, 10));
+    need('ZZZ0067', 'VISION', null, 'Macular degeneration. Large print only, and tell Elsie who you are when you come in.', 'ALWAYS', 'kate', 60 * 24 * 600);
   });
 }

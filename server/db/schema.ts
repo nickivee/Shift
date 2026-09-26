@@ -1437,5 +1437,56 @@ CREATE TABLE support_contact (
 CREATE INDEX support_contact_person ON support_contact(support_person_id, at);
 `,
   },
+  {
+    version: 22,
+    name: 'interpreter and communication accessibility lifecycle',
+    sql: `
+-- Interpreter / communication accessibility requirement (Shared Lifecycle Object 253): need
+-- identified → requirement recorded → service arrangement → interpreter or support booked →
+-- provided → outcome → continuing requirement reviewed. Code of Rights Right 5 (LAW-NZ-005).
+CREATE TABLE comm_need (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  kind TEXT NOT NULL,                   -- INTERPRETER | NZSL | HEARING | VISION | SPEECH | UNDERSTANDING | READING | OTHER
+  language TEXT,                        -- for a spoken-language interpreter
+  detail TEXT NOT NULL,                 -- what helps, in plain words
+  when_needed TEXT NOT NULL,            -- ALWAYS | IMPORTANT | SOMETIMES
+  review_date TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | ENDED
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_reason TEXT
+);
+CREATE INDEX comm_need_person ON comm_need(person_id, state);
+
+CREATE TABLE interpreter_booking (
+  id TEXT PRIMARY KEY,
+  need_id TEXT NOT NULL REFERENCES comm_need(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  purpose TEXT NOT NULL,
+  mode TEXT NOT NULL,                   -- IN_PERSON | PHONE | VIDEO
+  needed_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- REQUESTED | BOOKED | PROVIDED | NOT_PROVIDED | CANCELLED
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  provider TEXT,                        -- interpreting service
+  reference TEXT,                       -- booking reference
+  interpreter TEXT,                     -- interpreter's name, when known
+  booked_by TEXT,
+  booked_at TEXT,
+  outcome TEXT,                         -- what happened, whether it was understood
+  family_interpreted INTEGER NOT NULL DEFAULT 0,
+  closed_by TEXT,
+  closed_at TEXT
+);
+CREATE INDEX interpreter_booking_service ON interpreter_booking(service_id, state);
+CREATE INDEX interpreter_booking_person ON interpreter_booking(person_id, needed_at);
+`,
+  },
 ];
 
