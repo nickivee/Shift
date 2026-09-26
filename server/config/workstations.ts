@@ -25,7 +25,8 @@ export type Capability =
   | 'consult.request'
   | 'consult.respond'
   | 'wound.identify'
-  | 'wound.manage';
+  | 'wound.manage'
+  | 'careplan.manage';
 
 export interface HomeCard {
   id: string;
@@ -70,6 +71,7 @@ const CARD = {
   escalations: { id: 'escalations', label: 'Escalations', required: true },
   consults: { id: 'consults', label: 'Consultations', required: true },
   wounds: { id: 'wounds', label: 'Wound reviews', required: true },
+  careplans: { id: 'careplans', label: 'Care plan reviews', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -79,7 +81,7 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Aged residential care - RN',
     evidenceStatus: 'Ngā Paerewa/community specifications; disability funding boundaries may sit outside health',
     profession: 'Registered Nurse',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'escalation.raise', 'escalation.respond', 'wound.identify', 'wound.manage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'escalation.raise', 'escalation.respond', 'wound.identify', 'wound.manage', 'careplan.manage'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.cares', '.behaviour', '.change', '.family', '.assess', '.review', '.progress', '.task'],
     views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'nutrition', 'cares', 'behaviour', 'changes', 'family', 'assess', 'review', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'escalations'],
     tabs: [
@@ -96,7 +98,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'family', label: 'Family' },
       { id: 'review', label: 'Review' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.escalations, CARD.wounds],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.escalations, CARD.wounds, CARD.careplans],
   },
   {
     roleKey: 'arc-caregiver',
@@ -127,7 +129,7 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - RN',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Registered Nurse',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage', 'discharge.plan', 'discharge.complete', 'escalation.raise', 'wound.identify', 'wound.manage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage', 'discharge.plan', 'discharge.complete', 'escalation.raise', 'wound.identify', 'wound.manage', 'careplan.manage'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.assess', '.change', '.family', '.progress', '.task'],
     views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers', 'discharge', 'escalations'],
     tabs: [
@@ -145,7 +147,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'handover', label: 'Handover' },
       { id: 'discharge', label: 'Discharge' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.wounds],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.wounds, CARD.careplans],
     escalatesTo: ['genmed-physician'],
   },
   {

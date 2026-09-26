@@ -785,4 +785,32 @@ CREATE TABLE wound_assessment (
 );
 `,
   },
+  {
+    version: 8,
+    name: 'care plan lifecycle',
+    sql: `
+-- Care plan (Shared Lifecycle Object 216): need → goal → interventions → responsible →
+-- review date → reassessment → modification (superseded, never overwritten) →
+-- achieved / ceased.
+ALTER TABLE care_plan_item ADD COLUMN service_id TEXT REFERENCES service(id);
+ALTER TABLE care_plan_item ADD COLUMN author_id TEXT;
+ALTER TABLE care_plan_item ADD COLUMN supersedes_id TEXT REFERENCES care_plan_item(id);
+ALTER TABLE care_plan_item ADD COLUMN closed_by TEXT;
+ALTER TABLE care_plan_item ADD COLUMN closed_at TEXT;
+ALTER TABLE care_plan_item ADD COLUMN close_reason TEXT;
+UPDATE care_plan_item SET service_id = (
+  SELECT e.service_id FROM encounter e WHERE e.person_id = care_plan_item.person_id AND e.state = 'ACTIVE' ORDER BY e.started_at DESC LIMIT 1
+) WHERE service_id IS NULL;
+
+CREATE TABLE care_plan_review (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES care_plan_item(id),
+  reviewed_by TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- CONTINUE | MODIFIED | ACHIEVED | CEASED
+  evaluation TEXT NOT NULL,
+  next_review TEXT
+);
+`,
+  },
 ];

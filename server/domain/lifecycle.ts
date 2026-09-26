@@ -76,6 +76,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       PLANNED: ['PLANNED', 'HEALED', 'CLOSED'],
     },
   },
+  careplan: {
+    table: 'care_plan_item',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ACHIEVED', 'CEASED', 'SUPERSEDED'] },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',

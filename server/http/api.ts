@@ -14,6 +14,7 @@ import * as discharges from '../domain/discharges.ts';
 import * as escalations from '../domain/escalations.ts';
 import * as consultations from '../domain/consultations.ts';
 import * as wounds from '../domain/wounds.ts';
+import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
@@ -137,6 +138,9 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/transfers', (req) => transfers.request(store, work(req), req.params.id, { toServiceId: str(req.body.toServiceId), reason: str(req.body.reason), priority: str(req.body.priority) }));
   r.on('GET', '/api/work/transfers/:id/beds', (req) => transfers.bedsFor(store, work(req), req.params.id));
   r.on('POST', '/api/work/transfers/:id/:action', (req) => transfers.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), bedId: str(req.body.bedId) }));
+  r.on('GET', '/api/work/careplan-reviews', (req) => careplans.due(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/careplan', (req) => careplans.add(store, work(req), req.params.id, req.body as never));
+  r.on('POST', '/api/work/careplan/:id/review', (req) => careplans.review(store, work(req), req.params.id, req.body as never));
   r.on('GET', '/api/work/wounds', (req) => wounds.reviews(store, work(req)));
   r.on('POST', '/api/work/patients/:id/wounds', (req) => wounds.identify(store, work(req), req.params.id, { site: str(req.body.site), kind: str(req.body.kind), description: str(req.body.description) }));
   r.on('POST', '/api/work/wounds/:id/assess', (req) => wounds.assess(store, work(req), req.params.id, req.body as Record<string, unknown>));

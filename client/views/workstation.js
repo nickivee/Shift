@@ -6,6 +6,7 @@ import { dischargePanel } from './discharges.js';
 import { escalationsPanel } from './escalations.js';
 import { consultationsPanel } from './consultations.js';
 import { woundsPanel } from './wounds.js';
+import { carePlanPanel } from './careplans.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -320,10 +321,7 @@ export async function workstationView(personId, initialView) {
         h('thead', {}, h('tr', {}, ['Type', 'Substance', 'Reaction', 'Severity', 'State', 'Recorded'].map((c) => h('th', {}, c)))),
         h('tbody', {}, d.allergies.map((a) => h('tr', {}, h('td', {}, titleCase(a.kind)), h('td', {}, a.substance ?? '—'), h('td', {}, a.reaction ?? ''), h('td', {}, a.severity ?? ''), h('td', {}, titleCase(a.state)), h('td', {}, `${fmtDate(a.recordedAt)} ${a.recordedBy ?? ''}`)))),
       )) : h('div', { class: 'empty' }, 'No allergies recorded. This is not the same as no known allergies.');
-      case 'careplan': return d.items.length ? h('div', { class: 'stack' }, d.items.map((c) => h('div', { class: 'tile' },
-        h('h3', {}, c.need), c.goal ? h('div', {}, h('b', {}, 'Goal: '), c.goal) : null, h('div', {}, h('b', {}, 'Care: '), c.intervention),
-        h('div', { class: 'small muted' }, [c.responsible, c.reviewDate ? `Review ${fmtDate(c.reviewDate)}` : null].filter(Boolean).join(' · ')),
-      ))) : h('div', { class: 'empty' }, 'No active care plan items.');
+      case 'careplan': return carePlanPanel(personId, d, () => openView('careplan'));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, t.description), stateTag(t.state)),
         h('div', { class: 'small muted' }, [t.dueAt ? `Due ${t.dueAt}` : null, `Assigned: ${t.assignedTo}`, `Created by ${t.createdBy}`].filter(Boolean).join(' · ')),

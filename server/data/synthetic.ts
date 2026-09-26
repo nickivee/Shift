@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 7;
+const SET = 8;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -327,6 +327,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 5) set5(store);
     if (at < 6) set6(store);
     if (at < 7) set7(store);
+    if (at < 8) set8(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -672,5 +673,31 @@ function set7(store: Store): void {
     const id = newId();
     store.insert('wound', { id, person_id: frank, service_id: 'svc-arc', site: 'Left heel', kind: 'Pressure injury', state: 'IDENTIFIED', identified_by: tama, identified_at: minsAgo(38), description: 'Blister about the size of a 50c coin, heel red and sore' });
     step(id, null, 'IDENTIFIED', tama, 38, 'Blister about the size of a 50c coin, heel red and sore');
+  }
+}
+
+// Set 8: care plan reviews. Existing items gain their author and service; Elsie's distress
+// plan is overdue for review, Rua's mobility plan is due today, and Aroha has a ward plan.
+function set8(store: Store): void {
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const nicki = who('nicki');
+  store.run("UPDATE care_plan_item SET author_id = ? WHERE author_id IS NULL AND data_source = 'SYNTHETIC'", nicki);
+  store.run(`UPDATE care_plan_item SET service_id = (SELECT e.service_id FROM encounter e WHERE e.person_id = care_plan_item.person_id AND e.state = 'ACTIVE' ORDER BY e.started_at DESC LIMIT 1) WHERE service_id IS NULL`);
+  const elsie = person('ZZZ0067');
+  const rua = person('ZZZ0059');
+  const aroha = person('ZZZ9999');
+  if (elsie) store.run("UPDATE care_plan_item SET review_date = ? WHERE person_id = ? AND need LIKE 'Distress%' AND state = 'ACTIVE'", addDays(today, -1), elsie);
+  if (rua) store.run("UPDATE care_plan_item SET review_date = ? WHERE person_id = ? AND need = 'Mobility' AND state = 'ACTIVE'", today, rua);
+  const created = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  if (aroha && nicki) {
+    for (const [need, goal, intervention, responsible, days] of [
+      ['Breathing', 'Off oxygen, SpO2 at least 94% on air', 'Wean oxygen by 1 L each shift when SpO2 at least 94%; breathing exercises with physio', 'Registered nurses', 1],
+      ['Blood glucose', 'Pre-meal glucose 6 to 10', 'Check before meals and at bedtime; tell the doctor if over 15 twice', 'Registered nurses', 2],
+    ] as const) {
+      const id = newId();
+      store.insert('care_plan_item', { id, person_id: aroha, need, goal, intervention, responsible, review_date: addDays(today, days), state: 'ACTIVE', created_at: created, data_source: 'SYNTHETIC', service_id: 'svc-genmed', author_id: nicki });
+    }
   }
 }
