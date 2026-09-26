@@ -7,6 +7,8 @@ import { escalationsPanel } from './escalations.js';
 import { consultationsPanel } from './consultations.js';
 import { woundsPanel } from './wounds.js';
 import { carePlanPanel } from './careplans.js';
+import { referralsPanel } from './referrals.js';
+import { appointmentsPanel } from './appointments.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -322,6 +324,8 @@ export async function workstationView(personId, initialView) {
         h('tbody', {}, d.allergies.map((a) => h('tr', {}, h('td', {}, titleCase(a.kind)), h('td', {}, a.substance ?? '—'), h('td', {}, a.reaction ?? ''), h('td', {}, a.severity ?? ''), h('td', {}, titleCase(a.state)), h('td', {}, `${fmtDate(a.recordedAt)} ${a.recordedBy ?? ''}`)))),
       )) : h('div', { class: 'empty' }, 'No allergies recorded. This is not the same as no known allergies.');
       case 'careplan': return carePlanPanel(personId, d, () => openView('careplan'));
+      case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
+      case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, t.description), stateTag(t.state)),
         h('div', { class: 'small muted' }, [t.dueAt ? `Due ${t.dueAt}` : null, `Assigned: ${t.assignedTo}`, `Created by ${t.createdBy}`].filter(Boolean).join(' · ')),

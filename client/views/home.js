@@ -20,12 +20,14 @@ const DESCRIPTIONS = {
   careplans: () => 'Care plan items due or overdue for review.',
   wounds: () => 'Wounds reported but not yet assessed, and reviews due today.',
   consults: () => 'Advice asked of your team, and advice your team has asked for.',
+  referrals: () => 'Referrals sent to your service, and the ones your service has made.',
+  appointments: () => 'Today\'s appointments and the waitlist.',
   escalations: () => 'Concerns raised to you, and the ones you raised, until reassessed.',
 };
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments',
 };
 
 export function openTab(tabId) {
@@ -50,6 +52,8 @@ export async function homeView() {
     if (want.includes('discharges')) jobs.push(get('/api/work/discharges').then((rows) => (counts.discharges = rows.filter((d) => d.actions.length || d.requirements.some((r) => r.canRecord)).length)));
     if (want.includes('escalations')) jobs.push(get('/api/work/escalations').then((rows) => (counts.escalations = rows.filter((x) => x.actions.some((a) => ['receive', 'acknowledge', 'respond'].includes(a))).length)));
     if (want.includes('consults')) jobs.push(get('/api/work/consultations').then((rows) => (counts.consults = rows.filter((c) => c.actions.some((a) => a !== 'withdraw')).length)));
+    if (want.includes('referrals')) jobs.push(get('/api/work/referrals').then((rows) => (counts.referrals = rows.filter((r) => r.actions.some((a) => a !== 'cancel')).length)));
+    if (want.includes('appointments')) jobs.push(get('/api/work/appointments').then((d) => (counts.appointments = d.appointments.filter((a) => (a.startAt ?? '').startsWith(d.today) && !d.ended.includes(a.state)).length)));
     if (want.includes('wounds')) jobs.push(get('/api/work/wounds').then((rows) => (counts.wounds = rows.filter((w) => w.state === 'IDENTIFIED' || w.due).length)));
     if (want.includes('careplans')) jobs.push(get('/api/work/careplan-reviews').then((rows) => (counts.careplans = rows.length)));
     if (want.includes('flow')) jobs.push(get('/api/work/beds').then((rows) => (counts.flow = rows.filter((b) => b.state === 'AVAILABLE').length)));

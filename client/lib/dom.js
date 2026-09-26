@@ -92,6 +92,8 @@ const PATHS = {
   escalations: 'M12 3 2 20h20Zm0 5v6m0 3v.5M12 3v0',
   consults: 'M4 5h11v8H9l-4 3v-3H4Zm11 4h5v8h-1v3l-4-3h-5v-3',
   careplans: 'M6 4h12v17H6zM9 9l1.5 1.5L13 8m-4 7h6',
+  referrals: 'M4 6h9v12H4zM13 12h7m-3-3 3 3-3 3',
+  appointments: 'M4 6h16v14H4zM4 10h16M8 3v5m8-5v5m-6 7 2 2 4-4',
   pain: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-3-11h.01M15 10h.01M8.5 16c2-2 5-2 7 0',
 };
 
