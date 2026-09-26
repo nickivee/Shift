@@ -149,6 +149,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  commneed: {
+    table: 'comm_need',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ENDED'] },
+  },
+  interpreter: {
+    table: 'interpreter_booking',
+    initial: 'REQUESTED',
+    next: { REQUESTED: ['BOOKED', 'CANCELLED'], BOOKED: ['PROVIDED', 'NOT_PROVIDED', 'CANCELLED'] },
+  },
   supportperson: {
     table: 'support_person',
     initial: 'ACTIVE',
