@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 8;
+const SET = 9;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -328,6 +328,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 6) set6(store);
     if (at < 7) set7(store);
     if (at < 8) set8(store);
+    if (at < 9) set9(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -699,5 +700,90 @@ function set8(store: Store): void {
       const id = newId();
       store.insert('care_plan_item', { id, person_id: aroha, need, goal, intervention, responsible, review_date: addDays(today, days), state: 'ACTIVE', created_at: created, data_source: 'SYNTHETIC', service_id: 'svc-genmed', author_id: nicki });
     }
+  }
+}
+
+// Set 9: referrals to Physiotherapy. Ravi's referral for Tom has just arrived and Ana's has
+// been triaged; Peggy's is the referral that put her on the caseload yesterday; Alex has
+// drafted one for Wiremu that a physician still has to authorise.
+function set9(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'referral', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const attach = (id: string, pid: string, categories: string[]) => {
+    for (const c of categories) {
+      const e = store.get<{ lineage_id: string }>("SELECT lineage_id FROM clinical_event WHERE person_id = ? AND category = ? AND state = 'CURRENT' ORDER BY effective_at DESC LIMIT 1", pid, c);
+      if (e) store.run('INSERT OR IGNORE INTO referral_evidence (referral_id, event_lineage_id) VALUES (?, ?)', id, e.lineage_id);
+    }
+  };
+  const hannah = who('hannah');
+  const ravi = who('ravi');
+  const lena = who('lena');
+  const alex = who('alex');
+  const tom = person('ZZZ0148');
+  const ana = person('ZZZ0121');
+  const peggy = person('ZZZ0032');
+  const lenaCr = (pid: string) => store.get<{ id: string }>("SELECT id FROM care_relationship WHERE person_id = ? AND service_id = 'svc-physio' AND ended_at IS NULL", pid)?.id ?? null;
+  const wiremu = person('ZZZ0016');
+  if (ravi && tom) {
+    const id = newId();
+    store.insert('referral', {
+      id, person_id: tom, from_service_id: 'svc-ed', to_service_id: 'svc-physio', priority: 'SEMI_URGENT', patient_aware: 1, state: 'SENT',
+      reason: 'Fall at home on apixaban, second this year. Scalp laceration closed, CT head clear. Being admitted under General Medicine.',
+      request: 'Falls and mobility assessment on the ward, and advice on aids before he goes home.',
+      drafted_by: ravi, drafted_at: minsAgo(25), authorised_by: ravi, sent_at: minsAgo(24),
+    });
+    attach(id, tom, ['TRIAGE', 'OBS']);
+    step(id, null, 'DRAFT', ravi, 25, 'To Physiotherapy');
+    step(id, 'DRAFT', 'AUTHORISED', ravi, 24);
+    step(id, 'AUTHORISED', 'SENT', ravi, 24);
+  }
+  if (ravi && lena && ana) {
+    const id = newId();
+    store.insert('referral', {
+      id, person_id: ana, from_service_id: 'svc-ed', to_service_id: 'svc-physio', priority: 'ROUTINE', patient_aware: 1, state: 'TRIAGED',
+      reason: 'Right ankle inversion injury playing netball. X-ray shows no fracture. Lateral ligament sprain, can weight bear with pain.',
+      request: 'Outpatient physiotherapy for ankle rehabilitation and return to netball.',
+      drafted_by: ravi, drafted_at: minsAgo(70), authorised_by: ravi, sent_at: minsAgo(69),
+      received_by: lena, triaged_by: lena, triage_priority: 'SEMI_URGENT', triage_note: 'Competitive netballer, season starts in 3 weeks',
+    });
+    attach(id, ana, ['TRIAGE', 'PAIN']);
+    step(id, null, 'DRAFT', ravi, 70, 'To Physiotherapy');
+    step(id, 'DRAFT', 'AUTHORISED', ravi, 69);
+    step(id, 'AUTHORISED', 'SENT', ravi, 69);
+    step(id, 'SENT', 'RECEIVED', lena, 30);
+    step(id, 'RECEIVED', 'TRIAGED', lena, 28, 'semi-urgent: Competitive netballer, season starts in 3 weeks');
+  }
+  if (hannah && lena && peggy) {
+    const id = newId();
+    store.insert('referral', {
+      id, person_id: peggy, from_service_id: 'svc-genmed', to_service_id: 'svc-physio', priority: 'ROUTINE', patient_aware: 1, state: 'RESPONSIBILITY_ACCEPTED',
+      reason: 'Two falls at home in the last month. Lives alone, daughter nearby.',
+      request: 'Falls and mobility assessment before discharge, and advice on a walking aid.',
+      drafted_by: hannah, drafted_at: minsAgo(60 * 28), authorised_by: hannah, sent_at: minsAgo(60 * 28),
+      received_by: lena, triaged_by: lena, triage_priority: 'ROUTINE', decided_by: lena,
+      seen_by: lena, seen_at: minsAgo(60 * 20), seen_note: 'Assessed on the ward with her frame', responsibility_by: lena, care_relationship_id: lenaCr(peggy),
+    });
+    step(id, null, 'DRAFT', hannah, 60 * 28, 'To Physiotherapy');
+    step(id, 'DRAFT', 'AUTHORISED', hannah, 60 * 28);
+    step(id, 'AUTHORISED', 'SENT', hannah, 60 * 28);
+    step(id, 'SENT', 'RECEIVED', lena, 60 * 25);
+    step(id, 'RECEIVED', 'TRIAGED', lena, 60 * 25, 'routine');
+    step(id, 'TRIAGED', 'ACCEPTED', lena, 60 * 25);
+    step(id, 'ACCEPTED', 'SEEN', lena, 60 * 20, 'Assessed on the ward with her frame');
+    step(id, 'SEEN', 'RESPONSIBILITY_ACCEPTED', lena, 60 * 20, 'Shared care');
+  }
+  if (alex && wiremu) {
+    const id = newId();
+    store.insert('referral', {
+      id, person_id: wiremu, from_service_id: 'svc-genmed', to_service_id: 'svc-physio', priority: 'ROUTINE', patient_aware: 1, state: 'DRAFT',
+      reason: 'Heart failure, weight down 0.7 kg since yesterday on furosemide. Unsteady on his feet this morning and holding furniture to walk.',
+      request: 'Mobility check and walking frame before he goes home.',
+      drafted_by: alex, drafted_at: minsAgo(20),
+    });
+    attach(id, wiremu, ['WEIGHT']);
+    step(id, null, 'DRAFT', alex, 20, 'To Physiotherapy');
   }
 }

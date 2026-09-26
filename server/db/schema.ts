@@ -813,4 +813,56 @@ CREATE TABLE care_plan_review (
 );
 `,
   },
+  {
+    version: 9,
+    name: 'referral lifecycle',
+    sql: `
+-- Referral (Shared Lifecycle Object 203): draft → authorised → sent → received → triaged →
+-- accepted, declined or redirected → scheduled → seen → responsibility accepted where
+-- applicable → outcome → closed. Clinical information is referenced by event lineage,
+-- never copied into the referral.
+CREATE TABLE referral (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  parent_id TEXT REFERENCES referral(id),   -- the referral this one was redirected from
+  reason TEXT NOT NULL,
+  request TEXT NOT NULL,                    -- what the referrer is asking the service to do
+  priority TEXT NOT NULL,                   -- priority the referrer asked for: URGENT | SEMI_URGENT | ROUTINE
+  patient_aware INTEGER NOT NULL DEFAULT 0,
+  state TEXT NOT NULL,
+  drafted_by TEXT NOT NULL,
+  drafted_at TEXT NOT NULL,
+  authorised_by TEXT,
+  sent_at TEXT,
+  received_by TEXT,
+  triaged_by TEXT,
+  triage_priority TEXT,
+  triage_note TEXT,
+  decided_by TEXT,
+  decision_note TEXT,
+  scheduled_for TEXT,
+  scheduled_by TEXT,
+  seen_by TEXT,
+  seen_at TEXT,
+  seen_note TEXT,
+  responsibility_by TEXT,
+  care_relationship_id TEXT REFERENCES care_relationship(id),
+  outcome TEXT,
+  outcome_by TEXT,
+  outcome_at TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+CREATE INDEX referral_person ON referral(person_id);
+CREATE INDEX referral_to ON referral(to_service_id, state);
+
+CREATE TABLE referral_evidence (
+  referral_id TEXT NOT NULL REFERENCES referral(id),
+  event_lineage_id TEXT NOT NULL,
+  PRIMARY KEY (referral_id, event_lineage_id)
+);
+`,
+  },
 ];

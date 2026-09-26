@@ -13,6 +13,7 @@ import * as transfers from '../domain/transfers.ts';
 import * as discharges from '../domain/discharges.ts';
 import * as escalations from '../domain/escalations.ts';
 import * as consultations from '../domain/consultations.ts';
+import * as referrals from '../domain/referrals.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -147,6 +148,15 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/wounds/:id/:action', (req) => wounds.act(store, work(req), req.params.id, req.params.action, { plan: str(req.body.plan), reviewDays: req.body.reviewDays, note: str(req.body.note) }));
   r.on('GET', '/api/work/consultations', (req) => consultations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/consultations', (req) => consultations.request(store, work(req), req.params.id, { target: str(req.body.target), question: str(req.body.question), urgency: str(req.body.urgency) }));
+  r.on('GET', '/api/work/referrals', (req) => referrals.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/referrals', (req) => referrals.create(store, work(req), req.params.id, {
+    to: str(req.body.to), reason: str(req.body.reason), request: str(req.body.request), priority: str(req.body.priority),
+    patientAware: req.body.patientAware === true, send: req.body.send === true,
+    evidence: Array.isArray(req.body.evidence) ? req.body.evidence.map(String) : [],
+  }));
+  r.on('POST', '/api/work/referrals/:id/:action', (req) => referrals.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), priority: str(req.body.priority), when: str(req.body.when), to: str(req.body.to),
+  }));
   r.on('POST', '/api/work/consultations/:id/:action', (req) => consultations.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('GET', '/api/work/escalations', (req) => escalations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/escalations', (req) => escalations.raise(store, work(req), req.params.id, { roleKey: str(req.body.roleKey), urgency: str(req.body.urgency), concern: str(req.body.concern), trigger: str(req.body.trigger) }));

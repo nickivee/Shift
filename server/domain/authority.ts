@@ -29,6 +29,8 @@ export type Operation =
   | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
   | { op: 'ESCALATE'; personId: string }
   | { op: 'CAREPLAN'; personId: string }
+  | { op: 'REFERRAL_REQUEST'; personId: string; cap: 'referral.request' | 'referral.authorise' }
+  | { op: 'REFERRAL_TRIAGE'; serviceId: string }
   | { op: 'WOUND'; personId: string; cap: 'wound.identify' | 'wound.manage' }
   | { op: 'CONSULT_REQUEST'; personId: string }
   | { op: 'CONSULT_RESPOND'; serviceId: string; roleKey: string }
@@ -79,6 +81,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.serviceId !== ctx.serviceId) return block('This consultation is addressed to another service');
       if (o.roleKey !== ctx.role.roleKey) return block('This consultation is addressed to another role');
       return need(ctx, 'consult.respond') ?? professional(ctx) ?? allow();
+    case 'REFERRAL_TRIAGE':
+      // Receiving, triaging and deciding on a referral belong to the receiving service.
+      if (o.serviceId !== ctx.serviceId) return block('This referral is addressed to another service');
+      return need(ctx, 'referral.triage') ?? professional(ctx) ?? allow();
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -117,6 +123,12 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'consult.request') ?? professional(ctx) ?? (rel === 'CONSULTATION' ? block('A consulting service gives advice; it does not ask for further consultations') : allow([ORG, 'LAW-NZ-002']));
     case 'WOUND':
       return need(ctx, o.cap) ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
+    case 'REFERRAL_REQUEST':
+      // A referral comes from a service caring for the person, not from one only reading
+      // the record because it was asked for advice or to take the person on.
+      return need(ctx, o.cap) ?? professional(ctx) ?? (rel === 'ENCOUNTER' || rel === 'CARE_RELATIONSHIP'
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can refer them`));
     case 'CAREPLAN':
       return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':
@@ -150,7 +162,7 @@ function professional(ctx: WorkContext): AuthorityResult | null {
   return null;
 }
 
-export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'EXCEPTIONAL';
+export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'REFERRAL' | 'EXCEPTIONAL';
 
 export function relationship(store: Store, ctx: WorkContext, personId: string): Relationship | null {
   const enc = store.get("SELECT 1 FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, ctx.serviceId);
@@ -168,6 +180,14 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
     personId, ctx.serviceId, ctx.role.roleKey,
   );
   if (cs) return 'CONSULTATION';
+  // A service that has been sent a referral may read the record: its triaging clinicians
+  // from the moment it arrives, the rest of the service once the referral is accepted.
+  const triage = ctx.role.capabilities.includes('referral.triage');
+  const rf = store.get(
+    `SELECT 1 FROM referral WHERE person_id = ? AND to_service_id = ? AND state IN (${triage ? "'SENT', 'RECEIVED', 'TRIAGED', " : ''}'ACCEPTED', 'SCHEDULED', 'SEEN')`,
+    personId, ctx.serviceId,
+  );
+  if (rf) return 'REFERRAL';
   const ex = store.get(
     'SELECT 1 FROM exceptional_access WHERE work_context_id = ? AND person_id = ? AND expires_at > ?',
     ctx.id, personId, now(),

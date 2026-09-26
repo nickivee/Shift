@@ -81,6 +81,22 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['ACHIEVED', 'CEASED', 'SUPERSEDED'] },
   },
+  referral: {
+    table: 'referral',
+    initial: 'DRAFT',
+    next: {
+      DRAFT: ['AUTHORISED', 'CANCELLED'],
+      AUTHORISED: ['SENT', 'CANCELLED'],
+      SENT: ['RECEIVED', 'CANCELLED'],
+      RECEIVED: ['TRIAGED', 'CANCELLED'],
+      TRIAGED: ['ACCEPTED', 'DECLINED', 'REDIRECTED', 'CANCELLED'],
+      ACCEPTED: ['SCHEDULED', 'SEEN', 'CANCELLED'],
+      SCHEDULED: ['SCHEDULED', 'SEEN', 'CANCELLED'],
+      SEEN: ['RESPONSIBILITY_ACCEPTED', 'OUTCOME_RECORDED'],
+      RESPONSIBILITY_ACCEPTED: ['OUTCOME_RECORDED'],
+      OUTCOME_RECORDED: ['CLOSED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
