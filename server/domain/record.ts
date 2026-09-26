@@ -3,6 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { evaluate, relationship, type Operation } from './authority.ts';
 import { audit } from './audit.ts';
 import { history } from './lifecycle.ts';
+import { forPerson as transfersFor } from './transfers.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
@@ -48,7 +49,9 @@ export function patientList(store: Store, ctx: WorkContext) {
             (SELECT count(*) FROM handover_mark h WHERE h.person_id = p.id AND h.service_id = ? AND h.cleared_at IS NULL) AS handover,
             (SELECT count(*) FROM task t WHERE t.person_id = p.id AND t.service_id = ? AND t.state NOT IN ('COMPLETED','CLOSED','CANCELLED')) AS open_tasks,
             (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies,
-            (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage
+            (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage,
+            (SELECT t.state || '|' || s.name FROM transfer t JOIN service s ON s.id = t.to_service_id
+              WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer
        FROM person p
        LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
       WHERE e.id IS NOT NULL
@@ -64,6 +67,7 @@ export function patientList(store: Store, ctx: WorkContext) {
       age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
       allocated: Boolean(r.allocated), handover: Number(r.handover), openTasks: Number(r.open_tasks), hasAllergy: Number(r.allergies) > 0,
       arrivedAt: r.arrived_at, triage: triage ? { category: triage.category ?? null, complaint: triage.complaint ?? null } : null,
+      transfer: r.transfer ? { state: String(r.transfer).split('|')[0], to: String(r.transfer).split('|')[1] } : null,
     };
   });
   // Board order: triage category as recorded by the triage nurse, untriaged first so they
@@ -266,6 +270,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = { events: rows.map((r) => shapeEvent(store, ctx, r)) };
       break;
     }
+    case 'transfers':
+      body = transfersFor(store, ctx, personId);
+      break;
     case 'routes':
       body = {
         routes: store.all(

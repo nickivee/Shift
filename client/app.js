@@ -9,6 +9,7 @@ import { tasksView, receivedView, handoverView } from './views/coordination.js';
 import { knowledgeView, questionView } from './views/knowledge.js';
 import { notesView } from './views/notes.js';
 import { rosteringView } from './views/rostering.js';
+import { transfersView, flowView } from './views/transfers.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -57,6 +58,8 @@ const routes = [
   [/^\/work\/knowledge$/, () => knowledgeView(), { work: true }],
   [/^\/work\/knowledge\/([^/]+)$/, (m) => questionView(m[1]), { work: true }],
   [/^\/work\/rostering\/([a-z]+)$/, (m) => rosteringView(m[1]), { work: true }],
+  [/^\/work\/transfers$/, () => transfersView(), { work: true }],
+  [/^\/work\/flow$/, () => flowView(), { work: true }],
   [/^\/notes$/, () => notesView()],
   [/^\/personal$/, () => personalView()],
   [/^\/personal\/([a-z-]+)$/, (m) => personalFunctionView(m[1])],

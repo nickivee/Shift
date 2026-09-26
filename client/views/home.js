@@ -14,10 +14,13 @@ const DESCRIPTIONS = {
   vacancies: () => 'Open shifts and who has asked for them. Only your decision changes the roster.',
   swaps: () => 'Shifts staff have offered to colleagues, waiting on a rostering decision.',
   leave: () => 'Leave requests waiting for a decision.',
+  transfers: () => 'Admissions and transfers coming in and going out, one step at a time.',
+  flow: () => 'Beds across the hospital and who is waiting for one.',
 };
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
+  transfers: '/work/transfers', flow: '/work/flow',
 };
 
 export function openTab(tabId) {
@@ -38,11 +41,14 @@ export async function homeView() {
     for (const id of ['vacancies', 'swaps', 'leave']) {
       if (want.includes(id)) jobs.push(get(`/api/work/rostering/${id}`).then((rows) => (counts[id] = rows.length)));
     }
+    if (want.includes('transfers')) jobs.push(get('/api/work/transfers').then((rows) => (counts.transfers = rows.filter((t) => t.actions.length).length)));
+    if (want.includes('flow')) jobs.push(get('/api/work/beds').then((rows) => (counts.flow = rows.filter((b) => b.state === 'AVAILABLE').length)));
     if (want.includes('handover')) jobs.push(get('/api/work/handover').then((g) => (counts.handover = g.reduce((a, p) => a + p.items.filter((i) => !i.myReceipt).length, 0))));
     await Promise.allSettled(jobs);
   };
 
   const draw = () => {
+    customising = false;
     const cards = home.cards.filter((c) => !c.hidden).map((c) =>
       h('button', { class: 'card home-card', onclick: () => go(TARGET[c.id]) },
         counts[c.id] ? h('span', { class: 'count paua' }, String(counts[c.id])) : null,
@@ -66,7 +72,9 @@ export async function homeView() {
 
   // Customise: reorder and hide within the authorised set. Organisation-required cards can
   // be moved but not hidden. Nothing here changes what you are authorised to do.
+  let customising = false;
   const customise = () => {
+    customising = true;
     const draft = { cards: home.cards.map((c) => ({ ...c })), tabs: home.tabs.map((t) => ({ ...t })) };
     const cardList = sortableList(draft.cards, 'card');
     const tabList = sortableList(draft.tabs, 'tab');
@@ -95,7 +103,7 @@ export async function homeView() {
   };
 
   draw();
-  loadCounts().then(draw);
+  loadCounts().then(() => { if (!customising) draw(); });
   return root;
 }
 

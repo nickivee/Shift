@@ -12,7 +12,11 @@ export type Capability =
   | 'handover.use'
   | 'result.review'
   | 'knowledge.use'
-  | 'roster.decide';
+  | 'roster.decide'
+  | 'transfer.request'
+  | 'transfer.accept'
+  | 'transfer.arrive'
+  | 'bed.manage';
 
 export interface HomeCard {
   id: string;
@@ -49,6 +53,8 @@ const CARD = {
   vacancies: { id: 'vacancies', label: 'Vacancies', required: true },
   swaps: { id: 'swaps', label: 'Swaps', required: true },
   leave: { id: 'leave', label: 'Leave', required: true },
+  transfers: { id: 'transfers', label: 'Transfers', required: true },
+  flow: { id: 'flow', label: 'Flow board', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -105,9 +111,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - RN',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Registered Nurse',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.assess', '.change', '.family', '.progress', '.task'],
-    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes'],
+    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers'],
     tabs: [
       { id: 'list', label: 'Allocation' },
       { id: 'overview', label: 'Overview' },
@@ -122,7 +128,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'notes', label: 'Notes' },
       { id: 'handover', label: 'Handover' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers],
   },
   {
     roleKey: 'genmed-physician',
@@ -130,9 +136,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - physician',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept'],
     keys: ['.review', '.problem', '.assess', '.progress', '.family', '.task'],
-    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family'],
+    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers'],
     tabs: [
       { id: 'list', label: 'Patient List' },
       { id: 'overview', label: 'Overview' },
@@ -144,7 +150,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'progress', label: 'Progress' },
       { id: 'tasks', label: 'Tasks' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers],
   },
   {
     roleKey: 'ed-rn',
@@ -154,7 +160,7 @@ export const ROLES: RoleConfig[] = [
     profession: 'Registered Nurse',
     capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use'],
     keys: ['.triage', '.obs', '.bgl', '.pain', '.assess', '.procedure', '.change', '.family', '.progress', '.task'],
-    views: ['overview', 'triage', 'assess', 'obs', 'bgl', 'pain', 'meds', 'procedures', 'results', 'tasks', 'notes', 'progress', 'handover', 'disposition', 'medical', 'allergies', 'changes', 'family', 'routes'],
+    views: ['overview', 'triage', 'assess', 'obs', 'bgl', 'pain', 'meds', 'procedures', 'results', 'tasks', 'notes', 'progress', 'handover', 'disposition', 'medical', 'allergies', 'changes', 'family', 'routes', 'transfers'],
     tabs: [
       { id: 'list', label: 'ED Board' },
       { id: 'triage', label: 'Triage' },
@@ -168,7 +174,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'handover', label: 'Handover' },
       { id: 'disposition', label: 'Transfer/Disposition' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers],
     board: true,
   },
   {
@@ -177,9 +183,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Emergency Department - doctor',
     evidenceStatus: 'Workflow-derived; specialist medical/ED specification',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request'],
     keys: ['.medical', '.problem', '.procedure', '.review', '.progress', '.disposition', '.family', '.task'],
-    views: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'routes', 'family', 'review'],
+    views: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'routes', 'family', 'review', 'transfers'],
     tabs: [
       { id: 'list', label: 'ED Board' },
       { id: 'medical', label: 'Medical Assessment' },
@@ -191,7 +197,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'disposition', label: 'Disposition' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers],
     board: true,
   },
   {
@@ -214,6 +220,18 @@ export const ROLES: RoleConfig[] = [
       { id: 'notes', label: 'Notes' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.received],
+  },
+  {
+    roleKey: 'flow-coordinator',
+    label: 'Patient Flow',
+    matrixRow: 'Patient flow / bed management',
+    evidenceStatus: 'Workflow-derived; operational mapping required',
+    profession: null,
+    capabilities: ['bed.manage'],
+    keys: [],
+    views: [],
+    tabs: [],
+    homeCards: [CARD.flow, CARD.transfers],
   },
   {
     roleKey: 'arc-rostering',

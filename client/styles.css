@@ -378,3 +378,24 @@ dialog h2 { margin-top: 0; }
   color: transparent;
 }
 .dest.active span { background: none; color: #fff; }
+
+/* Admission and transfer of care */
+.tag.paua { background: var(--paua-shade); color: #fff; text-shadow: 0 1px 2px #000a; }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.check input { width: 20px; height: 20px; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.steps li { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #eef1f3; color: var(--ink-soft); }
+.steps li.done { background: var(--ok-bg); color: var(--ok); }
+.steps li.now { background: var(--paua-shade); color: #fff; text-shadow: 0 1px 2px #000a; }
+.bed-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-block: 12px; }
+.flow-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-block: 12px; }
+.flow-sum .sum { background: var(--card); border: 2px solid #d4e6ea; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; }
+.flow-sum .sum b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.beds { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.bed { border: 2px solid #d4e6ea; border-radius: 14px; padding: 10px; background: #fff; display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.bed-available { border-color: var(--ok); background: var(--ok-bg); }
+.bed-cleaning { border-color: var(--warn); background: var(--warn-bg); }
+.bed-reserved { border-color: var(--line); background: var(--tint); }
+.bed-occupied { border-color: #c9d3da; }
+.flow-sum .bed-available b { color: var(--ok); }
+.flow-sum .bed-cleaning b { color: var(--warn); }

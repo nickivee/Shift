@@ -9,6 +9,7 @@ import * as workspace from '../domain/workspace.ts';
 import * as personal from '../domain/personal.ts';
 import * as knowledge from '../domain/knowledge.ts';
 import * as rostering from '../domain/rostering.ts';
+import * as transfers from '../domain/transfers.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
@@ -128,6 +129,13 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/notes/:id/restore', (req) => workspace.dismissNote(store, session(req), req.params.id, true));
 
   // Rostering decisions (WORK) ----------------------------------------------------------
+  r.on('GET', '/api/work/transfers', (req) => transfers.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/transfers', (req) => transfers.request(store, work(req), req.params.id, { toServiceId: str(req.body.toServiceId), reason: str(req.body.reason), priority: str(req.body.priority) }));
+  r.on('GET', '/api/work/transfers/:id/beds', (req) => transfers.bedsFor(store, work(req), req.params.id));
+  r.on('POST', '/api/work/transfers/:id/:action', (req) => transfers.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), bedId: str(req.body.bedId) }));
+  r.on('GET', '/api/work/beds', (req) => transfers.beds(store, work(req)));
+  r.on('POST', '/api/work/beds/:id/state', (req) => transfers.setBed(store, work(req), req.params.id, str(req.body.state)));
+
   r.on('GET', '/api/work/rostering/vacancies', (req) => rostering.vacancies(store, work(req)));
   r.on('POST', '/api/work/rostering/vacancies/:id/decide', (req) => rostering.decideVacancy(store, work(req), req.params.id, { workerId: str(req.body.workerId), note: str(req.body.note) }));
   r.on('GET', '/api/work/rostering/swaps', (req) => rostering.swaps(store, work(req)));

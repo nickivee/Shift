@@ -606,4 +606,41 @@ CREATE TRIGGER roster_decision_no_delete BEFORE DELETE ON roster_decision
 BEGIN SELECT RAISE(ABORT, 'roster_decision is append-only'); END;
 `,
   },
+  {
+    version: 3,
+    name: 'transfers',
+    sql: `
+-- Beds are physical capacity. A bed's state never implies who is responsible for a person.
+CREATE TABLE bed (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  label TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- AVAILABLE | RESERVED | OCCUPIED | CLEANING
+  person_id TEXT REFERENCES person(id),
+  updated_at TEXT NOT NULL,
+  UNIQUE (service_id, label)
+);
+
+-- Transfer of care / admission (Shared Lifecycle Objects 220 and 221). Acceptance, bed,
+-- arrival and responsibility are separate recorded steps; none implies the next.
+CREATE TABLE transfer (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  kind TEXT NOT NULL,                   -- ADMISSION | TRANSFER
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  from_encounter_id TEXT REFERENCES encounter(id),
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  reason TEXT NOT NULL,
+  priority TEXT NOT NULL,               -- ROUTINE | URGENT
+  state TEXT NOT NULL,                  -- REQUESTED | ACCEPTED | DECLINED | CANCELLED | BED_ALLOCATED | ARRIVED | RESPONSIBILITY_ACCEPTED
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  accepted_by TEXT,
+  bed_id TEXT REFERENCES bed(id),
+  to_encounter_id TEXT REFERENCES encounter(id),
+  responsible_by TEXT,
+  note TEXT
+);
+`,
+  },
 ];

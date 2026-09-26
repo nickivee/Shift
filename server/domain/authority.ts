@@ -23,6 +23,10 @@ export type Operation =
   | { op: 'REVIEW_RESULT'; personId: string }
   | { op: 'KNOWLEDGE' }
   | { op: 'ROSTER_DECIDE'; serviceId: string }
+  | { op: 'TRANSFER_REQUEST'; personId: string }
+  | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
+  | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
+  | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
 
 const ORG = 'ORG-SYN-001 v1';
@@ -45,6 +49,20 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return { decision: 'UNRESOLVED', reasons: ['NZ early-warning thresholds have not been researched for this service'], ruleRefs: ['RR-EWS-001'] };
     case 'KNOWLEDGE':
       return need(ctx, 'knowledge.use') ?? professional(ctx) ?? allow();
+    case 'TRANSFER_RESPOND': {
+      if (o.toServiceId !== ctx.serviceId) return block('This transfer is addressed to another service');
+      // Accepting a patient and accepting responsibility are clinical acts for the
+      // receiving clinician; confirming physical arrival is for the receiving nurse.
+      const cap = o.step === 'arrive' ? 'transfer.arrive' : 'transfer.accept';
+      return need(ctx, cap) ?? professional(ctx) ?? allow();
+    }
+    case 'TRANSFER_VIEW':
+      if (ctx.role.capabilities.includes('bed.manage') && !ctx.role.capabilities.includes('record.view')) return allow();
+      return need(ctx, 'route.receive') ?? (o.serviceIds.includes(ctx.serviceId) ? allow() : block('This transfer does not involve your service'));
+    case 'BED_MANAGE':
+      if (o.organisationId !== ctx.organisationId) return block('That bed belongs to another organisation');
+      if (!ctx.role.capabilities.includes('record.view')) return need(ctx, 'bed.manage') ?? allow();
+      return need(ctx, 'bed.manage') ?? (o.serviceId === ctx.serviceId ? allow() : block('That bed belongs to another service'));
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -77,6 +95,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'event.amend') ?? professional(ctx) ?? (o.authorId === ctx.workerId ? allow() : block('Only the original author can amend or mark this entry in error'));
     case 'HANDOVER':
       return need(ctx, 'handover.use') ?? allow();
+    case 'TRANSFER_REQUEST':
+      return need(ctx, 'transfer.request') ?? professional(ctx) ?? allow();
     case 'REVIEW_RESULT':
       return need(ctx, 'result.review') ?? professional(ctx) ?? allow();
     case 'ROUTE': {
@@ -103,13 +123,18 @@ function professional(ctx: WorkContext): AuthorityResult | null {
   return null;
 }
 
-export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'EXCEPTIONAL';
+export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'EXCEPTIONAL';
 
 export function relationship(store: Store, ctx: WorkContext, personId: string): Relationship | null {
   const enc = store.get("SELECT 1 FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, ctx.serviceId);
   if (enc) return 'ENCOUNTER';
   const cr = store.get('SELECT 1 FROM care_relationship WHERE person_id = ? AND service_id = ? AND ended_at IS NULL', personId, ctx.serviceId);
   if (cr) return 'CARE_RELATIONSHIP';
+  // A receiving service may read the record of a person it has been asked to take.
+  const tr = store.get(
+    "SELECT 1 FROM transfer WHERE person_id = ? AND to_service_id = ? AND state IN ('REQUESTED', 'ACCEPTED', 'BED_ALLOCATED', 'ARRIVED')", personId, ctx.serviceId,
+  );
+  if (tr) return 'TRANSFER';
   const ex = store.get(
     'SELECT 1 FROM exceptional_access WHERE work_context_id = ? AND person_id = ? AND expires_at > ?',
     ctx.id, personId, now(),

@@ -28,6 +28,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       COMPLETED: ['CLOSED'],
     },
   },
+  transfer: {
+    table: 'transfer',
+    initial: 'REQUESTED',
+    next: {
+      REQUESTED: ['ACCEPTED', 'DECLINED', 'CANCELLED'],
+      ACCEPTED: ['BED_ALLOCATED', 'CANCELLED'],
+      BED_ALLOCATED: ['ARRIVED', 'BED_ALLOCATED', 'CANCELLED'],
+      ARRIVED: ['RESPONSIBILITY_ACCEPTED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
