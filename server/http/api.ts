@@ -20,6 +20,7 @@ import * as communications from '../domain/communications.ts';
 import * as monitoring from '../domain/monitoring.ts';
 import * as restrictions from '../domain/restrictions.ts';
 import * as diets from '../domain/diets.ts';
+import * as equipment from '../domain/equipment.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -162,6 +163,16 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
+  r.on('GET', '/api/work/equipment', (req) => equipment.list(store, work(req)));
+  r.on('POST', '/api/work/equipment', (req) => equipment.add(store, work(req), {
+    assetTag: str(req.body.assetTag), kind: str(req.body.kind), description: str(req.body.description), serviceDue: str(req.body.serviceDue),
+  }));
+  r.on('POST', '/api/work/patients/:id/equipment', (req) => equipment.start(store, work(req), req.params.id, {
+    equipmentId: str(req.body.equipmentId), purpose: str(req.body.purpose), settings: str(req.body.settings), checked: str(req.body.checked),
+  }));
+  r.on('POST', '/api/work/equipment/:id/:action', (req) => equipment.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), patientAffected: req.body.patientAffected === true || req.body.patientAffected === 'true', serviceDue: str(req.body.serviceDue),
   }));
   r.on('GET', '/api/work/meals', (req) => diets.list(store, work(req)));
   const dietFields = (b: Record<string, unknown>) => ({

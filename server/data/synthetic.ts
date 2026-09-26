@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 15;
+const SET = 16;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -335,6 +335,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 13) set13(store);
     if (at < 14) set14(store);
     if (at < 15) set15(store);
+    if (at < 16) set16(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1093,6 +1094,57 @@ function set15(store: Store): void {
     diet(person('ZZZ0040'), 'svc-genmed', who('hannah'), 60 * 30, {
       diets: 'STANDARD,VEGETARIAN', texture: '7', drinks: '0', assistance: 'INDEPENDENT', reason: 'Ward diet; nil by mouth from midnight for his gastroscopy',
     });
+  });
+}
+
+// Set 16: clinical equipment. Ward K has pumps (one in use for Aroha, one taken out of use for
+// a false occlusion alarm) and monitors; Kōwhai has Frank's pressure mattress, now past its
+// service date, a hoist due for service soon and one away for repair; ED has a monitor on Tom.
+function set16(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return todayLocal(d); };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const org = (service: string) => store.get<{ o: string }>('SELECT organisation_id AS o FROM service WHERE id = ?', service)?.o ?? 'org-hosp';
+  const item = (service: string, tag: string, kind: string, description: string, due: number | null, state = 'AVAILABLE') => {
+    const id = newId();
+    store.insert('equipment', { id, organisation_id: org(service), service_id: service, asset_tag: tag, kind, description, service_due: due === null ? null : day(due), state, added_by: null, added_at: minsAgo(60 * 24 * 400) });
+    store.insert('state_transition', { id: newId(), object_type: 'equipment', object_id: id, from_state: null, to_state: 'AVAILABLE', actor_id: null, work_context_id: null, at: minsAgo(60 * 24 * 400), reason: 'Added to the register', transaction_id: null });
+    return id;
+  };
+  const move = (id: string, from: string, to: string, by: string | null, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'equipment', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const use = (id: string, pid: string | null, service: string, u: string, mins: number, purpose: string, settings: string, checked: string) => {
+    const by = who(u);
+    if (!pid || !by) return;
+    store.insert('equipment_use', { id: newId(), equipment_id: id, person_id: pid, service_id: service, purpose, settings, checked_note: checked, started_by: by, started_at: minsAgo(mins) });
+    store.run("UPDATE equipment SET state = 'IN_USE' WHERE id = ?", id);
+    move(id, 'AVAILABLE', 'IN_USE', by, mins, purpose);
+  };
+  const event = (id: string, kind: string, note: string, u: string, mins: number) => {
+    const by = who(u);
+    if (by) store.insert('equipment_event', { id: newId(), equipment_id: id, kind, note, person_id: null, patient_affected: null, by_id: by, at: minsAgo(mins) });
+  };
+  store.tx(() => {
+    const p412 = item('svc-genmed', 'IP-0412', 'INFUSION_PUMP', 'Volumetric infusion pump', 120);
+    use(p412, person('ZZZ9999'), 'svc-genmed', 'nicki', 60 * 6, 'IV antibiotics', 'As charted on the medicine chart', 'Tag in date, self-test passed, line primed');
+    item('svc-genmed', 'IP-0415', 'INFUSION_PUMP', 'Volumetric infusion pump', 200);
+    const p419 = item('svc-genmed', 'IP-0419', 'INFUSION_PUMP', 'Volumetric infusion pump', 90, 'QUARANTINED');
+    event(p419, 'FAULT', 'Occlusion alarm with no occlusion, three times in an hour', 'nicki', 60 * 20);
+    move(p419, 'AVAILABLE', 'QUARANTINED', who('nicki'), 60 * 20, 'Occlusion alarm with no occlusion');
+    item('svc-genmed', 'OM-0031', 'OBS_MONITOR', 'Observation monitor on a stand', 45);
+    item('svc-genmed', 'SU-0008', 'SUCTION', 'Portable suction unit', 30);
+    const pm107 = item('svc-arc', 'PM-0107', 'PRESSURE_MATTRESS', 'Alternating air mattress', -3);
+    use(pm107, person('ZZZ0075'), 'svc-arc', 'kate', 60 * 24 * 2, 'Pressure injuries on both heels', 'Alternating mode, set to his weight', 'Pump running, no alarms, cover intact');
+    item('svc-arc', 'HS-0021', 'HOIST', 'Mobile hoist with full-body sling', 5);
+    const hs22 = item('svc-arc', 'HS-0022', 'HOIST', 'Mobile hoist', 150, 'IN_REPAIR');
+    event(hs22, 'FAULT', 'Boom drifts down slowly when loaded', 'tama', 60 * 24 * 4);
+    event(hs22, 'SENT_FOR_REPAIR', 'Collected by the service agent, job 55812', 'kate', 60 * 24 * 3);
+    move(hs22, 'AVAILABLE', 'QUARANTINED', who('tama'), 60 * 24 * 4, 'Boom drifts down slowly when loaded');
+    move(hs22, 'QUARANTINED', 'IN_REPAIR', who('kate'), 60 * 24 * 3, 'Job 55812');
+    const om5 = item('svc-ed', 'OM-0105', 'OBS_MONITOR', 'Bedside monitor', 60);
+    use(om5, person('ZZZ0148'), 'svc-ed', 'mere', 50, 'Hourly neuro observations', 'Blood pressure every 30 minutes', 'Alarms on, leads checked');
+    item('svc-ed', 'IP-0501', 'INFUSION_PUMP', 'Volumetric infusion pump', 80);
   });
 }
 

@@ -165,6 +165,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-BLOOD-001',
+    question: 'Requirements for blood and blood products in NZ: NZ Blood Service and national transfusion guidance, consent, bedside identity and product checks, and traceability.',
+    blocks: 'Requesting, issuing, checking and giving blood or blood products (Shared Lifecycle Object 245).',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

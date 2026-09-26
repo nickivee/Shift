@@ -14,6 +14,7 @@ import { communicationsPanel } from './communications.js';
 import { monitoringPanel } from './monitoring.js';
 import { restrictionsPanel } from './restrictions.js';
 import { dietPanel } from './diets.js';
+import { equipmentPanel } from './equipment.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -334,6 +335,7 @@ export async function workstationView(personId, initialView) {
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
+      case 'equipment': return equipmentPanel(personId, d, () => openView('equipment'));
       case 'diet': return dietPanel(personId, d, () => go(`/work/patient/${personId}/diet`));
       case 'restrictions': return restrictionsPanel(personId, d, () => go(`/work/patient/${personId}/restrictions`));
       case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));

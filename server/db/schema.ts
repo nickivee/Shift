@@ -1147,4 +1147,57 @@ CREATE TABLE diet_review (
 );
 `,
   },
+  {
+    version: 16,
+    name: 'clinical equipment lifecycle',
+    sql: `
+-- Clinical equipment (Shared Lifecycle Object 246): equipment identity → availability →
+-- allocation → patient or service use → setup → safety check → use → fault → withdrawal or
+-- quarantine → maintenance or repair → return to service → retirement.
+CREATE TABLE equipment (
+  id TEXT PRIMARY KEY,
+  organisation_id TEXT NOT NULL,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  asset_tag TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,                   -- INFUSION_PUMP | PRESSURE_MATTRESS | HOIST | OBS_MONITOR | SUCTION | FEEDING_PUMP | OTHER
+  description TEXT NOT NULL,
+  service_due TEXT,                     -- next planned maintenance date
+  state TEXT NOT NULL,                  -- AVAILABLE | IN_USE | QUARANTINED | IN_REPAIR | RETIRED
+  added_by TEXT,
+  added_at TEXT NOT NULL,
+  retired_by TEXT,
+  retired_at TEXT,
+  retire_reason TEXT
+);
+CREATE INDEX equipment_service ON equipment(service_id, state);
+
+CREATE TABLE equipment_use (
+  id TEXT PRIMARY KEY,
+  equipment_id TEXT NOT NULL REFERENCES equipment(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  settings TEXT,                        -- setup, in the clinician's words
+  checked_note TEXT NOT NULL,           -- the check before use
+  started_by TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX equipment_use_person ON equipment_use(person_id, ended_at);
+
+CREATE TABLE equipment_event (
+  id TEXT PRIMARY KEY,
+  equipment_id TEXT NOT NULL REFERENCES equipment(id),
+  kind TEXT NOT NULL,                   -- FAULT | SENT_FOR_REPAIR | RETURNED | NO_FAULT_FOUND | SERVICED
+  note TEXT NOT NULL,
+  person_id TEXT,                       -- the patient using it when a fault happened
+  patient_affected INTEGER,
+  by_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+`,
+  },
 ];
+

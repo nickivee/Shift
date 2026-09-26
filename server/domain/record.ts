@@ -14,6 +14,7 @@ import { forPerson as communicationsFor } from './communications.ts';
 import { forPerson as monitoringFor } from './monitoring.ts';
 import { forPerson as restrictionsFor, current as restrictionsNow } from './restrictions.ts';
 import { forPerson as dietFor, current as dietNow } from './diets.ts';
+import { forPerson as equipmentFor } from './equipment.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -319,6 +320,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'diet':
       body = dietFor(store, ctx, personId);
+      break;
+    case 'equipment':
+      body = equipmentFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

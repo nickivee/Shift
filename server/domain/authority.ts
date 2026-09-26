@@ -37,6 +37,7 @@ export type Operation =
   | { op: 'MONITORING_PLAN'; personId: string }
   | { op: 'RESTRICTION'; personId: string }
   | { op: 'DIET_ORDER'; personId: string }
+  | { op: 'EQUIPMENT_USE'; personId: string }
   | { op: 'MEAL_RECORD'; personId: string }
   | { op: 'RESTRICTION_CHECK'; personId: string }
   | { op: 'COMMUNICATION_ACT'; serviceId: string }
@@ -180,6 +181,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'diet.order') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can order their diet`));
+    case 'EQUIPMENT_USE':
+      return need(ctx, 'equipment.use') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only staff caring for this ${ctx.subjectLabel.toLowerCase()} can set up equipment for them`));
     case 'MEAL_RECORD':
       return need(ctx, 'meal.record') ?? (rel === 'ENCOUNTER'
         ? allow([ORG, 'LAW-NZ-002'])
