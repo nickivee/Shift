@@ -1,0 +1,24 @@
+{
+  "name": "shift",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SHIFT: health information flow application for the New Zealand health and disability sector. Enter once. Information moves.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/main.ts",
+    "seed": "node --disable-warning=ExperimentalWarning server/data/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "@noble/hashes": "1.8",
+    "@types/node": "^22.18.0",
+    "@types/sql.js": "^1.4.11",
+    "esbuild": "^0.25.12",
+    "sql.js": "1.13",
+    "typescript": "^5.9.0"
+  }
+}
