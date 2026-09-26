@@ -14,7 +14,14 @@ export const SYNTHETIC_USERS = [
   { username: 'hannah', label: 'Dr Hannah Li, Consultant Physician (General Medicine)' },
   { username: 'sam', label: 'Dr Sam Patel, Medical Registrar (General Medicine)' },
   { username: 'alex', label: 'Alex Morgan, Registered Nurse whose practising certificate has expired' },
+  { username: 'kate', label: 'Kate Rowe, Registered Nurse (Residential Care)' },
+  { username: 'jo', label: 'Jo Tipene, Rostering (Residential Care)' },
+  { username: 'mere', label: 'Mere Parata, Registered Nurse (Emergency Department)' },
+  { username: 'ravi', label: 'Dr Ravi Singh, Emergency Physician (Emergency Department)' },
+  { username: 'lena', label: 'Lena Fox, Physiotherapist (General Medicine caseload)' },
 ];
+
+const SET = 2;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -302,5 +309,184 @@ export function loadSynthetic(store: Store, password: string): void {
     store.insert('knowledge_reply', { id: newId(), question_id: q, author_id: hannah, body: 'I hold the ACE inhibitor first while the diuretic effect settles, recheck electrolytes in 24 h, and document the restart criteria in the plan so it is not lost at discharge.', created_at: iso(1, 15), state: 'VISIBLE' });
 
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: 'Synthetic data set loaded' });
+  });
+  extendSynthetic(store, password);
+}
+
+// Later additions to the synthetic data set: the Emergency Department, a physiotherapy
+// caseload and rostering for Residential Care. A device holding an earlier synthetic set
+// receives them once; a database without the synthetic organisations is never touched.
+export function extendSynthetic(store: Store, password: string): void {
+  if (!store.get("SELECT 1 FROM organisation WHERE id = 'org-hosp' AND data_source = 'SYNTHETIC'")) return;
+  const done = store.get<{ value: string }>("SELECT value FROM meta WHERE key = 'synthetic_set'");
+  if (done && Number(done.value) >= SET) return;
+  const S = 'SYNTHETIC';
+  const today = todayLocal();
+  const pw = hashPassword(password);
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const byUser = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const hannah = byUser('hannah');
+  const nicki = byUser('nicki');
+
+  store.tx(() => {
+    store.insert('service', { id: 'svc-ed', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Emergency Department', sector: 'Emergency & acute', subject_label: 'Patient' });
+    store.insert('service', { id: 'svc-physio', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Physiotherapy', sector: 'Allied health', subject_label: 'Patient' });
+    const dest = (alias: string, label: string, service: string, role: string | null, acceptance = 0) =>
+      store.insert('destination', { id: newId(), organisation_id: 'org-hosp', alias, label, kind: role ? 'ROLE_IN_SERVICE' : 'SERVICE', service_id: service, role_key: role, requires_acceptance: acceptance });
+    dest('ed', 'Emergency Department team', 'svc-ed', null);
+    dest('edrn', 'RN, Emergency Department', 'svc-ed', 'ed-rn');
+    dest('eddr', 'Emergency doctor', 'svc-ed', 'ed-doctor', 1);
+    dest('physio', 'Physiotherapy referral', 'svc-physio', 'physio', 1);
+
+    const worker = (username: string, given: string, family: string, display: string) => {
+      const pid = newId();
+      store.insert('person', { id: pid, family_name: family, given_name: given, data_source: S, created_at: now() });
+      const wid = newId();
+      store.insert('workforce_person', { id: wid, person_id: pid, display_name: display, username, password_hash: pw, status: 'ACTIVE' });
+      return wid;
+    };
+    const authority = (wid: string, profession: string, regulator: string, reg: string, scope: string) =>
+      store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession, regulator, registration_number: reg, scope, valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
+    const position = (wid: string, org: string, service: string, title: string, role: string) => {
+      const eid = newId();
+      store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: org, employment_type: 'PERMANENT', start_date: '2024-02-01' });
+      const pid = newId();
+      store.insert('position', { id: pid, employment_id: eid, service_id: service, title, role_key: role, start_date: '2024-02-01' });
+      return { eid, pid };
+    };
+    const roster = (wid: string, positionId: string, service: string, start: string, end: string, skip: number[]) => {
+      for (let d = -7; d < 28; d++) {
+        const date = addDays(today, d);
+        if (skip.includes(new Date(`${date}T00:00:00`).getDay())) continue;
+        store.insert('roster_shift', { id: newId(), workforce_person_id: wid, position_id: positionId, service_id: service, shift_date: date, start_time: start, end_time: end, state: 'PLANNED', data_source: S });
+      }
+    };
+    const leave = (wid: string, annual: number, sick: number) => {
+      store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Annual leave', hours: annual, as_at: today, data_source: S });
+      store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Sick leave', hours: sick, as_at: today, data_source: S });
+    };
+
+    const kate = worker('kate', 'Kate', 'Rowe', 'Kate Rowe');
+    authority(kate, 'Registered Nurse', 'Nursing Council of New Zealand', 'SYN-RN-42290', 'Registered nurse');
+    const kateArc = position(kate, 'org-arc', 'svc-arc', 'Registered Nurse', 'arc-rn');
+    roster(kate, kateArc.pid, 'svc-arc', '14:30', '23:00', [1, 2]);
+    leave(kate, 64, 40);
+
+    const jo = worker('jo', 'Jo', 'Tipene', 'Jo Tipene');
+    const joArc = position(jo, 'org-arc', 'svc-arc', 'Rostering Coordinator', 'arc-rostering');
+    roster(jo, joArc.pid, 'svc-arc', '08:30', '17:00', [0, 6]);
+    leave(jo, 120, 80);
+
+    const mere = worker('mere', 'Mere', 'Parata', 'Mere Parata');
+    authority(mere, 'Registered Nurse', 'Nursing Council of New Zealand', 'SYN-RN-38811', 'Registered nurse');
+    const mereEd = position(mere, 'org-hosp', 'svc-ed', 'Registered Nurse', 'ed-rn');
+    roster(mere, mereEd.pid, 'svc-ed', '07:00', '17:30', [3, 4, 5]);
+    leave(mere, 88, 56);
+
+    const ravi = worker('ravi', 'Ravi', 'Singh', 'Dr Ravi Singh');
+    authority(ravi, 'Medical Practitioner', 'Medical Council of New Zealand', 'SYN-MC-70561', 'Vocational: emergency medicine');
+    const raviEd = position(ravi, 'org-hosp', 'svc-ed', 'Emergency Physician', 'ed-doctor');
+    roster(ravi, raviEd.pid, 'svc-ed', '08:00', '18:00', [1, 2, 3]);
+    leave(ravi, 140, 80);
+
+    const lena = worker('lena', 'Lena', 'Fox', 'Lena Fox');
+    authority(lena, 'Physiotherapist', 'Physiotherapy Board of New Zealand', 'SYN-PT-11873', 'Physiotherapist');
+    const lenaPt = position(lena, 'org-hosp', 'svc-physio', 'Physiotherapist', 'physio');
+    roster(lena, lenaPt.pid, 'svc-physio', '08:00', '16:30', [0, 6]);
+    leave(lena, 72, 40);
+
+    // Emergency Department presentations.
+    let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+    const patient = (p: { given: string; family: string; dob: string; gender: string; ethnicity: string; iwi?: string; nhi: string; location: string; arrivedMinsAgo: number }) => {
+      const id = newId();
+      store.insert('person', { id, family_name: p.family, given_name: p.given, date_of_birth: p.dob, gender: p.gender, ethnicity: p.ethnicity, iwi: p.iwi ?? null, data_source: S, created_at: now() });
+      store.insert('external_identifier', { id: newId(), person_id: id, system: 'NHI', value: p.nhi, verification: S, created_at: now() });
+      store.insert('external_identifier', { id: newId(), person_id: id, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: S, created_at: now() });
+      store.insert('encounter', { id: newId(), person_id: id, service_id: 'svc-ed', location: p.location, kind: 'EMERGENCY', started_at: minsAgo(p.arrivedMinsAgo), state: 'ACTIVE' });
+      return id;
+    };
+    const kiri = patient({ given: 'Kiri', family: 'Moana', dob: '1978-05-09', gender: 'Female', ethnicity: 'Māori', iwi: 'Tainui', nhi: 'ZZZ0105', location: 'Resus 2', arrivedMinsAgo: 95 });
+    const daniel = patient({ given: 'Daniel', family: 'Brooks', dob: '1967-08-14', gender: 'Male', ethnicity: 'NZ European', nhi: 'ZZZ0113', location: 'Waiting room', arrivedMinsAgo: 12 });
+    const ana = patient({ given: 'Ana', family: 'Lemalu', dob: '2003-02-27', gender: 'Female', ethnicity: 'Samoan', nhi: 'ZZZ0121', location: 'Minors 3', arrivedMinsAgo: 140 });
+    const tom = patient({ given: 'Tom', family: 'Harris', dob: '1949-12-03', gender: 'Male', ethnicity: 'NZ European', nhi: 'ZZZ0148', location: 'Acute 5', arrivedMinsAgo: 55 });
+
+    const allergy = (pid: string, kind: string, substance: string | null, reaction: string | null, severity: string | null, by: string) =>
+      store.insert('allergy', { id: newId(), person_id: pid, kind, substance, reaction, severity, certainty: kind === 'NO_KNOWN_ALLERGIES' ? null : 'CONFIRMED', state: 'ACTIVE', source: 'Patient report at triage', recorded_by: by, recorded_at: minsAgo(80), data_source: S });
+    allergy(kiri, 'NO_KNOWN_ALLERGIES', null, null, null, mere);
+    allergy(ana, 'ALLERGY', 'Ibuprofen', 'Wheeze', 'Moderate', mere);
+    allergy(tom, 'ALLERGY', 'Trimethoprim', 'Rash', 'Mild', mere);
+    // Daniel Brooks: waiting for triage, allergies not yet recorded.
+
+    store.insert('medication', { id: newId(), person_id: tom, medicine: 'Apixaban', dose: '5 mg', route: 'Oral', frequency: 'Twice daily', indication: 'Atrial fibrillation', state: 'ACTIVE', prescriber: 'GP (reported at triage)', started_at: minsAgo(50), source: 'Patient report', data_source: S });
+    const result = (pid: string, test: string, value: string, units: string, range: string, flag: string | null, mins: number) => {
+      const id = newId();
+      store.insert('result', { id, person_id: pid, test, value, units, reference_range: range, flag, state: 'AVAILABLE', performed_at: minsAgo(mins + 40), released_at: minsAgo(mins), source: 'Te Awa Laboratory', reviewed_by: null, reviewed_at: null, data_source: S });
+      recordInitial(store, 'result', id, 'AVAILABLE', { actorId: null, workContextId: null }, 'Released by laboratory');
+    };
+    result(kiri, 'hs-Troponin T', '9', 'ng/L', '<15', null, 30);
+    result(tom, 'Haemoglobin', '128', 'g/L', '130–175', 'L', 10);
+
+    const event = (pid: string, service: string, code: string, fields: Record<string, string | number>, author: string, positionId: string, roleLabel: string, mins: number) => {
+      const t = KEY_BY_CODE.get(code)!;
+      const id = newId();
+      store.insert('clinical_event', {
+        id, lineage_id: id, version: 1, person_id: pid, category: t.category, key_code: code, key_version: t.version,
+        fields_json: JSON.stringify(fields), rendered_text: render(t, fields), author_id: author, author_position_id: positionId,
+        author_role_label: roleLabel, service_id: service, recorded_at: minsAgo(mins - 2), effective_at: minsAgo(mins), state: 'CURRENT',
+        urgent: 0, collection: 'DIRECT', data_source: S,
+      });
+      return id;
+    };
+    const rnEd = 'Registered Nurse, Emergency Department';
+    const drEd = 'Emergency Doctor, Emergency Department';
+    event(kiri, 'svc-ed', '.triage', { complaint: 'Central chest pain for 2 hours, radiating to left arm', category: 'ATS 2', area: 'Resus' }, mere, mereEd.pid, rnEd, 90);
+    event(kiri, 'svc-ed', '.obs', { bp: '148/92', hr: 98, spo2: 97, rr: 20, t: 36.8, loc: 'Alert' }, mere, mereEd.pid, rnEd, 85);
+    event(kiri, 'svc-ed', '.medical', { history: 'Pressure-like central chest pain at rest, 2 h. Smoker. Father had MI at 55.', examination: 'Comfortable at rest, HS dual no added, chest clear', impression: 'Possible acute coronary syndrome', plan: 'Serial ECG and troponin at 0 and 2 h; review with results' }, ravi, raviEd.pid, drEd, 60);
+    event(ana, 'svc-ed', '.triage', { complaint: 'Right ankle inversion injury playing netball', category: 'ATS 4', area: 'Minors' }, mere, mereEd.pid, rnEd, 135);
+    event(ana, 'svc-ed', '.pain', { site: 'Right lateral ankle', score: 6, action: 'Ice and elevation; ibuprofen avoided (allergy)' }, mere, mereEd.pid, rnEd, 130);
+    event(tom, 'svc-ed', '.triage', { complaint: 'Fall at home, on apixaban, small scalp laceration', category: 'ATS 3', area: 'Acute' }, mere, mereEd.pid, rnEd, 50);
+    event(tom, 'svc-ed', '.obs', { bp: '136/80', hr: 88, spo2: 96, rr: 16, t: 36.5, loc: 'Alert' }, mere, mereEd.pid, rnEd, 45);
+
+    // Physiotherapy caseload: ward patients referred to the service.
+    const ward = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id ?? null;
+    const aroha = ward('ZZZ9999');
+    const peggy = ward('ZZZ0032');
+    for (const pid of [aroha, peggy]) {
+      if (pid) store.insert('care_relationship', { id: newId(), person_id: pid, service_id: 'svc-physio', kind: 'SHARED_CARE', started_at: minsAgo(60 * 24) });
+    }
+    const ptLabel = 'Physiotherapist, Physiotherapy';
+    if (peggy) {
+      event(peggy, 'svc-physio', '.mobility', { transfers: 'Supervision', aid: 'Frame', distance: '20', note: 'Slow, steady; one loss of balance on turning' }, lena, lenaPt.pid, ptLabel, 60 * 20);
+      event(peggy, 'svc-physio', '.goals', { goal: 'Walk to bathroom with frame independently', by: 'Before discharge', agreed: 'Peggy and her daughter' }, lena, lenaPt.pid, ptLabel, 60 * 20 - 5);
+    }
+    if (aroha) event(aroha, 'svc-physio', '.treatment', { intervention: 'Active cycle of breathing, supported cough, walked 30 m', response: 'SpO2 held 94% on 2 L, tolerated well', next: 'Twice daily until off oxygen' }, lena, lenaPt.pid, ptLabel, 60 * 5);
+
+    // Rostering in Residential Care: requests waiting on Jo's decision.
+    const vacancy = store.get<{ id: string; shift_date: string }>("SELECT id, shift_date FROM open_shift WHERE service_id = 'svc-arc' AND role_key = 'arc-rn' AND state = 'OPEN' ORDER BY shift_date LIMIT 1");
+    if (vacancy) {
+      store.run("DELETE FROM roster_shift WHERE workforce_person_id = ? AND shift_date = ?", kate, vacancy.shift_date);
+      store.insert('open_shift_interest', { id: newId(), open_shift_id: vacancy.id, workforce_person_id: kate, state: 'INTERESTED', at: minsAgo(300) });
+    }
+    const tama = byUser('tama');
+    const cgVacancy = store.get<{ id: string }>("SELECT id FROM open_shift WHERE service_id = 'svc-arc' AND role_key = 'arc-caregiver' AND state = 'OPEN' ORDER BY shift_date LIMIT 1");
+    if (tama && cgVacancy) store.insert('open_shift_interest', { id: newId(), open_shift_id: cgVacancy.id, workforce_person_id: tama, state: 'INTERESTED', at: minsAgo(200) });
+    if (nicki) {
+      const offered = store.get<{ id: string; shift_date: string }>(
+        "SELECT id, shift_date FROM roster_shift WHERE workforce_person_id = ? AND service_id = 'svc-arc' AND state = 'PLANNED' AND shift_date > ? ORDER BY shift_date LIMIT 1 OFFSET 4", nicki, addDays(today, 1),
+      );
+      if (offered) {
+        const oid = newId();
+        store.insert('shift_offer', { id: oid, roster_shift_id: offered.id, offered_by: nicki, state: 'OFFERED', created_at: minsAgo(600) });
+        store.run('DELETE FROM roster_shift WHERE workforce_person_id = ? AND shift_date = ?', kate, offered.shift_date);
+        store.insert('shift_offer_take', { id: newId(), offer_id: oid, workforce_person_id: kate, state: 'INTERESTED', at: minsAgo(240) });
+      }
+    }
+    store.insert('leave_request', { id: newId(), workforce_person_id: kate, leave_type: 'Annual leave', start_date: addDays(today, 21), end_date: addDays(today, 23), private_reason: 'Tangihanga for whānau', state: 'REQUESTED', requested_at: minsAgo(1440) });
+    if (hannah) {
+      store.insert('knowledge_question', { id: newId(), author_id: hannah, topic: 'Low-risk chest pain pathways', body: 'For ED colleagues: when a 2-hour high-sensitivity troponin pathway is negative, what follow-up are you arranging for patients with ongoing risk factors?', created_at: minsAgo(60 * 30), state: 'OPEN' });
+    }
+
+    store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
+    audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
 }

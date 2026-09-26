@@ -7,7 +7,7 @@ import { openSqlJsStore } from './db/sqljs.ts';
 import { buildApi } from './http/api.ts';
 import { dispatch, type Router } from './http/router.ts';
 import { audit, verifyChain } from './domain/audit.ts';
-import { loadSynthetic, SYNTHETIC_USERS } from './data/synthetic.ts';
+import { loadSynthetic, extendSynthetic, SYNTHETIC_USERS } from './data/synthetic.ts';
 
 export const LOCAL_PASSWORD = 'kowhai';
 const IDB = { name: 'shift', store: 'db', key: 'main' };
@@ -35,6 +35,7 @@ async function boot() {
   const db = saved ? new SQL.Database(saved) : new SQL.Database();
   const store = openSqlJsStore(db);
   if (!store.get('SELECT 1 FROM workforce_person LIMIT 1')) loadSynthetic(store, LOCAL_PASSWORD);
+  else extendSynthetic(store, LOCAL_PASSWORD);
   const chain = verifyChain(store);
   if (!chain.ok) throw new Error(`Audit chain integrity failure at entry ${chain.brokenAt}.`);
   audit(store, { space: 'SYSTEM', operation: 'START', outcome: 'COMMITTED', reason: `in-browser; audit entries verified: ${chain.entries}` });

@@ -8,6 +8,7 @@ import * as coordination from '../domain/coordination.ts';
 import * as workspace from '../domain/workspace.ts';
 import * as personal from '../domain/personal.ts';
 import * as knowledge from '../domain/knowledge.ts';
+import * as rostering from '../domain/rostering.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
@@ -126,6 +127,14 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/notes/:id/dismiss', (req) => workspace.dismissNote(store, session(req), req.params.id));
   r.on('POST', '/api/notes/:id/restore', (req) => workspace.dismissNote(store, session(req), req.params.id, true));
 
+  // Rostering decisions (WORK) ----------------------------------------------------------
+  r.on('GET', '/api/work/rostering/vacancies', (req) => rostering.vacancies(store, work(req)));
+  r.on('POST', '/api/work/rostering/vacancies/:id/decide', (req) => rostering.decideVacancy(store, work(req), req.params.id, { workerId: str(req.body.workerId), note: str(req.body.note) }));
+  r.on('GET', '/api/work/rostering/swaps', (req) => rostering.swaps(store, work(req)));
+  r.on('POST', '/api/work/rostering/swaps/:id/decide', (req) => rostering.decideSwap(store, work(req), req.params.id, { workerId: str(req.body.workerId) || null, decline: req.body.decline === true, note: str(req.body.note) }));
+  r.on('GET', '/api/work/rostering/leave', (req) => rostering.leaveRequests(store, work(req)));
+  r.on('POST', '/api/work/rostering/leave/:id/decide', (req) => rostering.decideLeave(store, work(req), req.params.id, req.body.approve === true, str(req.body.note)));
+
   // PERSONAL -----------------------------------------------------------------------------
   r.on('GET', '/api/personal/roster', (req) => personal.roster(store, session(req), req.query.get('from') ?? undefined));
   r.on('GET', '/api/personal/availability', (req) => personal.availability(store, session(req)));
@@ -133,6 +142,10 @@ export function buildApi(store: Store): Router {
   r.on('DELETE', '/api/personal/availability/:id', (req) => personal.withdrawAvailability(store, session(req), req.params.id));
   r.on('GET', '/api/personal/open-shifts', (req) => personal.openShifts(store, session(req)));
   r.on('POST', '/api/personal/open-shifts/:id/interest', (req) => personal.shiftInterest(store, session(req), req.params.id, req.body.interested === true));
+  r.on('GET', '/api/personal/exchange', (req) => personal.exchange(store, session(req)));
+  r.on('POST', '/api/personal/roster/:id/offer', (req) => personal.offerShift(store, session(req), req.params.id));
+  r.on('POST', '/api/personal/offers/:id/withdraw', (req) => personal.withdrawOffer(store, session(req), req.params.id));
+  r.on('POST', '/api/personal/offers/:id/take', (req) => personal.takeOffer(store, session(req), req.params.id, req.body.take === true));
   r.on('GET', '/api/personal/payslips', (req) => personal.payslips(store, session(req)));
   r.on('GET', '/api/personal/payslips/:id', (req) => personal.payslip(store, session(req), req.params.id));
   r.on('GET', '/api/personal/leave', (req) => personal.leave(store, session(req)));
@@ -161,6 +174,7 @@ function contextView(ctx: identity.WorkContext) {
     subjectLabel: ctx.subjectLabel,
     matrixRow: ctx.role.matrixRow,
     evidenceStatus: ctx.role.evidenceStatus,
+    board: Boolean(ctx.role.board),
     authority: ctx.authority,
   };
 }

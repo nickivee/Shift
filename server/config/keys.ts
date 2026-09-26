@@ -184,6 +184,82 @@ export const KEYS: KeyTemplate[] = [
     engines: [...CORE, 228, 273],
   },
   {
+    code: '.triage', version: 1, label: 'Triage', category: 'TRIAGE',
+    fields: [
+      { id: 'complaint', label: 'Presenting complaint', type: 'text' },
+      { id: 'category', label: 'Triage category', type: 'choice', options: ['ATS 1', 'ATS 2', 'ATS 3', 'ATS 4', 'ATS 5'] },
+      { id: 'area', label: 'Area', type: 'choice', options: ['Resus', 'Acute', 'Minors', 'Waiting room'] },
+      { id: 'note', label: 'Triage note', type: 'text' },
+    ],
+    engines: [...CORE, 17, 225],
+  },
+  {
+    code: '.medical', version: 1, label: 'Medical assessment', category: 'MEDICAL',
+    fields: [
+      { id: 'history', label: 'History', type: 'text' },
+      { id: 'examination', label: 'Examination', type: 'text' },
+      { id: 'impression', label: 'Impression', type: 'text' },
+      { id: 'plan', label: 'Plan', type: 'text' },
+    ],
+    engines: [...CORE, 21, 227, 241],
+  },
+  {
+    code: '.procedure', version: 1, label: 'Procedure', category: 'PROCEDURE',
+    fields: [
+      { id: 'procedure', label: 'Procedure', type: 'text' },
+      { id: 'site', label: 'Site', type: 'text' },
+      { id: 'outcome', label: 'Outcome', type: 'text' },
+    ],
+    engines: [...CORE, 229],
+  },
+  {
+    code: '.disposition', version: 1, label: 'Disposition', category: 'DISPOSITION',
+    fields: [
+      { id: 'decision', label: 'Decision', type: 'choice', options: ['Admit', 'Discharge home', 'Transfer', 'Left before completion', 'Did not wait'] },
+      { id: 'to', label: 'To', type: 'text' },
+      { id: 'followup', label: 'Follow-up', type: 'text' },
+      { id: 'note', label: 'Note', type: 'text' },
+    ],
+    engines: [...CORE, 241, 252],
+  },
+  {
+    code: '.mobility', version: 1, label: 'Function and mobility', category: 'MOBILITY',
+    fields: [
+      { id: 'transfers', label: 'Transfers', type: 'choice', options: ['Independent', 'Supervision', 'Assist of 1', 'Assist of 2', 'Hoist'] },
+      { id: 'aid', label: 'Walking aid', type: 'choice', options: ['None', 'Stick', 'Frame', 'Walker', 'Wheelchair'] },
+      { id: 'distance', label: 'Distance', type: 'text', unit: 'm' },
+      { id: 'note', label: 'Note', type: 'text' },
+    ],
+    engines: [...CORE, 36, 261],
+  },
+  {
+    code: '.goals', version: 1, label: 'Goals', category: 'GOALS',
+    fields: [
+      { id: 'goal', label: 'Goal', type: 'text' },
+      { id: 'by', label: 'By', type: 'text' },
+      { id: 'agreed', label: 'Agreed with', type: 'text' },
+    ],
+    engines: [...CORE, 227],
+  },
+  {
+    code: '.treatment', version: 1, label: 'Treatment', category: 'TREATMENT',
+    fields: [
+      { id: 'intervention', label: 'Intervention', type: 'text' },
+      { id: 'response', label: 'Response', type: 'text' },
+      { id: 'next', label: 'Next', type: 'text' },
+    ],
+    engines: [...CORE, 229],
+  },
+  {
+    code: '.outcome', version: 1, label: 'Outcome measure', category: 'OUTCOME',
+    fields: [
+      { id: 'measure', label: 'Measure', type: 'text' },
+      { id: 'score', label: 'Score', type: 'text' },
+      { id: 'note', label: 'Note', type: 'text' },
+    ],
+    engines: [...CORE, 226],
+  },
+  {
     code: '.task', version: 1, label: 'Task', category: 'TASK',
     fields: [
       { id: 'task', label: 'Task', type: 'text' },
@@ -226,6 +302,14 @@ export const VIEWS: RetrieveView[] = [
   { code: 'progress', label: 'Progress', kind: 'events', categories: ['PROGRESS', 'REVIEW'], key: '.progress' },
   { code: 'notes', label: 'Notes', kind: 'events', categories: ['PROGRESS'], key: '.progress' },
   { code: 'problems', label: 'Problems', kind: 'events', categories: ['PROBLEM'], key: '.problem' },
+  { code: 'triage', label: 'Triage', kind: 'events', categories: ['TRIAGE'], key: '.triage' },
+  { code: 'medical', label: 'Medical Assessment', kind: 'events', categories: ['MEDICAL'], key: '.medical' },
+  { code: 'procedures', label: 'Procedures', kind: 'events', categories: ['PROCEDURE'], key: '.procedure' },
+  { code: 'disposition', label: 'Disposition', kind: 'events', categories: ['DISPOSITION'], key: '.disposition' },
+  { code: 'mobility', label: 'Function/Mobility', kind: 'events', categories: ['MOBILITY'], key: '.mobility' },
+  { code: 'goals', label: 'Goals', kind: 'events', categories: ['GOALS'], key: '.goals' },
+  { code: 'treatment', label: 'Treatment', kind: 'events', categories: ['TREATMENT'], key: '.treatment' },
+  { code: 'outcomes', label: 'Outcome Measures', kind: 'events', categories: ['OUTCOME'], key: '.outcome' },
   { code: 'meds', label: 'Medicines', kind: 'meds' },
   { code: 'results', label: 'Results', kind: 'results' },
   { code: 'allergies', label: 'Allergies', kind: 'allergies' },

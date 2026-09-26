@@ -9,7 +9,13 @@ import { workHeader } from './entry.js';
 export async function recordsView(openTab) {
   const subject = state.me.context.subjectLabel;
   const [patients, config] = await Promise.all([get('/api/work/patients'), openTab ? get('/api/work/config') : null]);
-  let mineOnly = patients.some((p) => p.allocated);
+  const board = state.me.context.board;
+  let mineOnly = !board && patients.some((p) => p.allocated);
+  const waited = (at) => {
+    if (!at) return null;
+    const m = Math.max(0, Math.round((Date.now() - Date.parse(at)) / 60000));
+    return m < 60 ? `${m} min in department` : `${Math.floor(m / 60)} h ${m % 60} min in department`;
+  };
   const listEl = h('div', { class: 'list' });
   const tab = openTab && config?.views.some((v) => v.code === openTab) ? openTab : null;
   const tabLabel = tab ? config.tabs.find((t) => t.id === tab)?.label ?? tab : '';
@@ -22,7 +28,10 @@ export async function recordsView(openTab) {
         h('div', { class: 'grow' },
           h('h3', {}, p.name, p.preferredName ? ` (${p.preferredName})` : ''),
           h('p', {}, [p.location, p.age !== null ? `${p.age}y` : null, p.gender, p.nhi ? `NHI ${p.nhi}` : null].filter(Boolean).join(' · ')),
+          board && p.triage?.complaint ? h('p', {}, p.triage.complaint) : null,
           h('div', { class: 'row small' },
+            board ? (p.triage?.category ? h('span', { class: `tag ats ats-${p.triage.category.replace(/\D/g, '')}` }, p.triage.category) : h('span', { class: 'tag warn' }, 'Not yet triaged')) : null,
+            board ? h('span', { class: 'tag' }, waited(p.arrivedAt)) : null,
             p.hasAllergy ? h('span', { class: 'tag danger' }, 'Allergy') : null,
             p.handover ? h('span', { class: 'tag' }, `Handover ${p.handover}`) : null,
             p.openTasks ? h('span', { class: 'tag warn' }, `Tasks ${p.openTasks}`) : null,

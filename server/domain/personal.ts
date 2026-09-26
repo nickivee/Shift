@@ -17,10 +17,11 @@ export function roster(store: Store, s: Session, from = todayLocal(), days = 28)
   seen(store, s, 'VIEW_ROSTER');
   const shifts = store.all<Record<string, string | null>>(
     `SELECT r.id, r.shift_date AS date, r.start_time AS start, r.end_time AS end, r.state, sv.name AS service, p.title AS position,
-            a.started_at AS actualStart, a.ended_at AS actualEnd, a.variance
+            a.started_at AS actualStart, a.ended_at AS actualEnd, a.variance,
+            (SELECT o.id FROM shift_offer o WHERE o.roster_shift_id = r.id AND o.state = 'OFFERED') AS offerId
        FROM roster_shift r JOIN service sv ON sv.id = r.service_id JOIN position p ON p.id = r.position_id
        LEFT JOIN actual_shift a ON a.roster_shift_id = r.id
-      WHERE r.workforce_person_id = ? AND r.shift_date >= ? AND r.shift_date < ?
+      WHERE r.workforce_person_id = ? AND r.state = 'PLANNED' AND r.shift_date >= ? AND r.shift_date < ?
       ORDER BY r.shift_date, r.start_time`,
     s.workerId, addDays(from, -14), to,
   );
@@ -60,29 +61,37 @@ export function withdrawAvailability(store: Store, s: Session, id: string) {
   return { id };
 }
 
-// Open shifts are shared anonymously: service, role, date and time only. Who else is
-// interested, and who vacated the shift, is never shown.
-export function openShifts(store: Store, s: Session) {
-  seen(store, s, 'VIEW_OPEN_SHIFTS');
-  const roles = store.all<{ role_key: string; service_id: string }>(
+// Positions the worker currently holds; eligibility for open shifts and exchanges.
+function myRoles(store: Store, s: Session) {
+  return store.all<{ role_key: string; service_id: string }>(
     `SELECT DISTINCT p.role_key, p.service_id FROM position p JOIN employment e ON e.id = p.employment_id
       WHERE e.workforce_person_id = ? AND (p.end_date IS NULL OR p.end_date >= ?)`,
     s.workerId, todayLocal(),
   );
+}
+
+// Open shifts are shared anonymously: service, role, date and time only. Who else is
+// interested, and who vacated the shift, is never shown. A shift the worker asked for
+// stays visible after the rostering decision so they can see the outcome.
+export function openShifts(store: Store, s: Session) {
+  seen(store, s, 'VIEW_OPEN_SHIFTS');
+  const roles = myRoles(store, s);
   if (!roles.length) return [];
   const cond = roles.map(() => '(o.role_key = ? AND o.service_id = ?)').join(' OR ');
   return store.all(
-    `SELECT o.id, o.shift_date AS date, o.start_time AS start, o.end_time AS end, sv.name AS service, o.role_key AS roleKey,
-            (SELECT state FROM open_shift_interest i WHERE i.open_shift_id = o.id AND i.workforce_person_id = ? ORDER BY i.at DESC LIMIT 1) AS myInterest
-       FROM open_shift o JOIN service sv ON sv.id = o.service_id
-      WHERE o.state = 'OPEN' AND o.shift_date >= ? AND (${cond})
-      ORDER BY o.shift_date, o.start_time`,
+    `SELECT * FROM (
+       SELECT o.id, o.shift_date AS date, o.start_time AS start, o.end_time AS end, sv.name AS service, o.role_key AS roleKey, o.state,
+              (SELECT state FROM open_shift_interest i WHERE i.open_shift_id = o.id AND i.workforce_person_id = ? ORDER BY i.at DESC LIMIT 1) AS myInterest
+         FROM open_shift o JOIN service sv ON sv.id = o.service_id
+        WHERE o.shift_date >= ? AND (${cond}))
+      WHERE state = 'OPEN' OR myInterest IN ('ACCEPTED', 'DECLINED')
+      ORDER BY date, start`,
     s.workerId, todayLocal(), ...roles.flatMap((r) => [r.role_key, r.service_id]),
   );
 }
 
 export function shiftInterest(store: Store, s: Session, openShiftId: string, interested: boolean) {
-  const visible = (openShifts(store, s) as { id: string }[]).some((o) => o.id === openShiftId);
+  const visible = (openShifts(store, s) as { id: string; state: string }[]).some((o) => o.id === openShiftId && o.state === 'OPEN');
   if (!visible) throw new HttpError(404, 'NOT_FOUND', 'That shift is no longer open to you.');
   const clash = store.get(
     `SELECT 1 FROM roster_shift r JOIN open_shift o ON o.shift_date = r.shift_date
@@ -93,6 +102,68 @@ export function shiftInterest(store: Store, s: Session, openShiftId: string, int
   store.insert('open_shift_interest', { id, open_shift_id: openShiftId, workforce_person_id: s.workerId, state: interested ? 'INTERESTED' : 'WITHDRAWN', at: now() });
   audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: interested ? 'OPEN_SHIFT_INTEREST' : 'OPEN_SHIFT_WITHDRAW', objectType: 'open_shift', objectId: openShiftId, outcome: 'COMMITTED', reason: 'Roster unchanged until a rostering decision is recorded', engines: [27] });
   return { state: interested ? 'INTERESTED' : 'WITHDRAWN', rosterChanged: false };
+}
+
+// Shift exchange: a worker offers one of their own rostered shifts. Eligible colleagues
+// (same role in the same service) see the shift, never who offered it; the offerer sees
+// how many colleagues would take it, never who. The roster changes only when the
+// rostering decision is recorded.
+export function offerShift(store: Store, s: Session, rosterShiftId: string) {
+  const r = store.get<{ id: string }>(
+    "SELECT id FROM roster_shift WHERE id = ? AND workforce_person_id = ? AND state = 'PLANNED' AND shift_date > ?", rosterShiftId, s.workerId, todayLocal(),
+  );
+  if (!r) throw new HttpError(404, 'NOT_FOUND', 'Only your own future rostered shifts can be offered.');
+  if (store.get("SELECT 1 FROM shift_offer WHERE roster_shift_id = ? AND state = 'OFFERED'", rosterShiftId)) throw new HttpError(409, 'ALREADY_OFFERED', 'That shift is already offered.');
+  const id = newId();
+  store.insert('shift_offer', { id, roster_shift_id: rosterShiftId, offered_by: s.workerId, state: 'OFFERED', created_at: now() });
+  audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: 'SHIFT_OFFER', objectType: 'shift_offer', objectId: id, outcome: 'COMMITTED', reason: 'Roster unchanged until a rostering decision is recorded', engines: [27] });
+  return { id, state: 'OFFERED', rosterChanged: false };
+}
+
+export function withdrawOffer(store: Store, s: Session, offerId: string) {
+  const r = store.run("UPDATE shift_offer SET state = 'WITHDRAWN', decided_at = ? WHERE id = ? AND offered_by = ? AND state = 'OFFERED'", now(), offerId, s.workerId);
+  if (!r.changes) throw new HttpError(409, 'NOT_OPEN', 'That offer is no longer open.');
+  audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: 'SHIFT_OFFER_WITHDRAW', objectType: 'shift_offer', objectId: offerId, outcome: 'COMMITTED' });
+  return { id: offerId, state: 'WITHDRAWN' };
+}
+
+export function exchange(store: Store, s: Session) {
+  seen(store, s, 'VIEW_SHIFT_EXCHANGE');
+  const roles = myRoles(store, s);
+  const cond = roles.length ? roles.map(() => '(p.role_key = ? AND r.service_id = ?)').join(' OR ') : '0';
+  const offered = store.all(
+    `SELECT o.id, r.shift_date AS date, r.start_time AS start, r.end_time AS end, sv.name AS service,
+            (SELECT state FROM shift_offer_take t WHERE t.offer_id = o.id AND t.workforce_person_id = ? ORDER BY t.at DESC LIMIT 1) AS myTake
+       FROM shift_offer o JOIN roster_shift r ON r.id = o.roster_shift_id JOIN position p ON p.id = r.position_id JOIN service sv ON sv.id = r.service_id
+      WHERE o.offered_by <> ? AND r.shift_date >= ? AND (${cond})
+        AND (o.state = 'OFFERED' OR EXISTS (SELECT 1 FROM shift_offer_take t WHERE t.offer_id = o.id AND t.workforce_person_id = ? AND t.state IN ('ACCEPTED', 'DECLINED')))
+      ORDER BY r.shift_date, r.start_time`,
+    s.workerId, s.workerId, todayLocal(), ...roles.flatMap((x) => [x.role_key, x.service_id]), s.workerId,
+  );
+  const mine = store.all(
+    `SELECT o.id, o.state, r.shift_date AS date, r.start_time AS start, r.end_time AS end, sv.name AS service,
+            (SELECT count(*) FROM shift_offer_take t WHERE t.offer_id = o.id AND t.state = 'INTERESTED'
+               AND t.at = (SELECT max(t2.at) FROM shift_offer_take t2 WHERE t2.offer_id = o.id AND t2.workforce_person_id = t.workforce_person_id)) AS takers
+       FROM shift_offer o JOIN roster_shift r ON r.id = o.roster_shift_id JOIN service sv ON sv.id = r.service_id
+      WHERE o.offered_by = ? AND o.state <> 'WITHDRAWN' AND r.shift_date >= ?
+      ORDER BY r.shift_date`,
+    s.workerId, todayLocal(),
+  );
+  return { openShifts: openShifts(store, s), offered, mine };
+}
+
+export function takeOffer(store: Store, s: Session, offerId: string, take: boolean) {
+  const offered = exchange(store, s).offered as { id: string; date: string }[];
+  const o = offered.find((x) => x.id === offerId);
+  const open = o && store.get("SELECT 1 FROM shift_offer WHERE id = ? AND state = 'OFFERED'", offerId);
+  if (!o || !open) throw new HttpError(404, 'NOT_FOUND', 'That shift is no longer offered to you.');
+  if (take && store.get("SELECT 1 FROM roster_shift WHERE workforce_person_id = ? AND shift_date = ? AND state = 'PLANNED'", s.workerId, o.date)) {
+    throw new HttpError(409, 'ROSTER_CLASH', 'You are already rostered that day.');
+  }
+  const id = newId();
+  store.insert('shift_offer_take', { id, offer_id: offerId, workforce_person_id: s.workerId, state: take ? 'INTERESTED' : 'WITHDRAWN', at: now() });
+  audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: take ? 'SHIFT_TAKE_OFFER' : 'SHIFT_TAKE_WITHDRAW', objectType: 'shift_offer', objectId: offerId, outcome: 'COMMITTED', reason: 'Roster unchanged until a rostering decision is recorded', engines: [27] });
+  return { state: take ? 'INTERESTED' : 'WITHDRAWN', rosterChanged: false };
 }
 
 export function payslips(store: Store, s: Session) {

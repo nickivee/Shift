@@ -22,6 +22,7 @@ export type Operation =
   | { op: 'RECEIVE'; destinationServiceId: string; destinationRoleKey: string | null }
   | { op: 'REVIEW_RESULT'; personId: string }
   | { op: 'KNOWLEDGE' }
+  | { op: 'ROSTER_DECIDE'; serviceId: string }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
 
 const ORG = 'ORG-SYN-001 v1';
@@ -44,6 +45,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return { decision: 'UNRESOLVED', reasons: ['NZ early-warning thresholds have not been researched for this service'], ruleRefs: ['RR-EWS-001'] };
     case 'KNOWLEDGE':
       return need(ctx, 'knowledge.use') ?? professional(ctx) ?? allow();
+    case 'ROSTER_DECIDE':
+      return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
       return need(ctx, 'task.manage') ?? (o.serviceId === ctx.serviceId ? allow() : block('Task belongs to another service'));
     case 'RECEIVE':

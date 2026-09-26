@@ -8,7 +8,7 @@ import { state, go } from '../app.js';
 const FUNCTIONS = [
   ['roster', 'Roster', 'Own roster and attendance.'],
   ['availability', 'Availability', 'Record availability.'],
-  ['exchange', 'Shift exchange', 'Anonymous open shift exchange.'],
+  ['exchange', 'Shift exchange', 'Open shifts and swaps, shared anonymously.'],
   ['payslips', 'Payslips', 'Your payslips.'],
   ['leave', 'Leave', 'Request and track leave.'],
   ['credentials', 'Credentials', 'APC and credential information.'],
@@ -50,7 +50,7 @@ const table = (heads, rows) => h('div', { class: 'table-wrap' }, h('table', { cl
 const synthetic = (on) => (on ? h('p', { class: 'synthetic' }, 'Synthetic data') : null);
 
 const VIEWS = {
-  async roster() {
+  async roster(reload) {
     const r = await get('/api/personal/roster');
     const today = new Date().toISOString().slice(0, 10);
     const past = r.shifts.filter((s) => s.date < today);
@@ -58,7 +58,12 @@ const VIEWS = {
     return h('div', { class: 'stack' },
       h('div', { class: 'banner' }, 'Your roster is the plan. Attendance is what was recorded as worked. They are kept separate.'),
       h('h3', {}, 'Upcoming'),
-      upcoming.length ? table(['Day', 'Time', 'Where', 'Position'], upcoming.map((s) => h('tr', {}, h('td', {}, fmtDay(s.date)), h('td', {}, `${s.start}–${s.end}`), h('td', {}, s.service), h('td', {}, s.position)))) : h('div', { class: 'card empty' }, 'No rostered shifts.'),
+      upcoming.length ? table(['Day', 'Time', 'Where', 'Position', ''], upcoming.map((s) => h('tr', {},
+        h('td', {}, fmtDay(s.date)), h('td', {}, `${s.start}–${s.end}`), h('td', {}, s.service), h('td', {}, s.position),
+        h('td', {}, s.offerId
+          ? h('span', { class: 'row' }, h('span', { class: 'tag' }, 'Offered'), h('button', { class: 'btn small', onclick: () => act(`/api/personal/offers/${s.offerId}/withdraw`, 'Offer withdrawn.') }, 'Withdraw'))
+          : s.date > today ? h('button', { class: 'btn small', onclick: () => act(`/api/personal/roster/${s.id}/offer`, 'Offered to colleagues. You are still rostered until a rostering decision is made.') }, 'Offer to swap') : null),
+      ))) : h('div', { class: 'card empty' }, 'No rostered shifts.'),
       h('h3', {}, 'Recent attendance'),
       past.length ? table(['Day', 'Rostered', 'Attended', 'Variance'], past.reverse().map((s) => h('tr', {},
         h('td', {}, fmtDay(s.date)), h('td', {}, `${s.start}–${s.end}`),
@@ -67,6 +72,9 @@ const VIEWS = {
       ))) : h('div', { class: 'card empty' }, 'No recent shifts.'),
       synthetic(true),
     );
+    async function act(url, msg) {
+      try { await post(url); toast(msg); reload(); } catch (err) { showError(err); }
+    }
   },
 
   async availability(reload) {
@@ -92,18 +100,42 @@ const VIEWS = {
   },
 
   async exchange(reload) {
-    const shifts = await get('/api/personal/open-shifts');
+    const x = await get('/api/personal/exchange');
+    const when = (s) => h('div', {}, h('b', {}, `${fmtDay(s.date)} · ${s.start}–${s.end}`), h('div', { class: 'muted' }, s.service));
+    const outcome = (state) => (state === 'ACCEPTED'
+      ? h('span', { class: 'tag ok' }, 'Given to you. It is on your roster.')
+      : h('span', { class: 'tag muted' }, 'Filled by someone else'));
+    const MINE = { OFFERED: ['', 'Waiting on rostering'], REASSIGNED: ['ok', 'Taken by a colleague. It is off your roster.'], DECLINED: ['warn', 'Not approved. You are still rostered.'] };
     return h('div', { class: 'stack' },
-      h('div', { class: 'banner' }, 'Open shifts are shared anonymously. Showing interest does not change your roster; only a rostering decision does.'),
-      shifts.length ? h('div', { class: 'list' }, shifts.map((s) => h('div', { class: 'card spread' },
-        h('div', {}, h('b', {}, `${fmtDay(s.date)} · ${s.start}–${s.end}`), h('div', { class: 'muted' }, s.service)),
-        s.myInterest === 'INTERESTED'
-          ? h('span', { class: 'row' }, h('span', { class: 'tag ok' }, 'Interest sent'), h('button', { class: 'btn small', onclick: () => interest(s, false) }, 'Withdraw'))
-          : h('button', { class: 'btn primary small', onclick: () => interest(s, true) }, "I'm interested"),
+      h('div', { class: 'banner' }, 'Shifts are shared without names. Asking for a shift or offering yours does not change anyone’s roster. Only a rostering decision does.'),
+      h('h3', {}, 'Open shifts'),
+      x.openShifts.length ? h('div', { class: 'list' }, x.openShifts.map((s) => h('div', { class: 'card spread' },
+        when(s),
+        s.state !== 'OPEN' ? outcome(s.myInterest)
+          : s.myInterest === 'INTERESTED'
+            ? h('span', { class: 'row' }, h('span', { class: 'tag ok' }, 'Interest sent'), h('button', { class: 'btn small', onclick: () => send(`/api/personal/open-shifts/${s.id}/interest`, { interested: false }, 'Interest withdrawn.') }, 'Withdraw'))
+            : h('button', { class: 'btn primary small', onclick: () => send(`/api/personal/open-shifts/${s.id}/interest`, { interested: true }, 'Interest sent. Your roster is unchanged.') }, "I'm interested"),
       ))) : h('div', { class: 'card empty' }, 'No open shifts for your positions.'),
+      h('h3', {}, 'Shifts colleagues are offering'),
+      x.offered.length ? h('div', { class: 'list' }, x.offered.map((s) => h('div', { class: 'card spread' },
+        when(s),
+        s.myTake === 'ACCEPTED' || s.myTake === 'DECLINED' ? outcome(s.myTake)
+          : s.myTake === 'INTERESTED'
+            ? h('span', { class: 'row' }, h('span', { class: 'tag ok' }, 'You offered to take it'), h('button', { class: 'btn small', onclick: () => send(`/api/personal/offers/${s.id}/take`, { take: false }, 'Withdrawn.') }, 'Withdraw'))
+            : h('button', { class: 'btn primary small', onclick: () => send(`/api/personal/offers/${s.id}/take`, { take: true }, 'Sent to rostering. Your roster is unchanged until they decide.') }, "I'll take it"),
+      ))) : h('div', { class: 'card empty' }, 'No colleague is offering a shift in your positions.'),
+      h('h3', {}, 'Shifts you have offered'),
+      x.mine.length ? h('div', { class: 'list' }, x.mine.map((s) => h('div', { class: 'card spread' },
+        when(s),
+        h('span', { class: 'row' },
+          s.state === 'OFFERED' ? h('span', { class: 'small muted' }, s.takers === 1 ? '1 colleague can take it' : `${s.takers} colleagues can take it`) : null,
+          h('span', { class: `tag ${MINE[s.state]?.[0] ?? ''}` }, MINE[s.state]?.[1] ?? s.state),
+          s.state === 'OFFERED' ? h('button', { class: 'btn small', onclick: () => send(`/api/personal/offers/${s.id}/withdraw`, {}, 'Offer withdrawn.') }, 'Withdraw') : null,
+        ),
+      ))) : h('div', { class: 'card empty' }, 'You have not offered any shifts. Offer one from your Roster.'),
     );
-    async function interest(s, on) {
-      try { await post(`/api/personal/open-shifts/${s.id}/interest`, { interested: on }); toast(on ? 'Interest sent. Your roster is unchanged.' : 'Interest withdrawn.'); reload(); } catch (err) { showError(err); }
+    async function send(url, body, msg) {
+      try { await post(url, body); toast(msg); reload(); } catch (err) { showError(err); }
     }
   },
 

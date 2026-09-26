@@ -562,4 +562,48 @@ CREATE TRIGGER state_transition_no_delete BEFORE DELETE ON state_transition
 BEGIN SELECT RAISE(ABORT, 'state_transition is append-only'); END;
 `,
   },
+  {
+    version: 2,
+    name: 'rostering',
+    sql: `
+-- A worker offering their own rostered shift to eligible colleagues. The offer and any
+-- colleague's willingness to take it never change the roster; a rostering decision does.
+CREATE TABLE shift_offer (
+  id TEXT PRIMARY KEY,
+  roster_shift_id TEXT NOT NULL REFERENCES roster_shift(id),
+  offered_by TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- OFFERED | WITHDRAWN | REASSIGNED | DECLINED
+  created_at TEXT NOT NULL,
+  decided_at TEXT,
+  decided_by TEXT
+);
+
+CREATE TABLE shift_offer_take (
+  id TEXT PRIMARY KEY,
+  offer_id TEXT NOT NULL REFERENCES shift_offer(id),
+  workforce_person_id TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- INTERESTED | WITHDRAWN | ACCEPTED | DECLINED
+  at TEXT NOT NULL
+);
+
+-- The only record that changes a roster: who decided, what, for whom and when.
+CREATE TABLE roster_decision (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                   -- OPEN_SHIFT | EXCHANGE | LEAVE
+  object_id TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- ASSIGNED | REASSIGNED | DECLINED | APPROVED
+  subject_worker_id TEXT,
+  roster_shift_id TEXT,
+  decided_by TEXT NOT NULL,
+  work_context_id TEXT NOT NULL,
+  note TEXT,
+  at TEXT NOT NULL
+);
+
+CREATE TRIGGER roster_decision_no_update BEFORE UPDATE ON roster_decision
+BEGIN SELECT RAISE(ABORT, 'roster_decision is append-only'); END;
+CREATE TRIGGER roster_decision_no_delete BEFORE DELETE ON roster_decision
+BEGIN SELECT RAISE(ABORT, 'roster_decision is append-only'); END;
+`,
+  },
 ];

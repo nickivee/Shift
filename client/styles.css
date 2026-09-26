@@ -345,3 +345,15 @@ dialog h2 { margin-top: 0; }
 .sort-item .handle svg { width: 22px; height: 22px; display: block; }
 .card h3 { margin: 0; }
 .card.urgent { border-left: 6px solid var(--danger); }
+
+/* ED Board: the triage category as recorded by the triage nurse. */
+.tag.ats { font-weight: 700; color: #fff; border-color: transparent; }
+.tag.ats-1 { background: #b0122b; }
+.tag.ats-2 { background: #c05600; }
+.tag.ats-3 { background: #0f6b4a; }
+.tag.ats-4 { background: #1d4f91; }
+.tag.ats-5 { background: #5a6b78; }
+
+/* Rostering decisions */
+.candidate { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--tint); }
+.candidate:first-of-type { border-top: 0; }

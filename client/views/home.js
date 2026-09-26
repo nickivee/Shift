@@ -11,8 +11,14 @@ const DESCRIPTIONS = {
   handover: () => 'Review items explicitly marked for handover.',
   received: () => 'Information routed to you. Nothing is received until you open it.',
   knowledge: () => 'Ask colleagues anonymously. SHIFT gives no answers of its own.',
+  vacancies: () => 'Open shifts and who has asked for them. Only your decision changes the roster.',
+  swaps: () => 'Shifts staff have offered to colleagues, waiting on a rostering decision.',
+  leave: () => 'Leave requests waiting for a decision.',
 };
-const TARGET = { workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge' };
+const TARGET = {
+  workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
+  vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
+};
 
 export function openTab(tabId) {
   go(tabId === 'list' ? '/work/records' : `/work/records?open=${tabId}`);
@@ -29,6 +35,9 @@ export async function homeView() {
     const jobs = [];
     if (want.includes('tasks')) jobs.push(get('/api/work/tasks').then((t) => (counts.tasks = t.filter((x) => !['COMPLETED', 'CLOSED', 'CANCELLED'].includes(x.state)).length)));
     if (want.includes('received')) jobs.push(get('/api/work/received').then((r) => (counts.received = r.filter((x) => x.state === 'DELIVERED').length)));
+    for (const id of ['vacancies', 'swaps', 'leave']) {
+      if (want.includes(id)) jobs.push(get(`/api/work/rostering/${id}`).then((rows) => (counts[id] = rows.length)));
+    }
     if (want.includes('handover')) jobs.push(get('/api/work/handover').then((g) => (counts.handover = g.reduce((a, p) => a + p.items.filter((i) => !i.myReceipt).length, 0))));
     await Promise.allSettled(jobs);
   };
@@ -45,8 +54,8 @@ export async function homeView() {
     const tabs = home.tabs.filter((t) => !t.hidden).map((t) => h('button', { class: 'pill', onclick: () => openTab(t.id) }, t.label));
     mount(root,
       workHeader(),
-      h('h2', { class: 'section-title paua' }, 'Workstation tabs'),
-      h('div', { class: 'strip', role: 'list' }, tabs),
+      tabs.length ? h('h2', { class: 'section-title paua' }, 'Workstation tabs') : null,
+      tabs.length ? h('div', { class: 'strip', role: 'list' }, tabs) : null,
       h('div', { class: 'grid-cards' }, cards),
       h('div', { class: 'customise-bar' },
         h('button', { class: 'link-btn', onclick: customise }, 'Customise Home'),
@@ -68,7 +77,7 @@ export async function homeView() {
         'Drag to reorder, or use the arrows. Hiding a card or tab only changes your screen, never your authority.',
       ),
       h('h3', {}, 'Cards'), cardList,
-      h('h3', {}, 'Workstation tabs'), tabList,
+      draft.tabs.length ? h('h3', {}, 'Workstation tabs') : null, draft.tabs.length ? tabList : null,
       h('div', { class: 'row' },
         h('button', { class: 'btn primary', onclick: async () => {
           try {

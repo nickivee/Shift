@@ -11,7 +11,8 @@ export type Capability =
   | 'task.manage'
   | 'handover.use'
   | 'result.review'
-  | 'knowledge.use';
+  | 'knowledge.use'
+  | 'roster.decide';
 
 export interface HomeCard {
   id: string;
@@ -35,6 +36,7 @@ export interface RoleConfig {
   views: string[];
   tabs: WorkstationTab[];
   homeCards: HomeCard[];
+  board?: boolean;                    // list shows triage category and time in department
 }
 
 const CARD = {
@@ -44,6 +46,9 @@ const CARD = {
   handover: { id: 'handover', label: 'Handover', required: true },
   received: { id: 'received', label: 'Received', required: true },
   knowledge: { id: 'knowledge', label: 'Shared knowledge', required: false },
+  vacancies: { id: 'vacancies', label: 'Vacancies', required: true },
+  swaps: { id: 'swaps', label: 'Swaps', required: true },
+  leave: { id: 'leave', label: 'Leave', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -140,6 +145,87 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge],
+  },
+  {
+    roleKey: 'ed-rn',
+    label: 'Registered Nurse',
+    matrixRow: 'Emergency Department - RN',
+    evidenceStatus: 'Workflow-derived; ED service specification/triage terminology',
+    profession: 'Registered Nurse',
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use'],
+    keys: ['.triage', '.obs', '.bgl', '.pain', '.assess', '.procedure', '.change', '.family', '.progress', '.task'],
+    views: ['overview', 'triage', 'assess', 'obs', 'bgl', 'pain', 'meds', 'procedures', 'results', 'tasks', 'notes', 'progress', 'handover', 'disposition', 'medical', 'allergies', 'changes', 'family', 'routes'],
+    tabs: [
+      { id: 'list', label: 'ED Board' },
+      { id: 'triage', label: 'Triage' },
+      { id: 'assess', label: 'Assessment' },
+      { id: 'obs', label: 'Observations' },
+      { id: 'meds', label: 'Medicines' },
+      { id: 'procedures', label: 'Procedures' },
+      { id: 'results', label: 'Results' },
+      { id: 'tasks', label: 'Tasks' },
+      { id: 'notes', label: 'Notes' },
+      { id: 'handover', label: 'Handover' },
+      { id: 'disposition', label: 'Transfer/Disposition' },
+    ],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received],
+    board: true,
+  },
+  {
+    roleKey: 'ed-doctor',
+    label: 'Emergency Doctor',
+    matrixRow: 'Emergency Department - doctor',
+    evidenceStatus: 'Workflow-derived; specialist medical/ED specification',
+    profession: 'Medical Practitioner',
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use'],
+    keys: ['.medical', '.problem', '.procedure', '.review', '.progress', '.disposition', '.family', '.task'],
+    views: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'routes', 'family', 'review'],
+    tabs: [
+      { id: 'list', label: 'ED Board' },
+      { id: 'medical', label: 'Medical Assessment' },
+      { id: 'problems', label: 'Problems' },
+      { id: 'results', label: 'Results' },
+      { id: 'meds', label: 'Medicines' },
+      { id: 'procedures', label: 'Procedures' },
+      { id: 'progress', label: 'Notes' },
+      { id: 'tasks', label: 'Tasks' },
+      { id: 'disposition', label: 'Disposition' },
+    ],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge],
+    board: true,
+  },
+  {
+    roleKey: 'physio',
+    label: 'Physiotherapist',
+    matrixRow: 'Physiotherapy',
+    evidenceStatus: 'HISO allied-health model / profession-specific regulation; exact profession mapping varies',
+    profession: 'Physiotherapist',
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage'],
+    keys: ['.assess', '.mobility', '.goals', '.treatment', '.outcome', '.progress', '.family', '.task'],
+    views: ['overview', 'assess', 'mobility', 'goals', 'treatment', 'outcomes', 'progress', 'notes', 'tasks', 'obs', 'problems', 'allergies', 'routes', 'family'],
+    tabs: [
+      { id: 'list', label: 'Caseload' },
+      { id: 'assess', label: 'Assessment' },
+      { id: 'mobility', label: 'Function/Mobility' },
+      { id: 'goals', label: 'Goals' },
+      { id: 'treatment', label: 'Treatment' },
+      { id: 'outcomes', label: 'Outcome Measures' },
+      { id: 'tasks', label: 'Tasks' },
+      { id: 'notes', label: 'Notes' },
+    ],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.received],
+  },
+  {
+    roleKey: 'arc-rostering',
+    label: 'Rostering',
+    matrixRow: 'Rostering / staffing',
+    evidenceStatus: 'Workflow-derived; legal/organisational verification varies',
+    profession: null,
+    capabilities: ['roster.decide'],
+    keys: [],
+    views: [],
+    tabs: [],
+    homeCards: [CARD.vacancies, CARD.swaps, CARD.leave],
   },
 ];
 

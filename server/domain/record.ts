@@ -37,25 +37,42 @@ function ageOn(dob: string | null, on = todayLocal()): number | null {
 export function patientList(store: Store, ctx: WorkContext) {
   enforce(store, ctx, { op: 'TASK', serviceId: ctx.serviceId });
   const today = todayLocal();
+  // The service's list is everyone with an active encounter in it, plus anyone the service
+  // holds an active care relationship with (e.g. a physiotherapy caseload on a ward).
   const rows = store.all<Record<string, string | number | null>>(
     `SELECT p.id, p.given_name, p.family_name, p.preferred_name, p.date_of_birth, p.gender,
-            e.location,
+            COALESCE(e.location, (SELECT o.location FROM encounter o WHERE o.person_id = p.id AND o.state = 'ACTIVE' ORDER BY o.started_at DESC LIMIT 1)) AS location,
+            e.started_at AS arrived_at,
             (SELECT value FROM external_identifier x WHERE x.person_id = p.id AND x.system = 'NHI') AS nhi,
             (SELECT 1 FROM allocation a WHERE a.person_id = p.id AND a.workforce_person_id = ? AND a.service_id = ? AND a.shift_date = ?) AS allocated,
             (SELECT count(*) FROM handover_mark h WHERE h.person_id = p.id AND h.service_id = ? AND h.cleared_at IS NULL) AS handover,
             (SELECT count(*) FROM task t WHERE t.person_id = p.id AND t.service_id = ? AND t.state NOT IN ('COMPLETED','CLOSED','CANCELLED')) AS open_tasks,
-            (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies
-       FROM encounter e JOIN person p ON p.id = e.person_id
-      WHERE e.service_id = ? AND e.state = 'ACTIVE'
-      ORDER BY e.location, p.family_name`,
-    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId,
+            (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies,
+            (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage
+       FROM person p
+       LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
+      WHERE e.id IS NOT NULL
+         OR EXISTS (SELECT 1 FROM care_relationship r WHERE r.person_id = p.id AND r.service_id = ? AND r.ended_at IS NULL)
+      ORDER BY location, p.family_name`,
+    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId,
   );
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_LIST', objectType: 'service', objectId: ctx.serviceId, decision: 'ALLOW', outcome: 'VIEWED', engines: [28, 266] });
-  return rows.map((r) => ({
-    id: r.id, name: `${r.given_name} ${r.family_name}`, preferredName: r.preferred_name, nhi: r.nhi,
-    age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
-    allocated: Boolean(r.allocated), handover: Number(r.handover), openTasks: Number(r.open_tasks), hasAllergy: Number(r.allergies) > 0,
-  }));
+  const list = rows.map((r) => {
+    const triage = r.triage ? (JSON.parse(String(r.triage)) as Record<string, string>) : null;
+    return {
+      id: r.id, name: `${r.given_name} ${r.family_name}`, preferredName: r.preferred_name, nhi: r.nhi,
+      age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
+      allocated: Boolean(r.allocated), handover: Number(r.handover), openTasks: Number(r.open_tasks), hasAllergy: Number(r.allergies) > 0,
+      arrivedAt: r.arrived_at, triage: triage ? { category: triage.category ?? null, complaint: triage.complaint ?? null } : null,
+    };
+  });
+  // Board order: triage category as recorded by the triage nurse, untriaged first so they
+  // are seen, then time waiting. SHIFT never assigns a category itself.
+  if (ctx.role.board) {
+    const rank = (p: (typeof list)[number]) => (p.triage?.category ? Number(p.triage.category.replace(/\D/g, '')) : 0);
+    list.sort((a, b) => rank(a) - rank(b) || String(a.arrivedAt).localeCompare(String(b.arrivedAt)));
+  }
+  return list;
 }
 
 // Search returns minimal identifying details only, and says whether the worker has a
