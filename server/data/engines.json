@@ -1,0 +1,3088 @@
+[
+ {
+  "id": 1,
+  "name": "Jurisdiction Framework & NZ Health-System Connection Layer",
+  "class": "ENGINE",
+  "pathways": [
+   "NZ Health-System Connection Layer — organisation → facility → service → team → practitioner/position, plus patient encounters, episodes and simultaneous care relationships. It must accommodate public, private, primary, community and other legitimate providers rather than assuming one Health NZ hospital structure.",
+   "It implements the machinery for NZ jurisdiction → destination registry → +location resolution → patient context → care relationships → shared care → referral → transfer → one-record/multiple-destination references."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 2,
+  "name": "Longitudinal Patient Record",
+  "class": "ENGINE",
+  "pathways": [
+   "One patient → one longitudinal record → many encounters/services → each genuine clinical event recorded once → that same event can appear wherever authorised without creating duplicate records."
+  ],
+  "rules": [],
+  "legal": [
+   "Public Records Act 2005 and applicable authorised disposal authorities: public-sector records must not be destroyed or transferred without lawful authority."
+  ]
+ },
+ {
+  "id": 3,
+  "name": "Workforce Identity, Profession, Position, Service & Authority",
+  "class": "ENGINE",
+  "pathways": [
+   "Person → practitioner identity → profession → regulator → credentials/scope → employment → position → service → active work context → patient relationship → purpose → requested operation → authority decision."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 4,
+  "name": "Clinical Event / .key",
+  "class": "ENGINE",
+  "pathways": [
+   ".key → structured clinical event → one canonical record → readable documentation → consequences/tasks → +destination references to that same event.",
+   "Worker + work context + patient relationship + purpose → authority check for CREATE → .key validation → resolve every +destination → separate authority check for ROUTE → create one canonical clinical event in the longitudinal patient record → bind the .key representation to it → route references to the actual destination IDs → preserve the same canonical event ID through every destination → audit/transaction evidence."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 5,
+  "name": "End-to-End Clinical Event, Authority, Record & Routing Transaction",
+  "class": "ENGINE",
+  "pathways": [
+   "Trigger → patient identity → worker identity → active authority/context → encounter/episode → action/event → validate required information → commit authoritative record → update affected shared objects → determine lawful recipients → route → acknowledgement/action state → audit."
+  ],
+  "rules": [],
+  "legal": [
+   "Public Records Act 2005 and applicable authorised disposal authorities: public-sector records must not be destroyed or transferred without lawful authority."
+  ]
+ },
+ {
+  "id": 6,
+  "name": "Atomic Enter-Once Transaction, Persistence & Audit",
+  "class": "ENGINE",
+  "pathways": [
+   "who → patient → source record → from → destination → purpose → applicable authority/rule → information scope → decision → sent/made available → received/accepted where applicable → date/time → audit",
+   "ONE canonical record → +neuro + +physio + another authorised destination → three references → still ONE source record",
+   "This increment adds a single transactional persistence boundary for Enter once → information moves, including atomic canonical-event creation, .key binding, +destination routing, audit evidence, rollback on injected failures, idempotent retry protection, amendment preservation and audit-chain integrity checking."
+  ],
+  "rules": [
+   "Audit view-only access as well as changes and disclosures; an anomaly signal is not a misconduct finding."
+  ],
+  "legal": []
+ },
+ {
+  "id": 7,
+  "name": "NZ Identity & Interoperability",
+  "class": "ENGINE",
+  "pathways": [
+   "Local/person presented → identity verification → NHI resolution → HPI practitioner/org/facility context → permitted national interface → request/receive → validate/match → attach to correct authoritative object → provenance → downstream availability."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 8,
+  "name": "Security & Privacy",
+  "class": "ENGINE",
+  "pathways": [],
+  "rules": [
+   "Audit view-only access as well as changes and disclosures; an anomaly signal is not a misconduct finding."
+  ],
+  "legal": []
+ },
+ {
+  "id": 9,
+  "name": "Clinical Terminology & Coding",
+  "class": "ENGINE",
+  "pathways": [
+   "Clinical entry → identify concept → bind approved terminology/code system → retain clinician-readable wording → validate version/effective date → store coded + human-readable representation → reuse for reporting/interoperability without altering original clinical meaning."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 10,
+  "name": "Medicines Management",
+  "class": "ENGINE",
+  "pathways": [
+   "medicine identity → medication history/reconciliation → allergies/adverse reactions → prescriber authority → approved/unapproved/off-label status → indication → prescription/order → controlled-drug rules where applicable → standing-order pathway where applicable → pharmacy verification → dispensing/supply → administration → PRN administration and effectiveness → omission/withholding/refusal → monitoring/adverse reaction → reconciliation at transitions → amendment/cancellation/discontinuation → stock/register obligations where applicable → longitudinal record → audit/provenance → governed external exchange."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 11,
+  "name": "Diagnostics, Orders & Results",
+  "class": "ENGINE",
+  "pathways": [
+   "Will add the diagnostic chain: order → specimen collection → laboratory receipt/accession → result → verification/release → acknowledgement → critical-result escalation → correction → longitudinal patient timeline → authorised routing, while preserving the original result when a correction is issued."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 12,
+  "name": "Referral, Consultation, Shared Care & Transfer",
+  "class": "ENGINE",
+  "pathways": [
+   "This build should implement the full lifecycle: referral request → receiving destination → clinical reason/priority → required information → acknowledgement → triage → accept/decline/redirect → consultation vs shared care vs transfer of responsibility → pre-arrival information → outstanding tasks/orders/results/medicines → handover → arrival → responsibility acceptance → discharge/closure → longitudinal record and audit.",
+   "It implements the build pathway for referral → acknowledgement → triage → acceptance/decline/redirect → consultation/shared care/transfer → pre-arrival information → outstanding work → explicit responsibility acceptance → closure, while preserving the one canonical patient record. Clinical information is referenced by its canonical event ID rather than copied into another record."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 13,
+  "name": "Receiving Person & Clinical Responsibility",
+  "class": "ENGINE",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 14,
+  "name": "Clinical Tasks, Follow-up & Responsibility",
+  "class": "ENGINE",
+  "pathways": [
+   "clinical event/result/referral → actionable requirement → responsible service → identified authorised person → acceptance → due/priority state → action → outcome → closure"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 15,
+  "name": "Care Plans, Goals & Interventions",
+  "class": "ENGINE",
+  "pathways": [
+   "assessment/problem → patient goal → care plan → intervention → responsible person/team → frequency/timing → performance → response → evaluation → revise/continue/complete",
+   "assessment/problem → goal → care plan → intervention → responsibility → performance/non-performance → response → evaluation → revision/completion."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 16,
+  "name": "Handover, Discharge & Continuity",
+  "class": "ENGINE",
+  "pathways": [
+   "canonical clinical record → handover preparation → identified authorised receiver → sent → received → reviewed → accepted → continuity/closure"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 17,
+  "name": "Assessment, Observations & Deterioration",
+  "class": "ENGINE",
+  "pathways": [
+   "assessment → observation → clinical concern → escalation → acknowledgement → acceptance → reassessment → resolution."
+  ],
+  "rules": [
+   "Record every observation set as a discrete, timestamped, additive event linked to a calculated early-warning score; a new set never overwrites or replaces a prior one.",
+   "Distinguish a scheduled observation (due per rostered frequency) from an unscheduled, concern-triggered observation, and record a missed-scheduled-observation as its own fact rather than leaving a silent gap.",
+   "Where a calculated score crosses a locally defined threshold, automatically create a linked Deterioration Event and Escalation record; the system flags that a response is required and by when, and does not determine what that response should be."
+  ],
+  "legal": []
+ },
+ {
+  "id": 18,
+  "name": "Consent, Preferences & Advance Directives",
+  "class": "ENGINE",
+  "pathways": [
+   "information provided → decision-specific competence → informed choice → consent/refusal → withdrawal → ongoing record"
+  ],
+  "rules": [
+   "Record the person's information, choice, consent/refusal/withdrawal and supporting evidence as distinct states; the software must not decide competence or validity."
+  ],
+  "legal": []
+ },
+ {
+  "id": 19,
+  "name": "Consumer Communication, Accessibility & Support",
+  "class": "ENGINE",
+  "pathways": [
+   "It adds the patient-facing communication layer: communication preference → accessible delivery → interpreter/support where required → information delivered → understanding established or clarification required → auditable record."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 20,
+  "name": "Clinical Risk, Alerts, Allergies & Safety-Critical Information",
+  "class": "ENGINE",
+  "pathways": [],
+  "rules": [
+   "This engine is the surfacing layer: active safety flags, allergies, and risk markers recorded anywhere in the record are pulled forward and displayed wherever a worker is acting on that patient, without requiring navigation to a separate screen.",
+   "Surfacing a flag here never creates a second copy of it; this engine references the canonical flag record and reflects its current state, including when it is updated or resolved elsewhere."
+  ],
+  "legal": []
+ },
+ {
+  "id": 21,
+  "name": "Clinical Documentation, Decisions & Reasoning",
+  "class": "ENGINE",
+  "pathways": [
+   "encounter → finding/source information → assessment/interpretation → decision → reasoning → plan → attributable clinical record"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 22,
+  "name": "Harm Events, Near Misses, Learning Reviews & Improvement",
+  "class": "ENGINE",
+  "pathways": [
+   "event identified → immediate patient safety actions → harm/near-miss classification → severity assessment → required notifications → consumer/whānau communication → review → contributing/system factors → recommendations → improvement actions → responsible people → completion → effectiveness review → organisational learning",
+   "harm/near miss → immediate safety response → SAC/ARR classification → open disclosure → learning review → contributing/system factors → improvement actions → responsible owner → completion → effectiveness evaluation → closure"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 23,
+  "name": "Consumer Feedback, Complaints, Resolution & Service Improvement",
+  "class": "ENGINE",
+  "pathways": [
+   "The engine needs to implement concern/complaint received → consumer's issues and requested outcome → acknowledgement → responsible complaint handler → investigation decision → progress updates → findings → response/reasons → actions/remedies → appeal/external options → closure → improvement linkage.",
+   "This section implements complaint received → issues/requested outcome → authorised handler → acknowledgement → initial decision → investigation/progress → findings → improvement actions → reasoned outcome → appeal/external options → closure."
+  ],
+  "rules": [
+   "Keep complaint handling separate from alteration of the clinical record; corrections must use versioned record-correction controls."
+  ],
+  "legal": []
+ },
+ {
+  "id": 24,
+  "name": "Health Record Retention, Legal Hold, Archiving & Disposal",
+  "class": "ENGINE",
+  "pathways": [
+   "record created → retention classification → applicable retention rules → minimum retention date → legal/complaint/investigation hold → archival assessment → authorised disposal decision → destruction/transfer/archive → permanent evidence of what happened",
+   "This section implements record classification → retention period → active holds → disposal-authority assessment → authorised disposition → permanent disposal evidence."
+  ],
+  "rules": [
+   "A minimum retention date is not an automatic destruction date; active holds and lawful disposal authority must block destruction."
+  ],
+  "legal": [
+   "Public Records Act 2005 and applicable authorised disposal authorities: public-sector records must not be destroyed or transferred without lawful authority."
+  ]
+ },
+ {
+  "id": 25,
+  "name": "Consumer Access, Record Correction & Disclosure Requests",
+  "class": "ENGINE",
+  "pathways": [
+   "request received → requester/representative identity established → scope established → records located → authority/exceptions assessed → redaction/third-party review where necessary → decision → information released/refused in whole or part → reasons recorded → correction request → correction or statement-of-correction linkage → downstream notification → audit",
+   "request → requester identity → requester capacity/authority → scope → locate records → applicable legal pathway → review/redaction → decision → release/partial release/refusal → reasons → correction/statement → downstream correction notification → closure/audit.",
+   "Original record → correction request → authorised decision → new corrected version OR statement of correction."
+  ],
+  "rules": [],
+  "legal": [
+   "Public Records Act 2005 and applicable authorised disposal authorities: public-sector records must not be destroyed or transferred without lawful authority."
+  ]
+ },
+ {
+  "id": 26,
+  "name": "Audit, Access Monitoring, Break-Glass & Privacy Surveillance",
+  "class": "ENGINE",
+  "pathways": [
+   "user accesses patient information → purpose/context captured → audit event → behavioural/access monitoring → anomaly identified → review → legitimate access confirmed OR privacy/security concern → escalation/investigation → outcome",
+   "access attempt → authority/work context → ordinary or emergency access → exact access event → immutable audit evidence → anomaly detection → human review → finding → escalation where justified → closure"
+  ],
+  "rules": [
+   "Audit view-only access as well as changes and disclosures; an anomaly signal is not a misconduct finding."
+  ],
+  "legal": []
+ },
+ {
+  "id": 27,
+  "name": "Workforce Rostering, Availability, Capacity & Safe Staffing",
+  "class": "ENGINE",
+  "pathways": [
+   "This section soild implement employment/work context → roster → shift → service/location assignment → availability → skill/authority mix → patient demand/workload → staffing gaps → escalation → replacement/redeployment → actual worked shift → audit.",
+   "care recorded once → workload consequence derived from the care → staffing/capacity picture updated.",
+   "employed → credentialled → authorised → rostered → present/available → appropriately skilled for the required care → capacity available → responsibility accepted → care performed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 28,
+  "name": "Patient Administration, Encounters, Appointments, Waitlists & Service Capacity",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/need → service eligibility → waitlist → clinical priority → appointment offer → patient communication → booked → attended / cancelled / rescheduled / did-not-attend → encounter → required follow-up → next appointment or discharge",
+   "accepted referral → waitlist entry → clinical priority → service capacity → appointment offer → patient response → booking → arrival → encounter → outcome → follow-up / next waitlist / discharge",
+   "accepted referral → waitlist → clinical priority → capacity → appointment offered → patient response → booked → arrival/DNA → clinical encounter → outcome/follow-up"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 29,
+  "name": "Emergency, Acute Presentation, Triage & Patient Flow",
+  "class": "ENGINE",
+  "pathways": [
+   "unscheduled presentation → arrival → immediate danger screen → triage → clinical priority → waiting/reassessment → treatment location → assessment/treatment → observation/admission/transfer/discharge → outcome",
+   "presentation → immediate-danger screen → ATS triage → waiting/location → reassessment → re-triage → assessment/treatment references → escalation → observation/admission/transfer/discharge or other explicit outcome"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 30,
+  "name": "Inpatient Admission, Bed Management, Ward Movement & Hospital Flow",
+  "class": "ENGINE",
+  "pathways": [
+   "decision to admit → admission type/source → required specialty/service → bed requirement → suitable resourced bed → bed allocation → admission → ward/unit movement → temporary leave/location changes → specialty/responsibility changes → ongoing bed state → discharge/transfer/death → bed release",
+   "decision to admit → admission request → required service/bed characteristics → capacity search → suitable bed reservation → allocation → physical admission/occupancy → ward/unit movements → temporary locations → responsibility handoffs → escalation when capacity unavailable → discharge/transfer/death → physical departure → bed turnaround → bed available again.",
+   "decision/admission request → bed requirements → suitable capacity search → reservation → allocation → physical admission → occupancy → ward/unit movement → temporary location → capacity escalation → departure → bed turnaround → bed available again."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 31,
+  "name": "Perioperative, Theatre, Procedure & Recovery",
+  "class": "ENGINE",
+  "pathways": [
+   "procedure decision → scheduling → readiness → consent/site verification → theatre admission → sign-in → anaesthesia → time-out → procedure → intra-operative events/specimens/implants/counts → sign-out → PACU → recovery assessment → postoperative plan/orders → authorised handover → ward/discharge destination.",
+   "The NZ surgical-safety baseline was checked against Te Tāhū Hauora material current on the site in 2026. It preserves sign in → time out → sign out as distinct processes, plus separate start-of-list briefing and end-of-list debriefing.",
+   "Booked ≠ ready → in theatre ≠ anaesthesia started → time-out complete ≠ procedure started → procedure completed ≠ recovery ready → recovery ready ≠ responsibility accepted."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 32,
+  "name": "Maternity, Labour, Birth, Postnatal & Newborn",
+  "class": "ENGINE",
+  "pathways": [
+   "pregnancy assertion → antenatal episode → maternity referral/acceptance → labour → labour events → birth → newborn identity/assessment → maternal and newborn postnatal care → feeding support → continuity handover."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 33,
+  "name": "Child, Youth & Paediatric Care Coordination",
+  "class": "ENGINE",
+  "pathways": [
+   "Referral/presentation → child identity → age/competence/representative authority → safeguarding state → assessment → paediatric plan → multidisciplinary actions → family/whānau communication as authorised → escalation/referral → outcome/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 34,
+  "name": "Mental Health, Addiction, Crisis & Compulsory Care",
+  "class": "ENGINE",
+  "pathways": [
+   "Presentation/referral → immediate safety/urgency assessment → voluntary/compulsory legal status established → responsible clinician/team → assessment → care plan → treatment/actions → observation/review → legal-status changes separately recorded → transfer/discharge/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 35,
+  "name": "Rehabilitation, Allied Health, Function & Recovery",
+  "class": "ENGINE",
+  "pathways": [
+   "rehabilitation referral → eligibility/readiness → multidisciplinary assessment → baseline function → patient/whānau goals → discipline-specific assessment → therapy/intervention → functional response → progress/reassessment → equipment/support requirements → rehabilitation transition → community rehabilitation → outcome/exit",
+   "referral → discipline decision → rehabilitation readiness → baseline/discipline assessment → existing care-plan goal linkage → intervention planning → delivery/non-delivery → functional observation → equipment/support → reassessment/outcome → transition/accepted responsibility → episode closure."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 36,
+  "name": "Older Person, Frailty, Dementia & Aged Residential Care",
+  "class": "ENGINE",
+  "pathways": [
+   "older-person episode → comprehensive needs/frailty context → interRAI/assessment reference → cognition/function/support needs → current living environment → home-support package or residential-care pathway → level of care → admission → resident care → reassessment/change in need → temporary hospital absence/return → change of care level/facility → end-of-life/transfer/exit.",
+   "older-person episode → needs/interRAI reference → community-safety state → care-level decision → placement offer → acceptance/decline → residential admission → ongoing function/support → reassessment → temporary absence/return → change/transition → episode outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 37,
+  "name": "Palliative, End-of-Life, Last-Days & Bereavement Care",
+  "class": "ENGINE",
+  "pathways": [
+   "palliative-care identification/referral → acceptance → goals and phase of care → symptom burden → anticipatory planning → patient/whānau priorities → preferred place of care/death → escalation limits and existing directive references → specialist/generalist coordination → deterioration → recognition of last days of life → comfort-focused care → death → immediate after-death clinical workflow → bereavement/support follow-up.",
+   "palliative referral → acceptance → phase assessment → goals/preferences → symptom assessment → anticipatory planning → last-days recognition → whānau support → death → after-death actions → bereavement support."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 38,
+  "name": "Community, District Nursing, Home-Based Care & Mobile Clinical Work",
+  "class": "ENGINE",
+  "pathways": [
+   "referral → triage → service acceptance → community episode → visit requirement → scheduling/worker allocation → travel/mobile context → arrival/access → identity/context verification → home/environment assessment → clinical care → canonical event capture → supplies/equipment → escalation/referral → follow-up requirement → next visit → transfer/return to another provider → community episode closure",
+   "referral → acceptance → visit planning → worker allocation → travel/arrival/access → identity/authority/work-context verification → environment assessment → clinical care references → equipment/supplies → escalation → follow-up → visit completion → community episode closure."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 39,
+  "name": "Primary Care, General Practice & Longitudinal Community Care",
+  "class": "ENGINE",
+  "pathways": [
+   "enrolment/practice relationship → appointment/request for care → triage/urgency → clinician allocation → consultation → presenting concern → assessment → diagnosis/problem-state reference → investigation/treatment → prescription reference → prevention/screening → long-term-condition plan → monitoring/review → referral/escalation → follow-up → consultation closure → continuing primary-care relationship",
+   "practice relationship → enrolment status → usual practice/team → appointment request → urgency/access pathway → consultation → reason for encounter → assessment/problem → investigations → prescribing → preventive/recall activity → follow-up → referral/shared care → chronic-condition review → care transition → continuing longitudinal primary-care relationship.",
+   "practice relationship → enrolment → access request → appointment offer → booking → consultation → problem/assessment state → investigation/treatment references → prevention → recalls → long-term-condition management → referral → continuing primary-care relationship."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 40,
+  "name": "Pharmacy, Dispensing, Medicines Supply & Pharmaceutical Care",
+  "class": "ENGINE",
+  "pathways": [
+   "prescription/order received → prescription validation → pharmacist clinical screening → clarification/intervention if required → dispensing preparation → independent/required checking → supply → counselling/information → collection/delivery → medicine reconciliation/adherence support → pharmacy clinical service → follow-up → pharmacy episode completion.",
+   "prescription received → pharmacist screening → clarification/intervention → approval → dispensing preparation → checking → dispensed → supplied → counselling → collection/delivery → reconciliation/pharmacy service → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 41,
+  "name": "Oral Health, Dental, Community Dental & Hospital Dental Care",
+  "class": "ENGINE",
+  "pathways": [
+   "oral-health referral/access → dental history/risk → oral examination → tooth/oral structure findings → diagnosis/problem state → treatment plan → consent → procedure → local anaesthetic/sedation references where applicable → materials/restorations/prostheses → post-procedure assessment → preventive care → recall/review → specialist/hospital referral → episode outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 42,
+  "name": "Cancer, Oncology, Haematology & Anti-Cancer Treatment",
+  "class": "ENGINE",
+  "pathways": [
+   "cancer suspicion → diagnostic pathway → confirmed diagnosis → tumour/haematological disease characterisation → staging/risk classification → multidisciplinary review → treatment intent → decision to treat → treatment plan/regimen → systemic therapy/radiotherapy/surgery references → cycle/fraction/course progression → toxicity/adverse-effect assessment → response assessment → treatment modification → surveillance → recurrence/progression → survivorship or palliative transition.",
+   "cancer suspicion → confirmed diagnosis → characterisation/staging evidence → multidisciplinary recommendation → decision to treat → treatment intent/course → cycle/fraction/delivery sequence → readiness verification → treatment delivery → toxicity → response assessment → surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 43,
+  "name": "Renal, Nephrology, Dialysis & Kidney Replacement Therapy",
+  "class": "ENGINE",
+  "pathways": [
+   "renal referral → renal assessment → kidney-function/CKD state → progression monitoring → kidney-failure planning → treatment/modality education → modality decision → dialysis-access planning → dialysis readiness → haemodialysis/peritoneal/home dialysis → individual treatment sessions/exchanges → adequacy and complication monitoring → treatment modification → transplant pathway or supportive kidney care",
+   "scheduled treatment → pre-treatment assessment → access → start → prescribed parameters → delivered parameters → observations → medicines/fluids references → interruption/variance → complications → completion → post-treatment assessment → outcome",
+   "renal episode → evidence-linked renal state → modality education/decision → dialysis-access lifecycle → dialysis prescription reference → recurring treatment schedule → pre-treatment readiness → treatment start → delivered treatment → post-treatment assessment → complications/adequacy → transplant pathway or supportive kidney care."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 44,
+  "name": "Cardiology, Cardiovascular, Heart Failure & Cardiac Intervention",
+  "class": "ENGINE",
+  "pathways": [
+   "cardiac referral/presentation → cardiovascular assessment → diagnostic evidence → cardiac condition state → severity/risk → specialist review → management plan → intervention decision → intervention/procedure reference → post-intervention monitoring → cardiac rehabilitation → surveillance/follow-up"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 45,
+  "name": "Respiratory, Oxygen & Ventilatory Support",
+  "class": "ENGINE",
+  "pathways": [
+   "respiratory presentation/referral → respiratory assessment → diagnostic evidence → condition/state → severity/control assessment → treatment plan → inhaled/other medicine references → oxygen/respiratory-support requirement → support initiation → monitoring → exacerbation → escalation → recovery → pulmonary rehabilitation/community support → longitudinal review",
+   "room air → oxygen requirement identified → prescribed/authorised target/reference → delivery device → oxygen commenced → delivered flow/concentration → observations/response → adjustment → escalation/weaning → cessation/community oxygen transition",
+   "respiratory episode → assessment/evidence → condition state → respiratory treatment plan → oxygen requirement → oxygen prescription reference → device/support → actual delivered therapy → response → escalation/weaning → exacerbation/recovery → home oxygen/community transition → longitudinal review"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 46,
+  "name": "Gastroenterology, Hepatology, Endoscopy & Digestive Care",
+  "class": "ENGINE",
+  "pathways": [
+   "GI presentation/referral → condition/evidence state → endoscopy referral → triage → offer → booking → readiness/consent → procedure start → completion/incompletion → findings → specimen/pathology linkage → hepatology state → ongoing specialist follow-up"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 47,
+  "name": "Diabetes, Endocrinology & Metabolic Care",
+  "class": "ENGINE",
+  "pathways": [
+   "Build 47 therefore needs to own diabetes/endocrine referral → diagnostic evidence → explicit condition state → diabetes type/evidence → glucose/HbA1c monitoring → treatment-plan references → insulin/device pathway → hypoglycaemia/hyperglycaemia events → complication surveillance → retinal/renal/foot-care references → endocrine assessment → thyroid/adrenal/pituitary/calcium/bone/metabolic pathways → longitudinal specialist review and primary/community transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 48,
+  "name": "Neurology, Stroke, Epilepsy & Progressive Neurological Care",
+  "class": "ENGINE",
+  "pathways": [
+   "neurological presentation/referral → neurological assessment → investigation evidence → neurological condition state → acute neurological event → specialist decision → treatment/intervention references → neurological monitoring → functional/cognitive consequences → rehabilitation/support references → progressive-condition monitoring → relapse/exacerbation/seizure events → longitudinal follow-up"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 49,
+  "name": "Rheumatology, Inflammatory Disease & Musculoskeletal Medicine",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/presentation → rheumatological assessment → symptom/findings evidence → investigation references → suspected/confirmed condition state → inflammatory/disease-activity state → treatment decision → medicine/infusion references → response/adverse-event monitoring → flare/remission state → functional impact → allied-health/rehabilitation → longitudinal specialist review → shared-care/primary-care transition"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 50,
+  "name": "Dermatology, Skin Disease & Skin Surveillance",
+  "class": "ENGINE",
+  "pathways": [
+   "skin presentation/referral → anatomical lesion/site record → dermatological assessment → clinical finding → investigation/biopsy reference → suspected/confirmed condition state → severity/activity → treatment plan → topical/systemic/phototherapy references → treatment response → flare/recurrence → surveillance → longitudinal follow-up",
+   "lesion identified → anatomical location → dimensions/characteristics → image/reference provenance → clinical assessment → biopsy/excision decision → specimen reference → pathology result → result review → diagnosis/state update → treatment/surveillance",
+   "The NZ research basis is confirmed: Health NZ dermatology services cover skin, hair and nail disease, procedural dermatology, complex inflammatory disease, phototherapy, patch testing and cutaneous oncology. Biopsy and laboratory examination are also explicitly separate steps in diagnosis, supporting the planned finding → biopsy/specimen → pathology → review → condition-state architecture."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 51,
+  "name": "Ophthalmology, Eye Health & Ocular Procedures",
+  "class": "ENGINE",
+  "pathways": [
+   "eye presentation/referral → eye/side/site identification → visual assessment → ocular examination/findings → diagnostic evidence → suspected/confirmed condition state → severity/progression → treatment decision → medicine/procedure references → treatment delivery/outcome → surveillance → longitudinal follow-up",
+   "recommended → eligibility assessed → eligible/not eligible → consent referenced → scheduled → performed → outcome recorded"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 52,
+  "name": "ENT/Otorhinolaryngology, Audiology, Hearing & Balance",
+  "class": "ENGINE",
+  "pathways": [
+   "ENT/audiology presentation or referral → anatomical site/laterality → assessment → hearing/vestibular/voice/swallowing findings → investigation evidence → condition state → severity/functional impact → treatment/device/procedure decision → intervention reference → outcome → surveillance/follow-up",
+   "hearing concern → audiological assessment → hearing-loss evidence → device recommendation → funding/eligibility evidence → selection → fitting → verification → use/outcome → adjustment/repair/replacement"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 53,
+  "name": "Clinical Genetics & Genomics",
+  "class": "ENGINE",
+  "pathways": [
+   "Build 53 now separates referral → triage → accepted responsibility; reported versus verified family history; assessment evidence versus diagnosis; proposed test → consent → authority → specimen → laboratory receipt → result → clinical review; variant report → interpretation → reclassification; counselling delivery versus understanding; and surveillance recommendation versus accepted responsibility/completion."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 54,
+  "name": "Pain Management",
+  "class": "ENGINE",
+  "pathways": [
+   "referral → triage → responsibility acceptance → multidimensional pain assessment → risks → patient-priority goals → shared management plan → interventions → medicine-review references → self-management → functional/quality-of-life outcomes → flare management → follow-up/transition"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 55,
+  "name": "Sexual Health & STI Care",
+  "class": "ENGINE",
+  "pathways": [
+   "Presentation/referral → confidential identity/contact context → consent → history/risk assessment → tests → treatment → results → required public-health/contact processes → follow-up → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 56,
+  "name": "Gynaecology",
+  "class": "ENGINE",
+  "pathways": [
+   "referral → specialist triage → responsibility acceptance → gynaecological assessment → investigation → result → clinical review → explicit condition state → procedure recommendation → authority → scheduling → readiness/consent → procedure reference → outcome → follow-up",
+   "screening-result reference → colposcopy referral → triage → scheduling → colposcopy → biopsy → pathology result → clinical review → follow-up/closure"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 57,
+  "name": "Fertility & Assisted Reproductive Technology",
+  "class": "ENGINE",
+  "pathways": [
+   "Build 57 implements fertility referral/responsibility → assessment → versioned eligibility evidence → treatment recommendation → informed consent → authority/ethical reference → readiness → ART cycle → stimulation/retrieval/fertilisation/transfer states → outcome, plus separate gamete/embryo collection, storage, extension and disposition and fertility-preservation pathways."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 58,
+  "name": "Orthopaedics",
+  "class": "ENGINE",
+  "pathways": [
+   "It keeps injury → imaging → classification → stability assessment → treatment selection → healing review separate. Elective care similarly keeps recommendation → eligibility assessment → consent → scheduling → procedure reference → outcome separate. Joint-replacement eligibility is therefore not inferred merely from symptoms or referral, consistent with the current Health NZ pathway."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 59,
+  "name": "Urology",
+  "class": "ENGINE",
+  "pathways": [
+   "Referral/presentation → triage → assessment → investigation → result → diagnosis/problem update → MDT/procedure/treatment decision → intervention → pathology/imaging/result → recovery → discharge/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 60,
+  "name": "Infectious Diseases, Antimicrobial Therapy & Complex Infection Care",
+  "class": "ENGINE",
+  "pathways": [
+   "presentation/referral → infection assessment → microbiology/diagnostic evidence → suspected/confirmed infection state → organism/resistance evidence → infection source/site → treatment decision → antimicrobial reference → response/toxicity monitoring → source-control reference → isolation/infection-control linkage → treatment completion → recurrence/surveillance → specialist follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 61,
+  "name": "Immunology, Allergy & Immune-Mediated Disease",
+  "class": "ENGINE",
+  "pathways": [
+   "referral → allergy/immunology history → suspected trigger/immune disorder → investigation/testing reference → specialist interpretation → condition state → challenge/testing pathway → treatment/avoidance plan → immunotherapy/medicine reference → emergency-management plan → reassessment → longitudinal surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 62,
+  "name": "Intensive Care, Critical Care & High Dependency",
+  "class": "ENGINE",
+  "pathways": [
+   "critical-care referral → assessment → acceptance → ICU/HDU admission → organ-support requirement → treatment/support plan → continuous monitoring → intervention/support delivery → deterioration/improvement → daily review → liberation/weaning → transfer readiness → receiving-person acceptance → ICU/HDU discharge → post-critical-care follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 63,
+  "name": "Anaesthesia, Acute Pain, Sedation & Peri-Anaesthetic Care",
+  "class": "ENGINE",
+  "pathways": [
+   "anaesthetic referral/requirement → pre-anaesthetic assessment → risk/airway evidence → anaesthetic plan → consent reference → medicine/device preparation → anaesthesia commencement → airway/anaesthetic management → intra-procedure monitoring → emergence → transfer to recovery → anaesthetic outcome → complication/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 64,
+  "name": "Vascular Surgery & Vascular Medicine",
+  "class": "ENGINE",
+  "pathways": [
+   "vascular presentation/referral → anatomical site/laterality → vascular assessment → diagnostic evidence → vascular condition state → severity/limb-risk state → conservative/interventional decision → procedure reference → perfusion/wound outcome → surveillance → rehabilitation/community follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 65,
+  "name": "Plastic, Reconstructive, Burns & Complex Wound Surgery",
+  "class": "ENGINE",
+  "pathways": [
+   "injury/defect/referral → anatomical site → wound/burn/defect assessment → severity/extent evidence → reconstructive requirement → treatment plan → procedure/graft/flap reference → donor-site linkage → postoperative viability/healing assessment → complication management → rehabilitation → scar management → reconstruction/surveillance follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 66,
+  "name": "Neonatal Intensive Care & Specialist Newborn Care",
+  "class": "ENGINE",
+  "pathways": [
+   "newborn → neonatal concern/risk → neonatal assessment → NICU/SCBU referral → acceptance/admission → gestational/birth evidence → respiratory/feeding/temperature/metabolic support → investigation/treatment references → developmental monitoring → parent/whānau involvement → discharge readiness → community/paediatric follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 67,
+  "name": "Transplantation, Donation & Recipient Care",
+  "class": "ENGINE",
+  "pathways": [
+   "potential recipient → transplant referral → assessment → eligibility decision → listing/status → donor/organ offer reference → compatibility/allocation evidence → acceptance decision → transplant procedure reference → graft/recipient monitoring → rejection/complication evidence → immunosuppression references → longitudinal transplant follow-up.",
+   "potential donor → donation pathway → consent/authority evidence → suitability assessment → allocation/process references → donation outcome."
+  ],
+  "rules": [],
+  "legal": [
+   "Human Tissue Act 2008: apply consent/authority and handling requirements where human tissue, organs or post-death donation/use is within scope."
+  ]
+ },
+ {
+  "id": 68,
+  "name": "Blood, Transfusion & Cellular Therapy",
+  "class": "ENGINE",
+  "pathways": [
+   "clinical indication → transfusion request → compatibility/testing evidence → product allocation → identity verification → consent/reference → issue → bedside verification → commencement → administration → observation → reaction pathway → completion → traceability → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 69,
+  "name": "Sleep Medicine & Sleep-Disordered Breathing",
+  "class": "ENGINE",
+  "pathways": [
+   "sleep-related presentation/referral → sleep history/risk assessment → diagnostic study request → study performed → result interpretation reference → condition state → treatment/device decision → device setup → adherence/use evidence → response → adjustment → longitudinal review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 70,
+  "name": "Clinical Nutrition, Enteral/Parenteral Nutrition & Nutrition Support",
+  "class": "ENGINE",
+  "pathways": [
+   "nutrition risk → assessment → nutrition diagnosis/problem state → requirement/goal → oral/enteral/parenteral plan → access/device reference → prescribed nutrition → actual delivery → tolerance → biochemical/clinical monitoring → adjustment → transition/weaning → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 71,
+  "name": "Bariatric Medicine & Bariatric Surgery Pathway",
+  "class": "ENGINE",
+  "pathways": [
+   "referral → multidisciplinary assessment → eligibility evidence → optimisation → treatment decision → non-operative pathway OR surgery decision → consent → procedure reference → postoperative pathway → nutrition/micronutrient monitoring → weight/metabolic outcome → complication surveillance → long-term follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 72,
+  "name": "Pre-Hospital, Ambulance & Retrieval Medicine",
+  "class": "ENGINE",
+  "pathways": [
+   "call/request → incident → dispatch reference → crew response → patient contact → initial assessment → treatment/intervention → destination decision → transport → en-route reassessment → pre-arrival communication → arrival → identified receiving person/team → handover → responsibility acceptance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 73,
+  "name": "Public Health, Communicable Disease Notification & Outbreak Management",
+  "class": "ENGINE",
+  "pathways": [
+   "notifiable/public-health signal → legal/reporting assessment → notification → case/public-health episode → investigation → exposure/contact relationships → public-health action → outbreak/cluster linkage where applicable → responsible public-health team → follow-up → closure → surveillance/reporting evidence."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 74,
+  "name": "Occupational Health & Workforce Clinical Services",
+  "class": "ENGINE",
+  "pathways": [
+   "workforce health referral/need → occupational-health clinical episode → exposure/injury/immunisation/fitness-related assessment → investigation/reference → clinical advice → workplace restriction/accommodation recommendation where authorised → follow-up → resolution/ongoing surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 75,
+  "name": "Prosthetics, Orthotics, Mobility Technology & Complex Equipment",
+  "class": "ENGINE",
+  "pathways": [
+   "clinical need → assessment → device recommendation → specification → funding/eligibility evidence → approval → manufacture/order → fitting → delivery → competency/training → use → review → adjustment/repair → replacement/retirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 76,
+  "name": "Specialist Disability, Intellectual Disability & Complex Support Health Care",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/identified need → functional/support context → communication/access requirements → specialist health assessment → clinical/support risks → health care plan → reasonable adjustments → intervention/service references → multidisciplinary coordination → reassessment → transition/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 77,
+  "name": "Developmental, Neurodevelopmental & Autism Services",
+  "class": "ENGINE",
+  "pathways": [
+   "developmental concern → referral → developmental history → multidisciplinary assessment → evidence/findings → diagnostic decision by authorised clinician/team → functional/support profile → intervention/support plan → education/community coordination → reassessment → transition to adult services where required."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 78,
+  "name": "Eating Disorders Specialist Care",
+  "class": "ENGINE",
+  "pathways": [
+   "presentation/referral → medical/mental-health/nutritional assessment → risk state → diagnostic evidence → treatment setting decision → treatment plan → nutritional rehabilitation references → psychological/medical interventions → physical monitoring → deterioration/escalation → recovery/relapse state → transition/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 79,
+  "name": "Forensic Health & Secure Clinical Care",
+  "class": "ENGINE",
+  "pathways": [
+   "legal/forensic pathway reference → secure-service referral → authority/status verification → acceptance → secure clinical episode → assessment → treatment/care plan → leave/movement authority references → risk-management plan → review → transition/release/transfer → receiving responsibility."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 80,
+  "name": "National Screening, Prevention & Recall Programmes",
+  "class": "ENGINE",
+  "pathways": [
+   "programme eligibility → invitation/offer → informed participation decision → booking → screening event → specimen/test → result → result review → communication → recall → diagnostic referral where indicated → responsibility acceptance → programme follow-up/exit."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 81,
+  "name": "Addiction Medicine, Alcohol & Other Drug Services",
+  "class": "ENGINE",
+  "pathways": [
+   "presentation/referral → substance-use history → assessment → substance/use-pattern evidence → withdrawal/intoxication risk → treatment need → treatment setting → withdrawal-management plan → medicine references → psychosocial intervention → harm-reduction support → recovery goals → relapse/return-to-use event → reassessment → continuing care."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 82,
+  "name": "Clinical Toxicology & Poisoning",
+  "class": "ENGINE",
+  "pathways": [
+   "suspected exposure → substance/product identification → exposure route/time/amount evidence → toxicological assessment → poisoning/toxicity state → investigation references → toxicology advice → treatment/antidote reference → monitoring → complication → clearance/outcome → follow-up where required."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 83,
+  "name": "Trauma Services & Major Trauma Coordination",
+  "class": "ENGINE",
+  "pathways": [
+   "injury event → pre-hospital reference → trauma activation → primary assessment → injury evidence → trauma severity/state → immediate intervention references → definitive service allocation → operative/critical-care references → secondary/tertiary assessment → complication surveillance → rehabilitation → trauma follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 84,
+  "name": "Spinal Cord Injury & Specialist Spinal Rehabilitation",
+  "class": "ENGINE",
+  "pathways": [
+   "spinal injury/condition → specialist referral → neurological/function assessment → spinal condition state → acute management references → respiratory/autonomic/bladder/bowel/skin risk management → rehabilitation programme → equipment/technology references → functional outcome → community transition → lifelong surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 85,
+  "name": "Acquired Brain Injury & Neurorehabilitation",
+  "class": "ENGINE",
+  "pathways": [
+   "brain injury/event → acute-care reference → cognitive/behavioural/physical assessment → impairment state → rehabilitation readiness → multidisciplinary rehabilitation plan → intervention → progress → reassessment → community reintegration → vocational/support linkage → long-term review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 86,
+  "name": "Burns Intensive Care & National Severe Burns Pathway",
+  "class": "ENGINE",
+  "pathways": [
+   "burn event → burn assessment → extent/depth evidence → severe-burn criteria → specialist consultation → transfer decision → resuscitation → critical-care references → serial burn assessment → surgical references → wound progression → rehabilitation → reconstruction/scar surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 87,
+  "name": "Hyperbaric Medicine",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/indication → specialist assessment → treatment suitability → contraindication/risk assessment → treatment prescription → chamber session scheduling → pre-treatment checks → treatment exposure → monitoring → interruption/adverse event → completion → response → course review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 88,
+  "name": "Nuclear Medicine & Molecular Imaging/Therapy",
+  "class": "ENGINE",
+  "pathways": [
+   "request → indication → radiopharmaceutical/procedure planning → patient preparation → product/activity verification → administration → acquisition/procedure → radiation-safety evidence → interpretation/result reference → therapeutic monitoring where applicable → follow-up."
+  ],
+  "rules": [],
+  "legal": [
+   "Radiation Safety Act 2016 and applicable secondary legislation: require lawful authorisation and safety controls for ionising-radiation activities where applicable."
+  ]
+ },
+ {
+  "id": 89,
+  "name": "Radiation Therapy Operational Pathway",
+  "class": "ENGINE",
+  "pathways": [
+   "radiation-oncology decision → treatment intent → simulation → imaging/planning → target/organ-at-risk definition references → treatment plan → plan approval → treatment scheduling → fraction delivery → treatment variance/interruption → toxicity monitoring → course completion → response/follow-up."
+  ],
+  "rules": [],
+  "legal": [
+   "Radiation Safety Act 2016 and applicable secondary legislation: require lawful authorisation and safety controls for ionising-radiation activities where applicable."
+  ]
+ },
+ {
+  "id": 90,
+  "name": "Systemic Anti-Cancer Therapy Operational Delivery",
+  "class": "ENGINE",
+  "pathways": [
+   "treatment decision → regimen reference → cycle/course plan → pre-treatment requirements → readiness assessment → treatment authorisation → preparation/pharmacy reference → administration → reaction/toxicity monitoring → cycle completion → interval assessment → dose/change decision reference → subsequent cycle or treatment cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 91,
+  "name": "Bone Marrow, Stem Cell & Cellular Therapy",
+  "class": "ENGINE",
+  "pathways": [
+   "candidate referral → eligibility assessment → donor/product pathway → collection reference → processing/product state → conditioning reference → cellular product administration → engraftment monitoring → complication surveillance → immune/rejection-related monitoring → recovery → long-term follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 92,
+  "name": "Clinical Genetics Laboratory & Genomic Testing Operations",
+  "class": "ENGINE",
+  "pathways": [
+   "test request → consent/authority requirements → specimen → specimen suitability → laboratory accession → testing methodology → analysis → variant/result generation → validation → authorised report → clinical interpretation linkage → reanalysis/amendment where appropriate."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 93,
+  "name": "Pathology, Histology & Cytology Operational Workflow",
+  "class": "ENGINE",
+  "pathways": [
+   "specimen request → collection/procedure reference → specimen identity → anatomical site → accession → processing → block/slide/material relationship → examination → ancillary test → interpretation → authorised report → amendment/addendum → downstream clinical acknowledgement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 94,
+  "name": "Laboratory Medicine Operations",
+  "class": "ENGINE",
+  "pathways": [
+   "request → specimen requirement → collection → identification → transport → receipt → acceptance/rejection → analysis → quality-control state → technical validation → clinical authorisation → result release → critical-result communication → amendment."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 95,
+  "name": "Radiology & Diagnostic Imaging Operations",
+  "class": "ENGINE",
+  "pathways": [
+   "imaging request → clinical indication → protocol/triage → safety screening → scheduling → patient preparation → imaging acquisition → contrast/medicine references → technical completion → interpretation → report → urgent communication → amendment/follow-up recommendation."
+  ],
+  "rules": [],
+  "legal": [
+   "Radiation Safety Act 2016 and applicable secondary legislation: require lawful authorisation and safety controls for ionising-radiation activities where applicable."
+  ]
+ },
+ {
+  "id": 96,
+  "name": "Interventional Radiology",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/request → specialist review → indication → procedural planning → imaging/access planning → consent reference → preparation → procedure reference → device/material/embolisation/drainage references → immediate outcome → recovery → complication surveillance → device/drain follow-up → episode closure."
+  ],
+  "rules": [],
+  "legal": [
+   "Radiation Safety Act 2016 and applicable secondary legislation: require lawful authorisation and safety controls for ionising-radiation activities where applicable."
+  ]
+ },
+ {
+  "id": 97,
+  "name": "Endoscopy Service Operations",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/request → indication → triage → preparation → consent reference → procedure readiness → scope procedure → findings → specimen/intervention references → recovery → pathology/result linkage → follow-up recommendation → surveillance/recall."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 98,
+  "name": "Sterile Services & Reusable Medical Device Reprocessing",
+  "class": "ENGINE",
+  "pathways": [
+   "used reusable device → point-of-use handling → transport → decontamination → inspection → assembly → packaging → sterilisation/disinfection cycle → release → storage → distribution → procedure/use linkage → recall where necessary."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 99,
+  "name": "Infection Prevention & Control",
+  "class": "ENGINE",
+  "pathways": [
+   "infection/transmission signal → IPC assessment → precaution requirement → isolation/cohorting action → exposure identification → contact tracing linkage → environmental/service response → outbreak linkage → review → precaution cessation → surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 100,
+  "name": "Clinical Engineering, Medical Devices & Equipment Safety",
+  "class": "ENGINE",
+  "pathways": [
+   "device identity → acquisition → acceptance/testing → location → maintenance schedule → calibration/service → available/in-use state → patient-use reference → fault → quarantine → repair → return to service → recall → retirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 101,
+  "name": "Organ, Tissue & Eye Donation Services",
+  "class": "ENGINE",
+  "pathways": [
+   "potential donor identification → referral → donation suitability → authority/consent evidence → donor assessment → organ/tissue pathway → allocation references → retrieval/procurement reference → preservation/transport → recipient linkage → donation outcome → family/whānau follow-up where applicable."
+  ],
+  "rules": [],
+  "legal": [
+   "Human Tissue Act 2008: apply consent/authority and handling requirements where human tissue, organs or post-death donation/use is within scope."
+  ]
+ },
+ {
+  "id": 102,
+  "name": "Gender-Affirming Specialist Health Services",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/presentation → goals/needs assessment → clinical assessment → treatment options → informed decision/consent → medicine/procedure references → monitoring → outcome → longitudinal follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 103,
+  "name": "Refugee, Migrant & Newly Arrived Health Services",
+  "class": "ENGINE",
+  "pathways": [
+   "service entry → communication/interpreter requirements → health assessment → previous-record availability → screening requirements → immunisation evidence → identified health needs → referral/service linkage → treatment references → primary-care connection → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 104,
+  "name": "Prison & Corrections Health Interface",
+  "class": "ENGINE",
+  "pathways": [
+   "health-service referral/access → clinical assessment → treatment plan → medicines/diagnostics references → chronic/acute care → specialist referral → transfer/release planning → community healthcare handover → receiving responsibility."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 105,
+  "name": "Rural Hospital & Remote Clinical Care",
+  "class": "ENGINE",
+  "pathways": [
+   "presentation → rural assessment → local capability assessment → treatment locally OR remote specialist consultation → escalation requirement → transfer decision → transport/retrieval → interim care → receiving-service acceptance → transfer → rural/community follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 106,
+  "name": "Telehealth & Virtual Clinical Care",
+  "class": "ENGINE",
+  "pathways": [
+   "virtual appointment/referral → participant identity/context verification → communication/accessibility requirements → virtual encounter → clinical assessment → limitations identified → documentation → investigation/treatment/referral references → escalation to in-person care where required → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 107,
+  "name": "Hospital-at-Home & Acute Care at Home",
+  "class": "ENGINE",
+  "pathways": [
+   "acute-care need → eligibility assessment → patient agreement → hospital-at-home admission → responsible team → home-environment/capability assessment → treatment plan → scheduled/unscheduled clinical contacts → diagnostics/medicine references → deterioration/escalation → transfer to physical hospital where required → recovery → discharge → primary/community-care handover."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 108,
+  "name": "Complex Care Coordination & High-Needs Multiservice Management",
+  "class": "ENGINE",
+  "pathways": [
+   "complex-care criteria/need → coordinator/team assignment → active service map → patient/whānau priorities → shared goals → dependency/conflict identification → coordinated plan → cross-service tasks → responsibility map → review → transition/step-down."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 109,
+  "name": "Māori Health Navigation, Whānau-Centred Coordination & Cultural Support",
+  "class": "ENGINE",
+  "pathways": [
+   "patient/whānau request or identified support need → culturally appropriate engagement → communication/support preferences → whānau involvement authorised by the patient where required → navigation need → service connection → advocacy/support activity → follow-up → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 110,
+  "name": "Pacific Health Navigation & Culturally Responsive Coordination",
+  "class": "ENGINE",
+  "pathways": [
+   "support need/request → communication/cultural requirements → family involvement authority → navigation → service linkage → access-barrier response → support activity → follow-up → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 111,
+  "name": "Interpreter, Translation & Communication Support Services",
+  "class": "ENGINE",
+  "pathways": [
+   "communication need → language/mode requirement → interpreter requirement → booking → interpreter allocation → attendance → communication event → completion/variance → future requirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 112,
+  "name": "Social Work, Safeguarding & Complex Social Care Coordination",
+  "class": "ENGINE",
+  "pathways": [
+   "referral/identified social need → social assessment → patient/whānau goals → safeguarding concern where applicable → immediate safety action → statutory/community-service references → intervention/support → housing/financial/care coordination → review → outcome/transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 113,
+  "name": "Child Protection & Safeguarding Clinical Interface",
+  "class": "ENGINE",
+  "pathways": [
+   "concern identified → immediate safety assessment → clinical findings/evidence → authorised safeguarding escalation → required consultation/reporting → agency/service reference → safety plan → healthcare follow-up → outcome/status."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 114,
+  "name": "Family Violence & Adult Safeguarding Clinical Pathway",
+  "class": "ENGINE",
+  "pathways": [
+   "concern/disclosure → immediate safety assessment → clinical care → communication/privacy requirements → risk assessment → support/referral → statutory/legal pathway references where applicable → safety planning → follow-up."
+  ],
+  "rules": [],
+  "legal": [
+   "Family Violence Act 2018 and applicable information-sharing provisions: use only the statutory pathway that applies; record the human decision and basis rather than allowing the software to infer abuse or risk."
+  ]
+ },
+ {
+  "id": 115,
+  "name": "Sexual Assault & Forensic Clinical Services",
+  "class": "ENGINE",
+  "pathways": [
+   "presentation/referral → immediate health/safety needs → consent choices → clinical assessment → forensic examination where consented/authorised → specimen/evidence chain references → treatment/prevention references → psychosocial support → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 116,
+  "name": "Emergency Preparedness, Disaster & Mass-Casualty Clinical Coordination",
+  "class": "ENGINE",
+  "pathways": [
+   "incident activation → service status/capacity → casualty/patient linkage → disaster triage → destination/allocation → treatment-area movement → resource constraints → transfer/distribution → family/reunification information boundaries → incident stand-down → reconciliation/review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 117,
+  "name": "Mortuary, Deceased-Person Care & Post-Death Clinical Administration",
+  "class": "ENGINE",
+  "pathways": [
+   "death identified → verification/certification references → deceased-person identity → required notifications → family/whānau communication → cultural/religious requirements → property/specimen/device requirements → mortuary transfer → release authority → release → post-death documentation completion."
+  ],
+  "rules": [],
+  "legal": [
+   "Human Tissue Act 2008: apply consent/authority and handling requirements where human tissue, organs or post-death donation/use is within scope.",
+   "Coroners Act 2006: preserve statutory notification, information, document and evidential requirements where a death is within coronial jurisdiction."
+  ]
+ },
+ {
+  "id": 118,
+  "name": "Coronial & Medico-Legal Clinical Interface",
+  "class": "ENGINE",
+  "pathways": [
+   "potential coronial requirement → authorised assessment/reference → notification → record preservation → requested clinical information → lawful disclosure decision → specimen/property/evidence references → external case reference → healthcare follow-up actions → closure of healthcare-side obligations."
+  ],
+  "rules": [],
+  "legal": [
+   "Coroners Act 2006: preserve statutory notification, information, document and evidential requirements where a death is within coronial jurisdiction."
+  ]
+ },
+ {
+  "id": 119,
+  "name": "Clinical Research & Trial Participant Care Interface",
+  "class": "ENGINE",
+  "pathways": [
+   "research opportunity → eligibility screening → research consent → enrolment → protocol activity → investigational intervention/reference → safety monitoring → adverse-event reporting → withdrawal/completion → ongoing clinical-care transition."
+  ],
+  "rules": [],
+  "legal": [
+   "Code of Health and Disability Services Consumers' Rights, including Right 9, plus Privacy Act 2020/HIPC: keep research participation/consent and research use of health information distinct from ordinary clinical care."
+  ]
+ },
+ {
+  "id": 120,
+  "name": "Final Service-Architecture Boundary",
+  "class": "ENGINE",
+  "pathways": [
+   "Proposed service/function → classify capability → check existing engine/object → reuse existing capability where available → configure service-specific requirements → prohibit duplicate architecture → dependency/integration check → approve/reject boundary."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 121,
+  "name": "General Medicine / Internal Medicine",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "acute medical assessment → problem list → differential/diagnostic evidence → investigations → treatment → specialty consultation → daily review → deterioration/escalation → discharge readiness → discharge → primary-care follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 122,
+  "name": "Acute Medical Unit / Medical Assessment Unit",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "arrival/referral → acute assessment → responsible medical team → investigations → treatment → observation/reassessment → disposition decision → ward admission OR discharge OR transfer."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 123,
+  "name": "General Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "surgical referral/presentation → assessment → diagnostic evidence → operative/non-operative decision → preparation → procedure reference → postoperative management → complication surveillance → discharge → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 124,
+  "name": "Colorectal Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 125,
+  "name": "Upper Gastrointestinal & Hepatobiliary-Pancreatic Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 126,
+  "name": "Breast Services & Breast Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "presentation/screening finding → diagnostic assessment → imaging → biopsy → pathology → diagnosis → MDT decision → surgery/treatment references → surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 127,
+  "name": "Endocrine Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 128,
+  "name": "Cardiothoracic Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 129,
+  "name": "Neurosurgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 130,
+  "name": "Maxillofacial & Craniofacial Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 131,
+  "name": "Hand Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 132,
+  "name": "Podiatry & High-Risk Foot",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "foot-risk assessment → skin/wound state → vascular/neurological evidence → footwear/offloading → intervention → wound references → escalation → review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 133,
+  "name": "Pelvic Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → assessment → findings → investigations → multidisciplinary treatment plan → conservative/medical/procedural pathway → reassessment → outcome → discharge/escalation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 134,
+  "name": "Continence Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → assessment → findings → investigations → multidisciplinary treatment plan → conservative/medical/procedural pathway → reassessment → outcome → discharge/escalation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 135,
+  "name": "Stomal Therapy",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "stoma type/site → operative reference → stoma assessment → appliance/product plan → skin state → education/competency → complications → community supply/support → review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 136,
+  "name": "Lymphoedema Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "assessment → affected site → severity → contributing clinical context → treatment plan → compression/device reference → intervention → response → self-management → surveillance."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 137,
+  "name": "Wound Care",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "ward → theatre → rehabilitation → community → primary care."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 138,
+  "name": "Infusion Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "treatment order → readiness requirements → pharmacy/product reference → appointment → vascular-access state → pre-treatment checks → administration → monitoring → reaction → completion → next treatment/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 139,
+  "name": "Travel Medicine",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "travel plan → destination/risk assessment → individual health context → vaccine/prevention requirements → informed decision → administration/prescription references → documentation → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 140,
+  "name": "School Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral/presentation → identity → consent/authority/confidentiality assessment → health assessment → intervention → safeguarding/escalation where indicated → permitted family/school/health communication → follow-up → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 141,
+  "name": "Hospice",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "referral → acceptance → goals → symptom management → medicine references → nursing/medical/allied-health care → whānau support → deterioration → end-of-life care → death/post-death transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 142,
+  "name": "Community Mental Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → triage → assessment → allocated team → plan → community intervention → review → transition/discharge."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 143,
+  "name": "Crisis Resolution / Home Treatment",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Crisis referral → immediate risk/urgency → response → home/community assessment → crisis plan → intensive treatment/contact → repeated reassessment → step-down/admission/escalation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 144,
+  "name": "Consultation-Liaison Psychiatry",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Hospital patient → consultation request → psychiatric assessment within existing hospital episode → findings/recommendations → responsible treating team receives recommendation → accepted/declined/modified action → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 145,
+  "name": "Maternal Mental Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → maternal/perinatal assessment → maternal + infant considerations → plan → multidisciplinary treatment → monitoring → transition to community/other service."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 146,
+  "name": "Infant, Child & Adolescent Mental Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → developmental/age/competence/authority context → assessment → safeguarding → plan → intervention → family/whānau involvement where authorised → review → transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 147,
+  "name": "Older Persons Mental Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral → assessment → cognition/delirium/mental-health differential → functional/social assessment → multidisciplinary plan → intervention → review → community/residential/inpatient transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 148,
+  "name": "Memory Assessment Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "concern → referral → cognitive/functional assessment → investigations → diagnostic decision → support/care plan → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 149,
+  "name": "Falls Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [
+   "A falls-risk assessment is a versioned, timestamped event, not a static field; admission, transfer, and significant status change each trigger a due reassessment rather than relying on the last score indefinitely.",
+   "An actual fall is recorded as its own event linked to the patient's Deterioration/Incident record regardless of injury outcome — a witnessed no-harm fall is still safety data and must not be left undocumented."
+  ],
+  "legal": []
+ },
+ {
+  "id": 150,
+  "name": "Fracture Liaison / Bone Health",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Trigger/referral → eligibility → baseline assessment → goals → multidisciplinary plan → intervention sessions → measurements/findings → progress → plan modification → outcome assessment → maintenance/community/discharge."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 151,
+  "name": "Cardiac Rehabilitation",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Trigger/referral → eligibility → baseline assessment → goals → multidisciplinary plan → intervention sessions → measurements/findings → progress → plan modification → outcome assessment → maintenance/community/discharge."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 152,
+  "name": "Pulmonary Rehabilitation",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Trigger/referral → eligibility → baseline assessment → goals → multidisciplinary plan → intervention sessions → measurements/findings → progress → plan modification → outcome assessment → maintenance/community/discharge."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 153,
+  "name": "Stroke Rehabilitation",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Trigger/referral → eligibility → baseline assessment → goals → multidisciplinary plan → intervention sessions → measurements/findings → progress → plan modification → outcome assessment → maintenance/community/discharge."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 154,
+  "name": "Cancer Rehabilitation & Survivorship",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "treatment consequence → rehabilitation need → survivorship plan → monitoring → late effects → recurrence surveillance references → primary-care transition."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 155,
+  "name": "Diabetes High-Risk Multidisciplinary Care",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "High-risk trigger → MDT referral → consolidated diabetes state → complications/risk assessment → assigned actions → medicines/diagnostics/referrals → results return to same plan → overdue/escalation monitoring → reassessment → step-down."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 156,
+  "name": "Dialysis Unit",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Renal plan/order → scheduled treatment → identity/authority → pre-dialysis assessment → weight/fluid/observations/results → treatment → medicines/access/events → intra-treatment monitoring → completion/complication → post-treatment state → next treatment/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 157,
+  "name": "Respiratory Physiology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Request/order → clinical indication → scheduling → patient preparation → test → measurements/raw output → technical validation → authorised interpretation → report → critical-result pathway if required → referring clinician acknowledgement/action."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 158,
+  "name": "Cardiac Physiology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Request/order → clinical indication → scheduling → patient preparation → test → measurements/raw output → technical validation → authorised interpretation → report → critical-result pathway if required → referring clinician acknowledgement/action."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 159,
+  "name": "Neurophysiology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Request/order → clinical indication → scheduling → patient preparation → test → measurements/raw output → technical validation → authorised interpretation → report → critical-result pathway if required → referring clinician acknowledgement/action."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 160,
+  "name": "Final Department Mapping Rule",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "DEPARTMENT/SERVICE → identify clinical purpose → identify existing canonical engine(s) → identify responsible team → identify required role views → identify service-specific states → identify lawful permissions → identify .keys/templates → identify queues/tasks → identify alerts/escalations → identify destinations → identify reporting requirements → configure workspace."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 161,
+  "name": "Haemophilia & Inherited Bleeding Disorders",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "bleeding-disorder state → individual treatment plan → factor/product references → prophylaxis → bleeding event → treatment → laboratory monitoring → procedure planning → response → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 162,
+  "name": "Anticoagulation Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "indication → anticoagulant therapy → monitoring requirement → result → dose decision → prescription/order reference → communication → follow-up → interruption/bridging plan where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 163,
+  "name": "Thrombosis Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "suspected thrombosis → investigation → diagnostic evidence → confirmed condition → anticoagulation/treatment reference → complication surveillance → duration decision → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 164,
+  "name": "Immunisation Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "vaccine/product → indication/programme context → eligibility → consent/authority → administration → administrator → date/time → site/route where applicable → batch/product traceability → adverse-event reference → next-dose/recall state."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 165,
+  "name": "Cervical Screening",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "eligibility → invitation/recall → participation → specimen → laboratory result → review → communication → follow-up requirement → diagnostic referral → acceptance → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 166,
+  "name": "Breast Screening",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "eligibility → invitation → attendance → screening imaging → result → recall/additional assessment → diagnostic investigation → outcome → future recall."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 167,
+  "name": "Bowel Screening",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "eligibility → invitation → participation → screening test → result → review → colonoscopy referral → procedure → pathology reference → outcome → surveillance/return to screening."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 168,
+  "name": "Newborn Screening",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "eligibility → screening requirement → consent/authority context → specimen/test → result → review → communication → repeat/diagnostic follow-up → specialist referral where required."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 169,
+  "name": "Sexual & Reproductive Health Contraception Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "contraceptive need → assessment → options → informed decision → prescription/procedure → product/device reference → follow-up → adverse effect/complication → change/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 170,
+  "name": "Pregnancy Termination Care",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "presentation/referral → assessment → pregnancy evidence → clinical/legal requirements → informed decision/consent → treatment pathway → medicine/procedure references → outcome → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 171,
+  "name": "Menopause Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "presentation → symptom/history assessment → relevant risk assessment → treatment options → treatment decision → medicine references → monitoring → response/adverse effects → review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 172,
+  "name": "Geriatric Fracture / Orthogeriatric Care",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Fracture presentation → orthopaedic + geriatric shared episode → assessment → optimisation → surgery → postoperative care → geriatric review → rehabilitation → bone/falls management → discharge planning → community follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 173,
+  "name": "Perioperative Medicine",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "planned procedure → medical risk assessment → optimisation requirements → investigation references → medicine-management plan → readiness → perioperative recommendations → postoperative medical follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 174,
+  "name": "Pre-Admission / Preoperative Assessment",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "procedure planned → pre-admission assessment → history/reconciliation → investigations → preparation requirements → outstanding issues → readiness status → escalation where required → procedure admission."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 175,
+  "name": "Day Surgery",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "scheduled procedure → arrival → admission checks → preparation → procedure → recovery → discharge criteria → discharge → follow-up/escalation instructions."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 176,
+  "name": "Procedure Rooms / Minor Procedures",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Referral/order → eligibility → identity/site/procedure verification → consent → preparation → procedure → specimen/device/medicine events → observations → recovery → discharge instructions → results/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 177,
+  "name": "Recovery / PACU",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "arrival from procedure → responsibility handover → airway/respiratory status → haemodynamic state → pain/nausea → wound/drain/device state → medicines → complications → recovery criteria → ward/discharge transfer."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 178,
+  "name": "Acute Pain Service",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "referral/trigger → pain assessment → analgesia technique → medicine/device references → effectiveness → adverse effects → intervention → reassessment → transition back to primary team."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 179,
+  "name": "Vascular Access Service",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "access requirement → device selection → insertion request → assessment → consent where applicable → insertion → tip/location verification where required → device state → use → complications → maintenance → removal."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 180,
+  "name": "Ostomy, Catheter, Drain & Tube Management",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "device identity/type → indication → insertion/creation reference → anatomical site → current state → care requirements → output/function → complications → review → replacement/removal → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 181,
+  "name": "Enteral Feeding Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "nutrition requirement → route decision → tube/device state → feed prescription → administration/delivery → tolerance → monitoring → adjustment → transition/weaning."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 182,
+  "name": "Parenteral Nutrition Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "nutrition requirement → PN decision → formulation/order → pharmacy preparation → vascular-access readiness → administration → metabolic/laboratory monitoring → complication surveillance → adjustment → weaning/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 183,
+  "name": "Speech-Language Therapy",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "referral → assessment → functional findings → goals → intervention → recommendations → communication/swallowing plan → reassessment → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 184,
+  "name": "Dietetics",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "referral → nutrition assessment → requirements → nutrition diagnosis/problem → goals → intervention → oral/enteral/parenteral references → monitoring → reassessment → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 185,
+  "name": "Physiotherapy",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 186,
+  "name": "Occupational Therapy",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 187,
+  "name": "Social Work",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 188,
+  "name": "Clinical Psychology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "psychological assessment → formulation → treatment goals → intervention → response → risk/escalation where relevant → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 189,
+  "name": "Neuropsychology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "referral → cognitive assessment → test/evidence references → interpretation → functional implications → recommendations → rehabilitation/care-plan linkage → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 190,
+  "name": "Audiology",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 191,
+  "name": "Optometry Interface",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "Optometry-originating referral/information → patient match → authority/purpose → structured clinical information → triage → ophthalmic/other service action → result/outcome → authorised information returned. (Differs from the rest of allied health because it is an interface, not an in-house service.)"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 192,
+  "name": "Prosthetics",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "need → assessment → specification → funding/approval → manufacture/order → fitting → training → functional use → adjustment → maintenance/replacement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 193,
+  "name": "Orthotics",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 194,
+  "name": "Amputee Rehabilitation",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "amputation reference → wound/residual-limb state → pain → functional assessment → rehabilitation → prosthetic readiness → fitting → mobility training → community transition → long-term review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 195,
+  "name": "Wheelchair & Seating Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "mobility/seating need → assessment → specification → funding → approval → supply → fitting → training → pressure/posture review → adjustment → repair/replacement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 196,
+  "name": "Home Modification Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "functional/environmental need → home assessment → recommendation → funding/service referral → approval → modification → completion → reassessment."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 197,
+  "name": "Community Equipment Loan Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "clinical need → request → approval → equipment allocation → delivery → patient assignment → use → maintenance → return → decontamination/reprocessing where applicable → reissue/retirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 198,
+  "name": "Respiratory Home Oxygen Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "clinical indication → assessment → oxygen prescription → supplier/equipment reference → installation/delivery → patient education → use → monitoring → review → modification/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 199,
+  "name": "Home Ventilation Services",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "ventilatory requirement → device prescription/settings → equipment provision → training → use → monitoring → device data → clinical review → adjustment → escalation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 200,
+  "name": "Architecture Coverage Checkpoint",
+  "class": "SERVICE_CONFIGURATION",
+  "pathways": [
+   "proposed new capability → check against existing engines and shared objects → coverage confirmed (existing capability sufficient) OR gap identified → gap resolved by new engine/object OR by configuration of an existing engine → boundary closed → service-configuration work may proceed. (Sits at the Part A/Part B seam: nothing becomes a service configuration until this checkpoint confirms it isn't secretly a new engine.)"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 201,
+  "name": "Formal Capability Classification",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "capability proposed → does it introduce new authority, legal, or canonical-record rules? → Yes: Clinical Engine. → does it only reuse existing engine(s) with service-specific configuration? → Yes: Service Configuration. → does it represent a reusable data/state object referenced by multiple engines? → Yes: Shared Lifecycle Object. → does it operate across engines without owning clinical content (access, queuing, reconciliation)? → Yes: Cross-System Capability. → none of the above cleanly fit → redesign the proposal before implementation. (This is the formal, upstream version of the Engine/Configuration/Object decision test used throughout Part C — applied whenever a new department or capability is proposed, before any building starts.)"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 202,
+  "name": "Mandatory Configuration Template",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "inheriting engine(s) identified → specialty-specific triage/priority rules → specialty-specific team/role assignments → specialty-specific required fields/.key templates → specialty-specific escalation thresholds → specialty-specific consent/legal variations → specialty-specific destinations/reporting → configuration reviewed against the parent engine's invariant → approved configuration → active. (This is the mandatory checklist behind the department-mapping rule at Engine 160 and the 'each specialty configures, never re-architects' principle running through every Part B service configuration.)"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 203,
+  "name": "Referral",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "draft → authorised → sent → received → triaged → accepted OR declined OR redirected → scheduled where applicable → patient seen/contacted → service responsibility established where applicable → outcome → completed/closed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 204,
+  "name": "Order / Request",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "draft → authorised → submitted → received → accepted/rejected/clarification required → scheduled/prepared → performed/delivered where applicable → resulting state → reviewed → completed/closed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 205,
+  "name": "Diagnostic Result",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "test/study performed → preliminary data/result where applicable → validation → authorised result → released → clinical review → communication/action where required → amendment/addendum where required."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 206,
+  "name": "Medication",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "proposed → ordered/prescribed → verified/reviewed → supplied/dispensed → scheduled → administered/taken → monitored → modified → held → resumed → ceased → reconciled → historical."
+  ],
+  "rules": [
+   "Changing a dose, route, or frequency creates a new linked version rather than overwriting the prior one — what was actually prescribed at a given time must stay reconstructable."
+  ],
+  "legal": []
+ },
+ {
+  "id": 207,
+  "name": "Administration Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "due/scheduled where applicable → prepared → required checks → administered OR refused OR withheld OR omitted OR unavailable OR delayed → monitoring/reassessment where required → completed."
+  ],
+  "rules": [
+   "Recording an administration event requires the recording worker to confirm patient identity, medication identity, dose, route and time against the current order at the point of administration; the system presents the check, it does not perform it.",
+   "Where a medication is locally defined as high-risk and requiring independent double-check, the event captures the second checker's identity separately from the administering worker — one worker cannot fill both roles."
+  ],
+  "legal": []
+ },
+ {
+  "id": 208,
+  "name": "Appointment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "required/requested → offered → booked → confirmed where applicable → arrived/connected → commenced → completed OR cancelled OR did-not-attend OR unable-to-complete → follow-up requirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 209,
+  "name": "Encounter",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "planned → arrived/commenced → active → completed/cancelled/DNA."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 210,
+  "name": "Clinical Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "initiated → performed/occurred → recorded → verified where required → amended/corrected without destroying history."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 211,
+  "name": "Procedure",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "proposed → clinically indicated → consent requirements → planned → scheduled → prepared → commenced → performed → completed/abandoned/modified → recovery → outcome → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 212,
+  "name": "Specimen",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "required → collection planned → collected → labelled/identified → transported → received → accepted/rejected → processed → tested/examined → retained/disposed according to requirements."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 213,
+  "name": "Wound",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "identified → initial assessment → treatment plan → serial reassessment → intervention → deterioration/improvement → complication → healing/closure OR ongoing management."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 214,
+  "name": "Patient-Connected Device",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "need → ordered/requested → selected → inserted/applied → verified where required → active/in use → maintained → complication → replacement → removal → historical."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 215,
+  "name": "Implant / Traceable Product",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "product identity → availability → allocation → procedure linkage → implantation/use → patient linkage → surveillance → complication → recall where applicable → removal/replacement where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 216,
+  "name": "Care Plan",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "need identified → goals established → interventions/actions → responsible people/teams → review dates → active implementation → reassessment → modification → achieved/ceased/superseded."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 217,
+  "name": "Task",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "created → assigned/unassigned → accepted where required → in progress → completed OR declined/reassigned/cancelled → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 218,
+  "name": "Alert",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "trigger condition → alert generated → visible to authorised recipient → acknowledged → action where required → resolved/expired."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 219,
+  "name": "Handover",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "handover requirement → relevant information assembled → sending clinician/team → receiving clinician/team → handover delivered → questions/clarification → receipt/acceptance where responsibility is involved."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 220,
+  "name": "Transfer of Care / Responsibility",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "transfer considered → transfer decision → receiving service requested → receiving service accepts → preparation → transport/movement where applicable → arrival → clinical handover → responsibility accepted → sending responsibility ends/changes."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 221,
+  "name": "Admission",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "admission considered → decision to admit → admitting service → acceptance → placement/bed process → arrival → admission commenced → responsible team active."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 222,
+  "name": "Discharge",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "discharge considered → readiness assessment → decision → outstanding requirements → medicines reconciliation → documentation → patient/whānau communication → follow-up/referrals → destination arrangements → discharge → receiving/community responsibility where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 223,
+  "name": "Consent / Authority",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [],
+  "rules": [
+   "Record the person's information, choice, consent/refusal/withdrawal and supporting evidence as distinct states; the software must not decide competence or validity."
+  ],
+  "legal": []
+ },
+ {
+  "id": 224,
+  "name": "Communication",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "communication required → intended recipient → method → attempted → successful/unsuccessful → information conveyed → response → follow-up required/completed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 225,
+  "name": "Escalation",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "trigger → escalation requirement → responsible recipient → escalation initiated → received → acknowledged → response/action → reassessment → resolved/further escalation."
+  ],
+  "rules": [
+   "An Escalation record captures who was notified, by what means, at what time, and their acknowledged response, as distinct fields; 'notified' and 'acknowledged' are never collapsed into a single state.",
+   "Where a defined response time elapses without acknowledgement, the escalation surfaces as unresolved and remains visible rather than silently expiring."
+  ],
+  "legal": []
+ },
+ {
+  "id": 226,
+  "name": "Observation / Measurement",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [],
+  "rules": [
+   "One observation record holds exactly one measurement type, one value, one time and one recorder; a set taken together (e.g. a full vital-signs round) links via a shared set/episode identifier rather than merging into a single free-text entry.",
+   "An amended reading preserves the original as a superseded version with reason and author; it is never silently overwritten."
+  ],
+  "legal": []
+ },
+ {
+  "id": 227,
+  "name": "Assessment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "initiated → information gathered → completed → reviewed/updated."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 228,
+  "name": "Diagnosis / Problem",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "suspected/provisional → confirmed where appropriate → active → resolved/inactive; history retained."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 229,
+  "name": "Clinical Document",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "created → authored → completed/signed where applicable → distributed/viewable → amended/versioned."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 230,
+  "name": "Provenance / Amendment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "original → correction/addendum → superseding representation where applicable; original preserved."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 231,
+  "name": "Enter Once Enforcement",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "capture authoritative fact → create object → reference/reuse → update object rather than re-enter."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 232,
+  "name": "Engine / Configuration / Object Test",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "Yes → consider Clinical Engine.",
+   "Yes → Shared Lifecycle Object.",
+   "Yes → Service Configuration.",
+   "Yes → Cross-System / Governance Capability.",
+   "Yes → redesign it."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 233,
+  "name": "Allergy, Intolerance & Adverse Reaction",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "reported reaction → source/provenance → substance/product identification → reaction evidence → severity/context → clinical assessment → classification → confirmed OR suspected OR refuted OR uncertain → active safety state → review → amendment/resolution where clinically appropriate."
+  ],
+  "rules": [
+   "A recorded allergy or adverse reaction is checked automatically at prescribing and at administration; a match presents a block or warning per local policy, but proceeding or not remains a recorded human decision.",
+   "No allergy or adverse-reaction entry is deleted outright; correcting one made in error creates a superseding record with a reason, preserving the original for audit."
+  ],
+  "legal": []
+ },
+ {
+  "id": 234,
+  "name": "Clinical Risk / Safety Flag",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "underlying risk identified → assessment → safety flag generated where warranted → visible in appropriate contexts → review → changed/ceased."
+  ],
+  "rules": [
+   "A safety flag (falls risk, allergy, wandering/confusion risk, infection precaution, etc.) must be visible at the point of any relevant workflow — medication administration, transfer, discharge — without the worker navigating away from their current task.",
+   "Flags are versioned and never silently deleted; removing or downgrading one requires a recorded reason and the authority that made the change."
+  ],
+  "legal": []
+ },
+ {
+  "id": 235,
+  "name": "Isolation / Transmission Precaution",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "transmission concern → IPC assessment → precaution requirement → precaution type → implementation → location/environmental requirements → review → modification → cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 236,
+  "name": "Clinical Goal",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "need/problem → goal proposed → agreed/authorised where appropriate → target/timeframe → interventions linked → progress → reassessment → achieved OR partially achieved OR not achieved OR changed OR ceased."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 237,
+  "name": "Clinical Outcome",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "baseline → target → measurement → achieved/not achieved/partial/unknown → review."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 238,
+  "name": "Clinical Decision",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "decision required → available evidence → options considered → risks/benefits/context → patient preference where applicable → authorised decision-maker → decision → implementation requirements → review/reconsideration."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 239,
+  "name": "Multidisciplinary Team / Case Conference",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "conference/review required → participants → relevant canonical evidence referenced → discussion → decisions → actions → responsible people/services → due dates → follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 240,
+  "name": "Clinical Consultation",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "consultation requested → received → accepted/declined → clinician reviews available evidence → assessment/contact where required → advice/recommendation → requesting team receives advice → actions → consultation closed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 241,
+  "name": "Clinical Review / Reassessment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "review due/triggered → current evidence obtained → previous state referenced → new assessment → comparison → decision → actions → next review requirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 242,
+  "name": "Monitoring Plan",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "monitoring requirement → parameter → method → frequency/timing → threshold/target → responsible person/team → monitoring event → result → review → action → continuation/modification/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 243,
+  "name": "Clinical Restriction / Precaution",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "clinical need identified → authorised restriction → parameters → effective time → communication → implementation → review → modification/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 244,
+  "name": "Nutrition / Diet Order",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "nutrition/swallowing requirement → assessment → authorised diet/nutrition state → preparation/provision → delivery → intake → tolerance → monitoring → review → modification/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 245,
+  "name": "Blood / Biological Product",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "clinical requirement → request → compatibility/suitability → product allocation → issue → receipt → bedside identity/product verification → commencement → administration → monitoring → completion → reaction/outcome → traceability closure."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 246,
+  "name": "Clinical Equipment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "equipment identity → availability → allocation → patient/service use reference → setup → safety check → use → fault/problem → withdrawal/quarantine → maintenance/repair → return to service → retirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 247,
+  "name": "Location / Bed / Care Space",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "location requirement → placement request → location/bed allocated → patient movement → arrival → occupied/current location → movement/transfer → vacated."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 248,
+  "name": "Leave / Temporary Absence",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "leave considered/requested → clinical/legal authority where applicable → leave conditions → authorised → departure → current absence → expected return → return OR failure/delay to return → reassessment."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 249,
+  "name": "Patient Preference",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "preference expressed → context/source → current relevance → acknowledged → incorporated where possible → reviewed/changed/withdrawn."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 250,
+  "name": "Advance-Care Information",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "discussion → preference/information → formal directive/decision where legally applicable → review/change → current status with history."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 251,
+  "name": "Decision-Making Capacity Assessment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "decision requiring assessment → reason for concern → relevant functional assessment → communication/support measures → determination within applicable professional/legal framework → decision/context covered → time → reassessment requirement."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 252,
+  "name": "Whānau / Family / Support-Person Involvement",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "person identity → relationship → patient preference → involvement requested/permitted → information-sharing authority → decision-making authority where independently established → communication events → changes/restrictions."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 253,
+  "name": "Interpreter / Communication Accessibility Requirement",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "need identified → requirement recorded → service arrangement → interpreter/support booked → provided → outcome → continuing requirement reviewed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 254,
+  "name": "External / Imported Clinical Information",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "external information received → patient matching → source identified → integrity/provenance retained → authorised availability → clinical review → incorporated/referenced where appropriate → amendment/update from source where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 255,
+  "name": "Clinical Coding / Classification",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "source clinical information → coding requirement → code assignment → validation → finalised coding → amendment where appropriate."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 256,
+  "name": "Patient-Reported Information",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "patient report → source/time/context → structured or narrative information → clinical review where applicable → incorporated into assessment/decision where appropriate → updated/corrected by source."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 257,
+  "name": "Questionnaire / Assessment Instrument",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "instrument required/offered → version identified → administered → responses → score/result → interpretation → clinical action where applicable → repeat assessment."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 258,
+  "name": "Clinical Image / Media",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "order/purpose → capture/import → patient/context validation → store → interpretation/use → retention/access."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 259,
+  "name": "Fluid Balance / Intake and Output",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "intake/output event → running balance → review → period close → next period."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 260,
+  "name": "Patient Weight / Height / Growth State",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "measurement → validation → longitudinal state → trend/growth interpretation → clinical action where indicated."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 261,
+  "name": "Functional Status",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "baseline → current assessment → assistance requirement → intervention → reassessment → changed/current state."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 262,
+  "name": "Baseline / Usual State",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "usual state → current difference → action → outcome"
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 263,
+  "name": "Clinical Episode",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "initiated → active → encounters/events accumulate → transition → closed → reopened/new episode only according to defined rules."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 264,
+  "name": "Service Responsibility",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 265,
+  "name": "Named Clinician / Team Assignment",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "assignment required → proposed → confirmed → active → changed/covered → ended."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 266,
+  "name": "Patient Allocation",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "patient requires care → staffing/team context → proposed allocation → senior/authorised review → confirmed allocation → active assignment → change/reallocation → handover/end."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 267,
+  "name": "Clinical Status / Acuity",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "clinical evidence → acuity assessment/calculation → current status → escalation/resource implications → reassessment → changed status."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 268,
+  "name": "Deterioration Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "change detected → evidence → concern/trigger → escalation → clinical response → intervention → reassessment → outcome → further escalation/closure."
+  ],
+  "rules": [
+   "A Deterioration Event may be created automatically (score-triggered) or manually (worker concern regardless of score); the two trigger types remain distinguishable in the record, since a below-threshold worker concern is itself safety-relevant data.",
+   "Creating a Deterioration Event mandates a linked Escalation record. The event cannot be closed without a recorded human review and, where applicable, its escalation outcome."
+  ],
+  "legal": []
+ },
+ {
+  "id": 269,
+  "name": "Incident / Adverse Clinical Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "event/concern → immediate clinical response → incident notification where required → safety review → investigation linkage → findings → actions → closure."
+  ],
+  "rules": [
+   "An incident record — including a near-miss, such as a wrong dose caught before administration — is created as its own event, separate from and never overwriting the clinical record it relates to; prevented harm is captured with the same rigour as harm that occurred."
+  ],
+  "legal": []
+ },
+ {
+  "id": 270,
+  "name": "Death Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "death occurs/identified → verification → certification references → notifications → clinical episode closure/transition → mortuary/coronial/donation pathways where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 271,
+  "name": "Shared Object Integrity",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "create → reference → authorised update → propagate current state → detect/reject conflicting duplicate."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 272,
+  "name": "No Copy/Paste Clinical Architecture",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "source object → reference/link → role-specific presentation → authorised update to source."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 273,
+  "name": "Clinical Problem / Concern",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "concern identified → evidence → provisional problem → assessment → active problem → treatment/management linkage → monitoring → improving/stable/worsening → resolved/inactive → recurrence where applicable."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 274,
+  "name": "Symptom",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "symptom → onset → location/context → severity → pattern → associated features → assessment → intervention → reassessment → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 275,
+  "name": "Clinical Finding",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "observed/detected → recorded → interpreted → linked to assessment/problem/action where appropriate."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 276,
+  "name": "Intervention",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "intervention considered → planned → authorised where required → delivered/performed → response → reassessment → continued/modified/ceased."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 277,
+  "name": "Treatment Plan",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "treatment need → options → agreed/authorised plan → components → responsible services → implementation → monitoring → review → modification → completion/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 278,
+  "name": "Clinical Pathway / Protocol Instance",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "patient meets trigger/eligibility → pathway initiated → applicable steps → completed/skipped/not applicable/deferred states → deviations → escalation → completion/exit.",
+   "checklist required → individual check items due → check performed → evidence/response → exception → resolution/escalation → checklist completion.",
+   "assessment → recommendation → recipient → communicated → accepted/declined/modified → implementation requirement → implemented/not implemented → review.",
+   "requirement generated → pending → assigned → actioned OR deferred OR cancelled → outcome → closed.",
+   "requirement established → due date/time → upcoming → due → overdue → completed/ceased/rescheduled."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 279,
+  "name": "Clinical Checklist",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [],
+  "rules": [
+   "A checklist instance (e.g. medication round check, pre-procedure check) is a versioned template applied at a specific point in time; completing an item requires the specific worker's attribution.",
+   "An incomplete checklist is visibly distinguishable from a completed one and is never auto-completed by the passage of time or by navigating to the next screen."
+  ],
+  "legal": []
+ },
+ {
+  "id": 280,
+  "name": "Clinical Recommendation",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "proposed → communicated → acknowledged → accepted/declined/modified → resulting action separately created."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 281,
+  "name": "Pending Clinical Action",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "created → assigned → pending → in progress → completed/cancelled/unable to complete."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 282,
+  "name": "Due / Overdue State",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "future → due → overdue → escalated → completed/rescheduled/cancelled."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 283,
+  "name": "Recall",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "recall requirement → due interval/date → patient/service eligibility → invitation/contact → booking → attendance/action → outcome → next recall OR completion/exit."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 284,
+  "name": "Follow-Up Requirement",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "follow-up required → arrangement responsibility → referral/appointment/task linkage → scheduled → completed → outcome → further follow-up/closure."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 285,
+  "name": "Surveillance Plan",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "surveillance need → interval/trigger → required investigation/assessment → due → performed → result → review → continuation/modification/cessation."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 286,
+  "name": "Screening Episode",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "eligibility → invitation/offer → participation decision → screening action → result → review → communication → recall OR diagnostic escalation OR programme exit."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 287,
+  "name": "Immunisation Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "eligibility → consent → preparation → administration → observation → registry/reporting → next dose/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 288,
+  "name": "Exposure Event",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "exposure identified → risk assessed → action required/not required → notification/testing/prophylaxis → follow-up → closed."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 289,
+  "name": "Infection Episode",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "suspected infection → evidence → site/source → organism where identified → susceptibility/resistance evidence → treatment → response → source control → complications → resolved/ongoing/recurrence."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 290,
+  "name": "Antimicrobial Course",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "infection/indication → antimicrobial decision → agent/order references → intended duration → microbiology linkage → review → escalation/de-escalation/change → completion/cessation → outcome."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 291,
+  "name": "Procedure Site / Laterality Verification",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "procedure planned → intended site/laterality → source evidence → patient/team verification where applicable → discrepancy → resolution → final verified state → procedure linkage."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 292,
+  "name": "Clinical Identity Verification",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "identity presented → identifiers checked → match confidence established → verified/unresolved/conflict → proceed or resolution workflow."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 293,
+  "name": "Clinical Readiness",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "readiness assessment required → prerequisites → completed/outstanding/not applicable → authorised assessment → ready/not ready/conditional → reassessment."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 294,
+  "name": "Contraindication",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "identified → evidence/source recorded → active → reviewed → remains/changes/resolved, with history."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 295,
+  "name": "Clinical Exception / Variance",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "expected state/action → variance → reason → clinical context → authorised decision → alternative action → monitoring/follow-up."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 296,
+  "name": "Refusal / Declined Care",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "care/intervention offered → relevant information/decision process → declined/refused → reason where offered/provided → immediate clinical implications → alternative plan → escalation where required → reassessment/re-offer where appropriate."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 297,
+  "name": "Cancellation",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "planned item → cancellation requested/triggered → reason → authorised cancellation → affected dependencies updated → patient/service notified → reschedule/close."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 298,
+  "name": "Did Not Attend / Unable to Complete Contact",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "expected contact → non-attendance/contact failure → attempt recorded → clinical risk assessed → retry/escalate/discharge according to applicable pathway."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 299,
+  "name": "Waiting List / Queue Position",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "accepted → prioritised → queued → reprioritised/reviewed → offered → scheduled → treated/removed/deferred, preserving history."
+  ],
+  "rules": [],
+  "legal": []
+ },
+ {
+  "id": 300,
+  "name": "Clinical Priority / Triage",
+  "class": "SHARED_LIFECYCLE_OBJECT",
+  "pathways": [
+   "request/presentation → triage evidence → priority assigned → timeframe → reassessment → changed priority → service action.",
+   "incoming identity information → candidate match → matching evidence → confirmed match OR unresolved identity → merge/link correction process where authorised → provenance."
+  ],
+  "rules": [],
+  "legal": []
+ }
+]

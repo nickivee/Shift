@@ -1,0 +1,166 @@
+import type { Store } from '../db/database.ts';
+import { Router, Reply, type Request } from './server.ts';
+import { HttpError } from '../lib/util.ts';
+import * as identity from '../domain/identity.ts';
+import * as record from '../domain/record.ts';
+import * as commands from '../domain/commands.ts';
+import * as coordination from '../domain/coordination.ts';
+import * as workspace from '../domain/workspace.ts';
+import * as personal from '../domain/personal.ts';
+import * as knowledge from '../domain/knowledge.ts';
+import { KEYS, VIEWS } from '../config/keys.ts';
+import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
+
+const COOKIE = 'shift_session';
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+export function buildApi(store: Store): Router {
+  const r = new Router();
+
+  const session = (req: Request) => {
+    const s = identity.resolveSession(store, req.cookies[COOKIE]);
+    if (!s) throw new HttpError(401, 'SIGNED_OUT', 'Your session has ended. Sign in again.');
+    return s;
+  };
+  const work = (req: Request) => {
+    const s = session(req);
+    const ctx = identity.activeContext(store, s);
+    if (!ctx) throw new HttpError(409, 'NO_CONTEXT', 'Choose your WORK context first.');
+    return ctx;
+  };
+  const cookie = (req: Request, value: string, maxAge: number) =>
+    `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${req.secure ? '; Secure' : ''}`;
+
+  // Authentication ---------------------------------------------------------------------
+  r.on('POST', '/api/auth/login', (req) => {
+    const { token, session: s } = identity.login(store, str(req.body.username), str(req.body.password));
+    return new Reply({ worker: { name: s.displayName } }, { cookies: [cookie(req, token, 12 * 3600)] });
+  });
+  r.on('POST', '/api/auth/logout', (req) => {
+    const s = identity.resolveSession(store, req.cookies[COOKIE]);
+    if (s) identity.endSession(store, s.id, s.workerId, 'SIGNED_OUT');
+    return new Reply({ ok: true }, { cookies: [cookie(req, '', 0)] });
+  });
+  r.on('GET', '/api/me', (req) => {
+    const s = identity.resolveSession(store, req.cookies[COOKIE]);
+    if (!s) return null;
+    const ctx = identity.activeContext(store, s);
+    return {
+      worker: { name: s.displayName },
+      positions: identity.positionOptions(store, s.workerId),
+      context: ctx && contextView(ctx),
+    };
+  });
+
+  // WORK context -------------------------------------------------------------------------
+  r.on('POST', '/api/work/context', (req) => contextView(identity.establishContext(store, session(req), str(req.body.positionId))));
+  r.on('DELETE', '/api/work/context', (req) => {
+    identity.leaveContext(store, session(req));
+    return { ok: true };
+  });
+  r.on('GET', '/api/work/config', (req) => {
+    const ctx = work(req);
+    return {
+      keys: KEYS.filter((k) => ctx.role.keys.includes(k.code)),
+      views: VIEWS.filter((v) => ctx.role.views.includes(v.code)).map((v) => ({ code: v.code, label: v.label, key: v.key ?? null })),
+      tabs: ctx.role.tabs,
+      destinations: commands.destinationsFor(store, ctx),
+      restrictions: commands.capabilitiesSummary(store, ctx),
+    };
+  });
+  r.on('GET', '/api/work/home', (req) => workspace.homeFor(store, work(req)));
+  r.on('PUT', '/api/work/home', (req) => workspace.saveHome(store, work(req), req.body as never));
+  r.on('DELETE', '/api/work/home', (req) => workspace.saveHome(store, work(req), null));
+
+  // Patient records ----------------------------------------------------------------------
+  r.on('GET', '/api/work/patients', (req) => record.patientList(store, work(req)));
+  r.on('GET', '/api/work/search', (req) => record.search(store, work(req), req.query.get('q') ?? ''));
+  r.on('POST', '/api/work/patients/:id/exceptional-access', (req) => record.grantExceptionalAccess(store, work(req), req.params.id, str(req.body.reason)));
+  r.on('GET', '/api/work/patients/:id', (req) => record.header(store, work(req), req.params.id));
+  r.on('GET', '/api/work/patients/:id/views/:code', (req) => record.retrieve(store, work(req), req.params.id, req.params.code));
+  r.on('GET', '/api/work/events/:id', (req) => record.eventDetail(store, work(req), req.params.id));
+  r.on('POST', '/api/work/events/:id/amend', (req) =>
+    commands.amend(store, work(req), req.params.id, { fields: req.body.fields as Record<string, unknown>, reason: str(req.body.reason), enteredInError: req.body.enteredInError === true }),
+  );
+  r.on('POST', '/api/work/commands', (req) => {
+    const b = req.body;
+    return commands.execute(store, work(req), {
+      personId: str(b.personId),
+      key: str(b.key) || undefined,
+      fields: (b.fields && typeof b.fields === 'object' ? b.fields : undefined) as Record<string, unknown> | undefined,
+      eventId: str(b.eventId) || undefined,
+      destinations: Array.isArray(b.destinations) ? b.destinations.map(String) : [],
+      handover: b.handover === true,
+      urgent: b.urgent === true,
+      from: str(b.from) || null,
+      to: str(b.to) || null,
+      idempotencyKey: str(b.idempotencyKey),
+    });
+  });
+
+  // Coordination -------------------------------------------------------------------------
+  r.on('GET', '/api/work/received', (req) => coordination.received(store, work(req)));
+  r.on('POST', '/api/work/routes/:id/:action', (req) => coordination.routeAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
+  r.on('GET', '/api/work/tasks', (req) => coordination.taskList(store, work(req)));
+  r.on('POST', '/api/work/tasks/:id/:action', (req) => coordination.taskAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
+  r.on('GET', '/api/work/handover', (req) => coordination.handoverBoard(store, work(req)));
+  r.on('POST', '/api/work/handover/:id/:action', (req) => {
+    const a = req.params.action;
+    if (a !== 'receive' && a !== 'review' && a !== 'clear') throw new HttpError(400, 'UNKNOWN_ACTION', 'Unknown action.');
+    return coordination.handoverAction(store, work(req), req.params.id, a);
+  });
+  r.on('POST', '/api/work/results/:id/review', (req) => coordination.reviewResult(store, work(req), req.params.id));
+
+  // Doctors' shared knowledge ------------------------------------------------------------
+  r.on('GET', '/api/work/knowledge', (req) => knowledge.listQuestions(store, work(req)));
+  r.on('POST', '/api/work/knowledge', (req) => knowledge.ask(store, work(req), str(req.body.topic), str(req.body.body)));
+  r.on('GET', '/api/work/knowledge/:id', (req) => knowledge.question(store, work(req), req.params.id));
+  r.on('POST', '/api/work/knowledge/:id/replies', (req) => knowledge.reply(store, work(req), req.params.id, str(req.body.body)));
+  r.on('POST', '/api/work/knowledge/:id/close', (req) => knowledge.closeQuestion(store, work(req), req.params.id, req.body.withdraw === true));
+
+  // Personal Notes -----------------------------------------------------------------------
+  r.on('GET', '/api/notes', (req) => workspace.notes(store, session(req), req.query.get('dismissed') === '1'));
+  r.on('POST', '/api/notes', (req) => workspace.saveNote(store, session(req), null, str(req.body.body)));
+  r.on('PUT', '/api/notes/:id', (req) => workspace.saveNote(store, session(req), req.params.id, str(req.body.body)));
+  r.on('POST', '/api/notes/:id/dismiss', (req) => workspace.dismissNote(store, session(req), req.params.id));
+  r.on('POST', '/api/notes/:id/restore', (req) => workspace.dismissNote(store, session(req), req.params.id, true));
+
+  // PERSONAL -----------------------------------------------------------------------------
+  r.on('GET', '/api/personal/roster', (req) => personal.roster(store, session(req), req.query.get('from') ?? undefined));
+  r.on('GET', '/api/personal/availability', (req) => personal.availability(store, session(req)));
+  r.on('POST', '/api/personal/availability', (req) => personal.addAvailability(store, session(req), req.body as never));
+  r.on('DELETE', '/api/personal/availability/:id', (req) => personal.withdrawAvailability(store, session(req), req.params.id));
+  r.on('GET', '/api/personal/open-shifts', (req) => personal.openShifts(store, session(req)));
+  r.on('POST', '/api/personal/open-shifts/:id/interest', (req) => personal.shiftInterest(store, session(req), req.params.id, req.body.interested === true));
+  r.on('GET', '/api/personal/payslips', (req) => personal.payslips(store, session(req)));
+  r.on('GET', '/api/personal/payslips/:id', (req) => personal.payslip(store, session(req), req.params.id));
+  r.on('GET', '/api/personal/leave', (req) => personal.leave(store, session(req)));
+  r.on('POST', '/api/personal/leave', (req) => personal.requestLeave(store, session(req), req.body as never));
+  r.on('POST', '/api/personal/leave/:id/cancel', (req) => personal.cancelLeave(store, session(req), req.params.id));
+  r.on('GET', '/api/personal/credentials', (req) => personal.credentials(store, session(req)));
+  r.on('GET', '/api/personal/training', (req) => personal.training(store, session(req)));
+
+  // Governance reference (read-only) -------------------------------------------------------
+  r.on('GET', '/api/governance', (req) => {
+    session(req);
+    return { legal: LEGAL_REGISTER, research: RESEARCH_REQUIREMENTS, orgRulePack: ORG_RULE_PACK };
+  });
+
+  return r;
+}
+
+function contextView(ctx: identity.WorkContext) {
+  return {
+    positionId: ctx.positionId,
+    positionTitle: ctx.positionTitle,
+    roleLabel: ctx.role.label,
+    roleKey: ctx.role.roleKey,
+    service: ctx.serviceName,
+    organisation: ctx.organisationName,
+    subjectLabel: ctx.subjectLabel,
+    matrixRow: ctx.role.matrixRow,
+    evidenceStatus: ctx.role.evidenceStatus,
+    authority: ctx.authority,
+  };
+}
