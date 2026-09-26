@@ -34,6 +34,7 @@ export type Operation =
   | { op: 'APPOINTMENT_REQUEST'; personId: string }
   | { op: 'ALERT_RAISE'; personId: string }
   | { op: 'COMMUNICATION'; personId: string }
+  | { op: 'MONITORING_PLAN'; personId: string }
   | { op: 'COMMUNICATION_ACT'; serviceId: string }
   | { op: 'ALERT_RECEIVE'; serviceId: string; capability: string }
   | { op: 'APPOINTMENT_MANAGE'; serviceId: string; clinical: boolean }
@@ -160,6 +161,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'communication.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'REFERRAL'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Your service needs a care relationship with this ${ctx.subjectLabel.toLowerCase()} to arrange communication about them`));
+    case 'MONITORING_PLAN':
+      // Only the service caring for the person sets how they are monitored.
+      return need(ctx, 'monitoring.plan') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can set their monitoring`));
     case 'CAREPLAN':
       return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':

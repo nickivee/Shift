@@ -14,9 +14,10 @@ const SOURCE = {
   RESULT_ABNORMAL: 'From results: the laboratory flagged this result and no one has reviewed it.',
   WOUND_REVIEW_OVERDUE: 'From wound care: the review date has passed.',
   CAREPLAN_REVIEW_OVERDUE: 'From the care plan: the review date has passed.',
+  MONITORING_OVERDUE: 'From the monitoring plan: nothing has been recorded since it was due. Recording it closes this alert.',
 };
 const OPEN = ['GENERATED', 'VISIBLE', 'ACKNOWLEDGED', 'ACTIONED'];
-const WHERE = { RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan' };
+const WHERE = { RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan', MONITORING_OVERDUE: 'monitoring' };
 
 function steps(a) {
   if (a.state === 'EXPIRED') return null;

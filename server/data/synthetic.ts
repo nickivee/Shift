@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 12;
+const SET = 13;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -332,6 +332,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 10) set10(store);
     if (at < 11) set11(store);
     if (at < 12) set12(store);
+    if (at < 13) set13(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -928,4 +929,39 @@ function set12(store: Store): void {
     step(id, 'REQUIRED', 'CONVEYED', nicki, 60 * 25, 'Phone');
     step(id, 'CONVEYED', 'FOLLOW_UP', nicki, 60 * 25, 'Confirm the meeting day with Mele');
   }
+}
+
+// Set 13: monitoring plans. Aroha's observations and glucose on Ward K, Wiremu's daily
+// weight and fluid balance, Tom's hourly observations in ED after his head injury, and
+// Frank's pain in Residential Care. The limits are what each clinician wrote.
+function set13(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const plan = (pid: string | null, service: string, by: string | null, mins: number, v: { parameter: string; reason: string; method?: string; frequency: number; limits?: string; target?: string; responsible: string; review?: string }) => {
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('monitoring_plan', {
+      id, person_id: pid, service_id: service, parameter: v.parameter, reason: v.reason, method: v.method ?? null, frequency_hours: v.frequency,
+      limits: v.limits ?? null, target: v.target ?? null, responsible: v.responsible, review_date: v.review ?? null, state: 'ACTIVE', started_by: by, started_at: minsAgo(mins),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'monitoring', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: by, work_context_id: null, at: minsAgo(mins), reason: `Every ${v.frequency} h`, transaction_id: null });
+  };
+  const aroha = person('ZZZ9999');
+  const wiremu = person('ZZZ0016');
+  const tom = person('ZZZ0148');
+  const frank = person('ZZZ0075');
+  plan(aroha, 'svc-genmed', who('hannah'), 60 * 48, { parameter: 'OBS', reason: 'Pneumonia on oxygen', frequency: 4, responsible: 'Registered nurses',
+    limits: 'Tell the doctor if SpO2 below 92% on 2 L, breathing rate over 24, or new confusion', target: 'SpO2 94% or more on air', review: today });
+  plan(aroha, 'svc-genmed', who('nicki'), 60 * 48, { parameter: 'BGL', reason: 'Type 2 diabetes with infection', method: 'Finger prick before meals and at bedtime', frequency: 6,
+    responsible: 'Registered nurses', limits: 'Tell the doctor if over 15 twice in a row, or under 4', target: '6 to 10 before meals' });
+  plan(wiremu, 'svc-genmed', who('hannah'), 60 * 72, { parameter: 'WEIGHT', reason: 'Heart failure on furosemide', method: 'Standing, before breakfast, same scales', frequency: 24,
+    responsible: 'Registered nurses', limits: 'Tell the doctor if up 1 kg or more in a day', target: 'Dry weight about 82 kg' });
+  plan(wiremu, 'svc-genmed', who('hannah'), 60 * 72, { parameter: 'INTAKE', reason: 'Fluid restriction', method: 'All drinks and urine output charted', frequency: 24,
+    responsible: 'Registered nurses', limits: 'Tell the doctor if urine output under 500 mL in a day', target: 'Intake no more than 1.5 L a day' });
+  plan(tom, 'svc-ed', who('mere'), 50, { parameter: 'OBS', reason: 'Head injury on apixaban', frequency: 1, responsible: 'Registered nurses',
+    limits: 'Tell the ED doctor straight away if he is less alert, has a new headache, or vomits' });
+  plan(frank, 'svc-arc', who('kate'), 60 * 24 * 3, { parameter: 'PAIN', reason: 'Painful heels', method: 'Ask Frank; if he cannot say, watch his face during cares', frequency: 8,
+    responsible: 'All staff', limits: 'Tell the RN on duty if 5 or more, or if he winces with every touch' });
 }

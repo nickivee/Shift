@@ -988,4 +988,46 @@ CREATE TABLE communication_attempt (
 );
 `,
   },
+  {
+    version: 13,
+    name: 'monitoring plan lifecycle',
+    sql: `
+-- Monitoring plan (Shared Lifecycle Object 242): monitoring requirement → parameter →
+-- method → frequency → threshold or target → responsible → monitoring events → result →
+-- review → action → continue, change (superseded, never overwritten) or stop. Limits and
+-- targets are the clinician's words; SHIFT does not set or apply thresholds itself.
+CREATE TABLE monitoring_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  parameter TEXT NOT NULL,              -- OBS | BGL | WEIGHT | PAIN | INTAKE
+  reason TEXT NOT NULL,
+  method TEXT,
+  frequency_hours INTEGER NOT NULL,
+  limits TEXT,                          -- clinician-set: when to act, and who to tell
+  target TEXT,
+  responsible TEXT NOT NULL,
+  review_date TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | SUPERSEDED | CEASED
+  started_by TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  supersedes_id TEXT REFERENCES monitoring_plan(id),
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX monitoring_service ON monitoring_plan(service_id, state);
+CREATE INDEX monitoring_person ON monitoring_plan(person_id, state);
+
+CREATE TABLE monitoring_review (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES monitoring_plan(id),
+  reviewed_by TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- CONTINUE | CHANGED | STOPPED
+  finding TEXT NOT NULL,
+  action TEXT
+);
+`,
+  },
 ];

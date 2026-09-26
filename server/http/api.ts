@@ -17,6 +17,7 @@ import * as referrals from '../domain/referrals.ts';
 import * as appointments from '../domain/appointments.ts';
 import * as alerts from '../domain/alerts.ts';
 import * as communications from '../domain/communications.ts';
+import * as monitoring from '../domain/monitoring.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -151,6 +152,15 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/wounds/:id/:action', (req) => wounds.act(store, work(req), req.params.id, req.params.action, { plan: str(req.body.plan), reviewDays: req.body.reviewDays, note: str(req.body.note) }));
   r.on('GET', '/api/work/consultations', (req) => consultations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/consultations', (req) => consultations.request(store, work(req), req.params.id, { target: str(req.body.target), question: str(req.body.question), urgency: str(req.body.urgency) }));
+  r.on('GET', '/api/work/monitoring', (req) => monitoring.list(store, work(req)));
+  const planFields = (b: Record<string, unknown>) => ({
+    parameter: str(b.parameter), reason: str(b.reason), method: str(b.method), frequency: str(String(b.frequency ?? '')), limits: str(b.limits),
+    target: str(b.target), responsible: str(b.responsible), reviewDate: str(b.reviewDate),
+  });
+  r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
+  r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
+    ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
   r.on('GET', '/api/work/communications', (req) => communications.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/communications', (req) => communications.create(store, work(req), req.params.id, {
     purpose: str(req.body.purpose), kind: str(req.body.kind), recipient: str(req.body.recipient), contact: str(req.body.contact),

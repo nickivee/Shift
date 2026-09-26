@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
+import { overdue as monitoringOverdue } from './monitoring.ts';
 
 // Alert (Shared Lifecycle Object 218):
 //   trigger condition → alert generated → visible to an authorised recipient →
@@ -44,6 +45,10 @@ const RULES: Rule[] = [
     current: (store, serviceId, today) => store.all<Record<string, string>>(
       `SELECT id, person_id, need, review_date FROM care_plan_item WHERE service_id = ? AND state = 'ACTIVE' AND review_date < ?`, serviceId, today,
     ).map((c) => ({ personId: c.person_id, objectId: c.id, title: `Care plan review overdue: ${c.need}`, detail: `Review was due ${c.review_date}` })),
+  },
+  {
+    rule: 'MONITORING_OVERDUE', objectType: 'monitoring_plan', capability: 'monitoring.record',
+    current: (store, serviceId) => monitoringOverdue(store, serviceId),
   },
 ];
 
