@@ -10,6 +10,7 @@ import { carePlanPanel } from './careplans.js';
 import { referralsPanel } from './referrals.js';
 import { appointmentsPanel } from './appointments.js';
 import { alertsPanel } from './alerts.js';
+import { communicationsPanel } from './communications.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -328,6 +329,7 @@ export async function workstationView(personId, initialView) {
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
+      case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
       case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, t.description), stateTag(t.state)),

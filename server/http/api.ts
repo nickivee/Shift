@@ -16,6 +16,7 @@ import * as consultations from '../domain/consultations.ts';
 import * as referrals from '../domain/referrals.ts';
 import * as appointments from '../domain/appointments.ts';
 import * as alerts from '../domain/alerts.ts';
+import * as communications from '../domain/communications.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -150,6 +151,14 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/wounds/:id/:action', (req) => wounds.act(store, work(req), req.params.id, req.params.action, { plan: str(req.body.plan), reviewDays: req.body.reviewDays, note: str(req.body.note) }));
   r.on('GET', '/api/work/consultations', (req) => consultations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/consultations', (req) => consultations.request(store, work(req), req.params.id, { target: str(req.body.target), question: str(req.body.question), urgency: str(req.body.urgency) }));
+  r.on('GET', '/api/work/communications', (req) => communications.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/communications', (req) => communications.create(store, work(req), req.params.id, {
+    purpose: str(req.body.purpose), kind: str(req.body.kind), recipient: str(req.body.recipient), contact: str(req.body.contact),
+    method: str(req.body.method), language: str(req.body.language), sharing: str(req.body.sharing), due: str(req.body.due),
+  }));
+  r.on('POST', '/api/work/communications/:id/:action', (req) => communications.act(store, work(req), req.params.id, req.params.action, {
+    outcome: str(req.body.outcome), method: str(req.body.method), note: str(req.body.note), conveyed: str(req.body.conveyed), response: str(req.body.response), followUp: str(req.body.followUp),
+  }));
   r.on('GET', '/api/work/alerts', (req) => alerts.list(store, work(req)));
   r.on('GET', '/api/work/alerts/count', (req) => alerts.count(store, work(req)));
   r.on('POST', '/api/work/patients/:id/alerts', (req) => alerts.raise(store, work(req), req.params.id, { category: str(req.body.category), title: str(req.body.title), detail: str(req.body.detail), expiresOn: str(req.body.expiresOn) }));

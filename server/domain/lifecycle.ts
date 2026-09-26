@@ -119,6 +119,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ACTIONED: ['ACTIONED', 'RESOLVED', 'EXPIRED'],
     },
   },
+  communication: {
+    table: 'communication',
+    initial: 'REQUIRED',
+    next: {
+      REQUIRED: ['ATTEMPTED', 'CONVEYED', 'CANCELLED'],
+      ATTEMPTED: ['ATTEMPTED', 'CONVEYED', 'CANCELLED'],
+      CONVEYED: ['FOLLOW_UP', 'COMPLETED'],
+      FOLLOW_UP: ['COMPLETED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
