@@ -255,6 +255,13 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .allergy-note { background: var(--tint); color: var(--ink-soft); border-radius: 12px; padding: 6px 12px; font-size: 14px; text-align: center; }
 .allergy-none { background: var(--warn-bg); color: var(--warn); border: 2px solid #f0cf7a; border-radius: 14px; padding: 10px 14px; font-weight: 700; }
 .allergy-nka { background: var(--ok-bg); color: var(--ok); border: 2px solid #9edcc1; border-radius: 14px; padding: 10px 14px; font-weight: 700; }
+.patient-alert {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #e0a526, #b87a0a); color: #1d1400;
+  border-radius: 14px; padding: 8px 14px; border: 0; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-alert svg { width: 26px; height: 26px; flex: none; }
+.patient-alert b { display: block; font-size: 13px; letter-spacing: .6px; }
 .synthetic { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 /* Live Workstation ------------------------------------------------------------------- */
@@ -413,3 +420,4 @@ dialog h2 { margin-top: 0; }
 .esc-routine { border-left-color: var(--line); }
 .esc.closed { opacity: .85; border-left-color: #c9d3da; }
 .grow { flex: 1 1 160px; min-width: 0; }
+.alert-raised { border-left: 6px solid #d99a1c; }
