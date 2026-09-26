@@ -41,6 +41,7 @@ export type Operation =
   | { op: 'BED_MOVE_REQUEST'; personId: string }
   | { op: 'LEAVE'; personId: string; cap: 'leave.manage' | 'leave.approve' }
   | { op: 'PREFERENCE'; personId: string }
+  | { op: 'WHANAU'; personId: string }
   | { op: 'CAPACITY'; personId: string; cap: 'capacity.concern' | 'capacity.assess' }
   | { op: 'MEAL_RECORD'; personId: string }
   | { op: 'RESTRICTION_CHECK'; personId: string }
@@ -193,6 +194,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can ${o.cap === 'capacity.assess' ? 'assess' : 'raise a concern about'} their capacity`));
+    case 'WHANAU':
+      return need(ctx, 'whanau.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their whānau and support people`));
     case 'PREFERENCE':
       return need(ctx, 'preference.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005'])

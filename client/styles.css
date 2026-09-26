@@ -270,6 +270,14 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .patient-restriction svg { width: 26px; height: 26px; flex: none; }
 .patient-restriction b { display: block; font-size: 13px; letter-spacing: .6px; }
 .restriction-on { border-left: 6px solid #5a3fa0; }
+.patient-whanau {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #2d6a4f;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-whanau svg { width: 24px; height: 24px; flex: none; color: #2d6a4f; }
+.patient-whanau b { display: block; font-size: 13px; letter-spacing: .6px; color: #2d6a4f; }
+.support-limit { border-left: 6px solid #c0392b; }
 .patient-capacity {
   display: flex; align-items: center; gap: 10px;
   background: #fff; color: var(--ink); border: 2px solid #8a5a00;

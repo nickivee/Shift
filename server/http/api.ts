@@ -22,6 +22,7 @@ import * as restrictions from '../domain/restrictions.ts';
 import * as leave from '../domain/leave.ts';
 import * as preferences from '../domain/preferences.ts';
 import * as capacity from '../domain/capacity.ts';
+import * as whanau from '../domain/whanau.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -167,6 +168,16 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
+  const whanauFields = (b: Record<string, unknown>) => ({
+    name: str(b.name), relationship: str(b.relationship), relationshipNote: str(b.relationshipNote), phone: str(b.phone),
+    firstContact: b.firstContact === true || b.firstContact === 'true', wishes: str(b.wishes), share: str(b.share), involve: str(b.involve),
+    limits: str(b.limits), authority: str(b.authority), authorityRef: str(b.authorityRef),
+  });
+  r.on('GET', '/api/work/whanau', (req) => whanau.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/whanau', (req) => whanau.add(store, work(req), req.params.id, whanauFields(req.body)));
+  r.on('POST', '/api/work/whanau/:id/:action', (req) => whanau.act(store, work(req), req.params.id, req.params.action, {
+    ...whanauFields(req.body), kind: str(req.body.kind), summary: str(req.body.summary), shared: str(req.body.shared), note: str(req.body.note),
   }));
   r.on('GET', '/api/work/capacity', (req) => capacity.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/capacity', (req) => capacity.raise(store, work(req), req.params.id, { decision: str(req.body.decision), kind: str(req.body.kind), concern: str(req.body.concern) }));
