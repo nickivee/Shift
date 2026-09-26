@@ -865,4 +865,44 @@ CREATE TABLE referral_evidence (
 );
 `,
   },
+  {
+    version: 10,
+    name: 'appointment lifecycle',
+    sql: `
+-- Appointment (Shared Lifecycle Object 208): requested (the service's waitlist) → offered →
+-- booked → confirmed → arrived → commenced → completed, or cancelled, did not attend or
+-- unable to complete → follow-up requirement.
+CREATE TABLE appointment (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  referral_id TEXT REFERENCES referral(id),
+  previous_id TEXT REFERENCES appointment(id),  -- the appointment whose follow-up created this one
+  reason TEXT NOT NULL,
+  priority TEXT NOT NULL,                       -- URGENT | SEMI_URGENT | ROUTINE
+  mode TEXT NOT NULL,                           -- IN_PERSON | PHONE | VIDEO
+  state TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  start_at TEXT,                                -- local date and time, YYYY-MM-DDTHH:MM
+  duration_min INTEGER,
+  place TEXT,
+  clinician_id TEXT,
+  offered_by TEXT,
+  booked_by TEXT,
+  response_note TEXT,
+  confirmed_by TEXT,
+  arrived_by TEXT,
+  arrived_at TEXT,
+  commenced_by TEXT,
+  commenced_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_note TEXT,
+  follow_up TEXT                                -- NONE | ANOTHER
+);
+CREATE INDEX appointment_service ON appointment(service_id, state);
+CREATE INDEX appointment_person ON appointment(person_id);
+`,
+  },
 ];

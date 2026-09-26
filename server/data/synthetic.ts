@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 9;
+const SET = 10;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -329,6 +329,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 7) set7(store);
     if (at < 8) set8(store);
     if (at < 9) set9(store);
+    if (at < 10) set10(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -785,5 +786,59 @@ function set9(store: Store): void {
     });
     attach(id, wiremu, ['WEIGHT']);
     step(id, null, 'DRAFT', alex, 20, 'To Physiotherapy');
+  }
+}
+
+// Set 10: Physiotherapy's diary. Aroha had chest physio this morning and is booked again
+// this afternoon; Peggy's stairs practice is confirmed for 2 pm; Peggy also waits for a
+// home visit after discharge.
+function set10(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'appointment', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const lena = who('lena');
+  const aroha = person('ZZZ9999');
+  const peggy = person('ZZZ0032');
+  if (!lena) return;
+  const base = { service_id: 'svc-physio', mode: 'IN_PERSON', requested_by: lena, clinician_id: lena };
+  if (aroha) {
+    const first = newId();
+    const second = newId();
+    store.insert('appointment', {
+      ...base, id: first, person_id: aroha, reason: 'Chest physiotherapy', priority: 'SEMI_URGENT', state: 'COMPLETED', requested_at: minsAgo(60 * 20),
+      start_at: `${today}T09:00`, duration_min: 30, place: 'Ward K Bed 4', booked_by: lena, arrived_by: lena, arrived_at: minsAgo(60 * 5 + 5),
+      commenced_by: lena, commenced_at: minsAgo(60 * 5), ended_by: lena, ended_at: minsAgo(60 * 4 - 30), end_note: 'Active cycle of breathing, walked 30 m', follow_up: 'ANOTHER',
+    });
+    step(first, null, 'REQUESTED', lena, 60 * 20);
+    step(first, 'REQUESTED', 'BOOKED', lena, 60 * 20, `${today} 09:00`);
+    step(first, 'BOOKED', 'ARRIVED', lena, 60 * 5 + 5, 'Arrived');
+    step(first, 'ARRIVED', 'COMMENCED', lena, 60 * 5);
+    step(first, 'COMMENCED', 'COMPLETED', lena, 60 * 4 - 30, 'Active cycle of breathing, walked 30 m');
+    store.insert('appointment', {
+      ...base, id: second, person_id: aroha, previous_id: first, reason: 'Chest physiotherapy', priority: 'SEMI_URGENT', state: 'BOOKED', requested_at: minsAgo(60 * 4 - 30),
+      start_at: `${today}T16:00`, duration_min: 30, place: 'Ward K Bed 4', booked_by: lena,
+    });
+    step(second, null, 'REQUESTED', lena, 60 * 4 - 30, 'Follow-up');
+    step(second, 'REQUESTED', 'BOOKED', lena, 60 * 4 - 29, `${today} 16:00`);
+  }
+  if (peggy) {
+    const referral = store.get<{ id: string }>("SELECT id FROM referral WHERE person_id = ? AND to_service_id = 'svc-physio'", peggy)?.id ?? null;
+    const stairs = newId();
+    store.insert('appointment', {
+      ...base, id: stairs, person_id: peggy, referral_id: referral, reason: 'Stairs practice with her daughter', priority: 'ROUTINE', state: 'CONFIRMED', requested_at: minsAgo(60 * 19),
+      start_at: `${today}T14:00`, duration_min: 45, place: 'Physiotherapy gym, level 1', booked_by: lena, confirmed_by: lena,
+    });
+    step(stairs, null, 'REQUESTED', lena, 60 * 19);
+    step(stairs, 'REQUESTED', 'BOOKED', lena, 60 * 19, `${today} 14:00`);
+    step(stairs, 'BOOKED', 'CONFIRMED', lena, 60 * 3, 'Daughter confirmed by phone');
+    const visit = newId();
+    store.insert('appointment', {
+      id: visit, person_id: peggy, service_id: 'svc-physio', referral_id: referral, reason: 'Home visit in the first week after discharge: stairs, bathroom and rails', priority: 'ROUTINE',
+      mode: 'IN_PERSON', state: 'REQUESTED', requested_by: lena, requested_at: minsAgo(60 * 3),
+    });
+    step(visit, null, 'REQUESTED', lena, 60 * 3);
   }
 }

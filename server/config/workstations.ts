@@ -29,7 +29,8 @@ export type Capability =
   | 'careplan.manage'
   | 'referral.request'
   | 'referral.authorise'
-  | 'referral.triage';
+  | 'referral.triage'
+  | 'appointment.manage';
 
 export interface HomeCard {
   id: string;
@@ -77,6 +78,7 @@ const CARD = {
   wounds: { id: 'wounds', label: 'Wound reviews', required: true },
   careplans: { id: 'careplans', label: 'Care plan reviews', required: true },
   referrals: { id: 'referrals', label: 'Referrals', required: true },
+  appointments: { id: 'appointments', label: 'Appointments', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -136,7 +138,7 @@ export const ROLES: RoleConfig[] = [
     profession: 'Registered Nurse',
     capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage', 'discharge.plan', 'discharge.complete', 'escalation.raise', 'wound.identify', 'wound.manage', 'careplan.manage', 'referral.request'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.assess', '.change', '.family', '.progress', '.task'],
-    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers', 'discharge', 'escalations', 'referrals'],
+    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers', 'discharge', 'escalations', 'referrals', 'appointments'],
     tabs: [
       { id: 'list', label: 'Allocation' },
       { id: 'overview', label: 'Overview' },
@@ -162,9 +164,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - physician',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage', 'appointment.manage'],
     keys: ['.review', '.problem', '.assess', '.progress', '.family', '.task'],
-    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals'],
+    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals', 'appointments'],
     tabs: [
       { id: 'list', label: 'Patient List' },
       { id: 'overview', label: 'Overview' },
@@ -177,7 +179,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'discharge', label: 'Discharge' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments],
     consultsTo: ['physio'],
     refersTo: ['svc-physio'],
   },
@@ -238,9 +240,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Physiotherapy',
     evidenceStatus: 'HISO allied-health model / profession-specific regulation; exact profession mapping varies',
     profession: 'Physiotherapist',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'escalation.raise', 'consult.respond', 'referral.triage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'escalation.raise', 'consult.respond', 'referral.triage', 'appointment.manage'],
     keys: ['.assess', '.mobility', '.goals', '.treatment', '.outcome', '.progress', '.family', '.task'],
-    views: ['overview', 'assess', 'mobility', 'goals', 'treatment', 'outcomes', 'progress', 'notes', 'tasks', 'obs', 'problems', 'allergies', 'routes', 'family', 'escalations', 'consults', 'referrals'],
+    views: ['overview', 'assess', 'mobility', 'goals', 'treatment', 'outcomes', 'progress', 'notes', 'tasks', 'obs', 'problems', 'allergies', 'routes', 'family', 'escalations', 'consults', 'referrals', 'appointments'],
     tabs: [
       { id: 'list', label: 'Caseload' },
       { id: 'assess', label: 'Assessment' },
@@ -251,7 +253,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'notes', label: 'Notes' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.received, CARD.escalations, CARD.consults, CARD.referrals],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.received, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments],
     escalatesTo: ['genmed-physician', 'genmed-rn'],
   },
   {

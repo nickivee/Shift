@@ -31,6 +31,8 @@ export type Operation =
   | { op: 'CAREPLAN'; personId: string }
   | { op: 'REFERRAL_REQUEST'; personId: string; cap: 'referral.request' | 'referral.authorise' }
   | { op: 'REFERRAL_TRIAGE'; serviceId: string }
+  | { op: 'APPOINTMENT_REQUEST'; personId: string }
+  | { op: 'APPOINTMENT_MANAGE'; serviceId: string; clinical: boolean }
   | { op: 'WOUND'; personId: string; cap: 'wound.identify' | 'wound.manage' }
   | { op: 'CONSULT_REQUEST'; personId: string }
   | { op: 'CONSULT_RESPOND'; serviceId: string; roleKey: string }
@@ -85,6 +87,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       // Receiving, triaging and deciding on a referral belong to the receiving service.
       if (o.serviceId !== ctx.serviceId) return block('This referral is addressed to another service');
       return need(ctx, 'referral.triage') ?? professional(ctx) ?? allow();
+    case 'APPOINTMENT_MANAGE': {
+      // A service runs its own appointments. Starting and finishing one is clinical work.
+      if (o.serviceId !== ctx.serviceId) return block('This appointment belongs to another service');
+      return need(ctx, 'appointment.manage') ?? (o.clinical ? professional(ctx) : null) ?? allow();
+    }
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -129,6 +136,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (rel === 'ENCOUNTER' || rel === 'CARE_RELATIONSHIP'
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can refer them`));
+    case 'APPOINTMENT_REQUEST':
+      return need(ctx, 'appointment.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'REFERRAL'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Your service needs a care relationship or a referral for this ${ctx.subjectLabel.toLowerCase()} to book them`));
     case 'CAREPLAN':
       return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':

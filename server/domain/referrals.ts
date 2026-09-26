@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { ROLES } from '../config/workstations.ts';
+import { addRequest, bookForReferral, cancelForReferral } from './appointments.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 // Referral (Shared Lifecycle Object 203):
@@ -220,11 +221,15 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         store.run('UPDATE referral SET triaged_by = ?, triage_priority = ?, triage_note = ? WHERE id = ?', ctx.workerId, priority, note || null, id);
         break;
       }
-      case 'accept':
+      case 'accept': {
         recv();
         transition(store, 'referral', id, 'ACCEPTED', who, note || undefined);
         store.run('UPDATE referral SET decided_by = ?, decision_note = ? WHERE id = ?', ctx.workerId, note || null, id);
+        // Accepting puts the person on the service's waitlist at the triaged priority.
+        const src = store.get<{ request: string; priority: string; triage_priority: string | null }>('SELECT request, priority, triage_priority FROM referral WHERE id = ?', id)!;
+        addRequest(store, ctx, personId, String(r.toServiceId), { reason: src.request, priority: src.triage_priority ?? src.priority, referralId: id });
         break;
+      }
       case 'decline':
         recv();
         need(5, 'Give the reason for declining, and what the referrer could do instead.');
@@ -259,6 +264,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         recv();
         const when = String(b.when ?? '');
         if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when)) throw new HttpError(400, 'WHEN_REQUIRED', 'Choose the date and time.');
+        bookForReferral(store, ctx, id, when);
         transition(store, 'referral', id, 'SCHEDULED', who, when.replace('T', ' '));
         store.run('UPDATE referral SET scheduled_for = ?, scheduled_by = ? WHERE id = ?', when, ctx.workerId, id);
         break;
@@ -299,6 +305,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         ref();
         need(5, 'Give the reason for cancelling.');
         transition(store, 'referral', id, 'CANCELLED', who, note);
+        cancelForReferral(store, ctx, id, 'cancelled');
         store.run('UPDATE referral SET closed_by = ?, closed_at = ? WHERE id = ?', ctx.workerId, now(), id);
         break;
       default:

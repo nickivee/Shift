@@ -97,6 +97,18 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       OUTCOME_RECORDED: ['CLOSED'],
     },
   },
+  appointment: {
+    table: 'appointment',
+    initial: 'REQUESTED',
+    next: {
+      REQUESTED: ['OFFERED', 'BOOKED', 'CANCELLED'],
+      OFFERED: ['BOOKED', 'REQUESTED', 'CANCELLED'],
+      BOOKED: ['CONFIRMED', 'ARRIVED', 'BOOKED', 'CANCELLED', 'DID_NOT_ATTEND'],
+      CONFIRMED: ['ARRIVED', 'BOOKED', 'CANCELLED', 'DID_NOT_ATTEND'],
+      ARRIVED: ['COMMENCED', 'UNABLE_TO_COMPLETE'],
+      COMMENCED: ['COMPLETED', 'UNABLE_TO_COMPLETE'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
