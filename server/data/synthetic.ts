@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 3;
+const SET = 4;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -323,6 +323,7 @@ export function extendSynthetic(store: Store, password: string): void {
   store.tx(() => {
     if (at < 2) set2(store, password);
     if (at < 3) set3(store, password);
+    if (at < 4) set4(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -536,5 +537,44 @@ function set3(store: Store, password: string): void {
       reason, priority: 'ROUTINE', state: 'REQUESTED', requested_by: ravi, requested_at: minsAgo(20),
     });
     recordInitial(store, 'transfer', id, 'REQUESTED', { actorId: ravi, workContextId: null }, reason);
+  }
+}
+
+// Set 4: discharge planning on Ward K. Peggy Oliver is being considered for discharge home
+// with support; Wiremu Te Whare has a decision to discharge with one requirement left.
+function set4(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const hannah = who('hannah');
+  const nicki = who('nicki');
+  if (!hannah || !nicki) return;
+  const admitted = (nhi: string) => store.get<{ person_id: string; id: string }>(
+    "SELECT e.person_id, e.id FROM encounter e JOIN external_identifier x ON x.person_id = e.person_id AND x.system = 'NHI' AND x.value = ? WHERE e.service_id = 'svc-genmed' AND e.state = 'ACTIVE'", nhi,
+  );
+  const plan = (enc: { person_id: string; id: string }, destination: string, expected: string, mins: number, note: string) => {
+    const id = newId();
+    store.insert('discharge', { id, person_id: enc.person_id, service_id: 'svc-genmed', encounter_id: enc.id, destination, expected_date: expected, state: 'CONSIDERED', considered_by: hannah, considered_at: minsAgo(mins), note });
+    recordInitial(store, 'discharge', id, 'CONSIDERED', { actorId: hannah, workContextId: null }, note);
+    return id;
+  };
+  const met = (id: string, code: string, by: string, note: string, mins: number) =>
+    store.insert('discharge_requirement', { id: newId(), discharge_id: id, code, status: 'DONE', note, recorded_by: by, recorded_at: minsAgo(mins) });
+
+  const peggy = admitted('ZZZ0032');
+  if (peggy) {
+    const id = plan(peggy, 'Home with support', addDays(today, 2), 60 * 5, 'Aim for home with increased home support once walking to the bathroom with her frame');
+    met(id, 'whanau', nicki, 'Daughter Sarah told of the plan; wants to be there on the day', 60 * 3);
+  }
+  const wiremu = admitted('ZZZ0016');
+  if (wiremu) {
+    const id = plan(wiremu, 'Home', addDays(today, 1), 60 * 26, 'Heart failure improving; weight back to dry weight');
+    met(id, 'readiness', hannah, 'Euvolaemic, weight stable 2 days, walking independently', 60 * 25);
+    store.run("UPDATE discharge SET state = 'DECIDED', decided_by = ? WHERE id = ?", hannah, id);
+    store.insert('state_transition', { id: newId(), object_type: 'discharge', object_id: id, from_state: 'CONSIDERED', to_state: 'DECIDED', actor_id: hannah, work_context_id: null, at: minsAgo(60 * 24), reason: 'Decision to discharge tomorrow', transaction_id: null });
+    met(id, 'medicines', hannah, 'Furosemide 40 mg mane (was 80 mg); cilazapril restarted at 2.5 mg; no other changes', 60 * 4);
+    met(id, 'summary', hannah, 'Admitted with decompensated heart failure. Diuresed 3.1 kg to dry weight 83.9 kg. Potassium 5.4 on admission, cilazapril held and restarted at lower dose. GP to check electrolytes in one week.', 60 * 4);
+    met(id, 'whanau', nicki, 'Wiremu and his wife Ana understand the new doses and daily weights', 60 * 3);
+    met(id, 'followup', hannah, 'GP bloods in 1 week; heart failure nurse clinic in 2 weeks', 60 * 3);
   }
 }

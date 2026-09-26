@@ -643,4 +643,38 @@ CREATE TABLE transfer (
 );
 `,
   },
+  {
+    version: 4,
+    name: 'discharge',
+    sql: `
+-- Discharge (Shared Lifecycle Object 222). Considering, deciding and discharging are
+-- separate acts; each outstanding requirement is recorded by the person who met it.
+CREATE TABLE discharge (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  encounter_id TEXT NOT NULL REFERENCES encounter(id),
+  destination TEXT NOT NULL,
+  expected_date TEXT,
+  state TEXT NOT NULL,                  -- CONSIDERED | DECIDED | DISCHARGED | CANCELLED
+  considered_by TEXT NOT NULL,
+  considered_at TEXT NOT NULL,
+  decided_by TEXT,
+  discharged_by TEXT,
+  discharged_at TEXT,
+  note TEXT
+);
+
+CREATE TABLE discharge_requirement (
+  id TEXT PRIMARY KEY,
+  discharge_id TEXT NOT NULL REFERENCES discharge(id),
+  code TEXT NOT NULL,                   -- readiness | medicines | summary | whanau | followup | destination
+  status TEXT NOT NULL,                 -- DONE | NOT_APPLICABLE
+  note TEXT,
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  UNIQUE (discharge_id, code)
+);
+`,
+  },
 ];

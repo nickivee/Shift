@@ -38,6 +38,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ARRIVED: ['RESPONSIBILITY_ACCEPTED'],
     },
   },
+  discharge: {
+    table: 'discharge',
+    initial: 'CONSIDERED',
+    next: {
+      CONSIDERED: ['DECIDED', 'CANCELLED'],
+      DECIDED: ['DISCHARGED', 'CONSIDERED', 'CANCELLED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',

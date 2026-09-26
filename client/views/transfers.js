@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, confirmDialog, pageTitle, fmtDateTime, titleCase } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { expectedDischarges } from './discharges.js';
 
 // Admission and transfer of care. Each step is its own act by the person who holds it:
 // the receiving team accepts, a bed is allocated, arrival is confirmed, and only then does
@@ -155,7 +156,7 @@ function section(title, rows, reload, empty) {
 export async function flowView() {
   const root = h('div');
   const load = async () => {
-    const [beds, transfers] = await Promise.all([get('/api/work/beds'), get('/api/work/transfers')]);
+    const [beds, transfers, discharges] = await Promise.all([get('/api/work/beds'), get('/api/work/transfers'), get('/api/work/discharges')]);
     const services = [...new Set(beds.map((b) => b.service))];
     const waiting = transfers.filter((t) => ['REQUESTED', 'ACCEPTED'].includes(t.state));
     const count = (s) => beds.filter((b) => b.state === s).length;
@@ -168,6 +169,7 @@ export async function flowView() {
         h('div', { class: 'sum' }, h('b', {}, String(waiting.length)), h('span', {}, 'Waiting for a bed')),
       ),
       waiting.length ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, 'Waiting for a bed'), waiting.map((t) => transferCard(t, load))) : null,
+      expectedDischarges(discharges),
       services.length ? services.map((s) => h('section', { class: 'stack' },
         h('h2', { class: 'section-title paua' }, s),
         h('div', { class: 'beds' }, beds.filter((b) => b.service === s).map((b) => bedTile(b, load))),

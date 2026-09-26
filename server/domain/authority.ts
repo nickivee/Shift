@@ -27,6 +27,7 @@ export type Operation =
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
   | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
   | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
+  | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
 
 const ORG = 'ORG-SYN-001 v1';
@@ -97,6 +98,9 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'handover.use') ?? allow();
     case 'TRANSFER_REQUEST':
       return need(ctx, 'transfer.request') ?? professional(ctx) ?? allow();
+    case 'DISCHARGE':
+      // Only the service the person is admitted to can discharge them.
+      return need(ctx, o.cap) ?? professional(ctx) ?? (rel === 'ENCOUNTER' ? allow() : block(`Only the service this ${ctx.subjectLabel.toLowerCase()} is admitted to can discharge them`));
     case 'REVIEW_RESULT':
       return need(ctx, 'result.review') ?? professional(ctx) ?? allow();
     case 'ROUTE': {

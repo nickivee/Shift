@@ -399,3 +399,9 @@ dialog h2 { margin-top: 0; }
 .bed-occupied { border-color: #c9d3da; }
 .flow-sum .bed-available b { color: var(--ok); }
 .flow-sum .bed-cleaning b { color: var(--warn); }
+
+/* Discharge */
+.reqs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.req { border: 2px solid var(--warn-bg); border-radius: 12px; padding: 8px 10px; display: grid; gap: 4px; background: #fffdf6; }
+.req.met { border-color: #d4e6ea; background: #fff; }
+.req .summary { white-space: pre-wrap; background: var(--tint); border-radius: 10px; padding: 8px 10px; }

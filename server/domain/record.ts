@@ -4,6 +4,7 @@ import { evaluate, relationship, type Operation } from './authority.ts';
 import { audit } from './audit.ts';
 import { history } from './lifecycle.ts';
 import { forPerson as transfersFor } from './transfers.ts';
+import { forPerson as dischargesFor } from './discharges.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
@@ -51,13 +52,14 @@ export function patientList(store: Store, ctx: WorkContext) {
             (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies,
             (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage,
             (SELECT t.state || '|' || s.name FROM transfer t JOIN service s ON s.id = t.to_service_id
-              WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer
+              WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer,
+            (SELECT d.state || '|' || COALESCE(d.expected_date, '') FROM discharge d WHERE d.person_id = p.id AND d.service_id = ? AND d.state IN ('CONSIDERED','DECIDED') LIMIT 1) AS discharge
        FROM person p
        LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
       WHERE e.id IS NOT NULL
          OR EXISTS (SELECT 1 FROM care_relationship r WHERE r.person_id = p.id AND r.service_id = ? AND r.ended_at IS NULL)
       ORDER BY location, p.family_name`,
-    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId,
+    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId,
   );
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_LIST', objectType: 'service', objectId: ctx.serviceId, decision: 'ALLOW', outcome: 'VIEWED', engines: [28, 266] });
   const list = rows.map((r) => {
@@ -67,6 +69,7 @@ export function patientList(store: Store, ctx: WorkContext) {
       age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
       allocated: Boolean(r.allocated), handover: Number(r.handover), openTasks: Number(r.open_tasks), hasAllergy: Number(r.allergies) > 0,
       arrivedAt: r.arrived_at, triage: triage ? { category: triage.category ?? null, complaint: triage.complaint ?? null } : null,
+      discharge: r.discharge ? { state: String(r.discharge).split('|')[0], expected: String(r.discharge).split('|')[1] || null } : null,
       transfer: r.transfer ? { state: String(r.transfer).split('|')[0], to: String(r.transfer).split('|')[1] } : null,
     };
   });
@@ -272,6 +275,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
     }
     case 'transfers':
       body = transfersFor(store, ctx, personId);
+      break;
+    case 'discharge':
+      body = dischargesFor(store, ctx, personId);
       break;
     case 'routes':
       body = {
