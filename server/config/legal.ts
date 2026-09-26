@@ -159,6 +159,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-RESTRAINT-001',
+    question: 'Restraint and restrictive-practice requirements in each setting (Ngā Paerewa restraint criteria, the Code of Rights, and any compulsory-care law), including who may approve, monitoring and reporting.',
+    blocks: 'Recording restraint, seclusion or any restriction a person has not agreed to that limits their freedom of movement.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

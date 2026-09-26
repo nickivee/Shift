@@ -18,6 +18,7 @@ import * as appointments from '../domain/appointments.ts';
 import * as alerts from '../domain/alerts.ts';
 import * as communications from '../domain/communications.ts';
 import * as monitoring from '../domain/monitoring.ts';
+import * as restrictions from '../domain/restrictions.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -160,6 +161,15 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
+  r.on('GET', '/api/work/restrictions', (req) => restrictions.list(store, work(req)));
+  const restrictionFields = (b: Record<string, unknown>) => ({
+    kind: str(b.kind), side: str(b.side), detail: str(b.detail), instructions: str(b.instructions), reason: str(b.reason), patientView: str(b.patientView),
+    effectiveFrom: str(b.effectiveFrom), effectiveUntil: str(b.effectiveUntil), reviewDate: str(b.reviewDate),
+  });
+  r.on('POST', '/api/work/patients/:id/restrictions', (req) => restrictions.propose(store, work(req), req.params.id, restrictionFields(req.body)));
+  r.on('POST', '/api/work/restrictions/:id/:action', (req) => restrictions.act(store, work(req), req.params.id, req.params.action, {
+    ...restrictionFields(req.body), note: str(req.body.note), outcome: str(req.body.outcome), followed: req.body.followed === true || req.body.followed === 'true',
   }));
   r.on('GET', '/api/work/communications', (req) => communications.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/communications', (req) => communications.create(store, work(req), req.params.id, {
