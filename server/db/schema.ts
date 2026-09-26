@@ -606,4 +606,106 @@ CREATE TRIGGER roster_decision_no_delete BEFORE DELETE ON roster_decision
 BEGIN SELECT RAISE(ABORT, 'roster_decision is append-only'); END;
 `,
   },
+  {
+    version: 3,
+    name: 'transfers',
+    sql: `
+-- Beds are physical capacity. A bed's state never implies who is responsible for a person.
+CREATE TABLE bed (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  label TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- AVAILABLE | RESERVED | OCCUPIED | CLEANING
+  person_id TEXT REFERENCES person(id),
+  updated_at TEXT NOT NULL,
+  UNIQUE (service_id, label)
+);
+
+-- Transfer of care / admission (Shared Lifecycle Objects 220 and 221). Acceptance, bed,
+-- arrival and responsibility are separate recorded steps; none implies the next.
+CREATE TABLE transfer (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  kind TEXT NOT NULL,                   -- ADMISSION | TRANSFER
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  from_encounter_id TEXT REFERENCES encounter(id),
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  reason TEXT NOT NULL,
+  priority TEXT NOT NULL,               -- ROUTINE | URGENT
+  state TEXT NOT NULL,                  -- REQUESTED | ACCEPTED | DECLINED | CANCELLED | BED_ALLOCATED | ARRIVED | RESPONSIBILITY_ACCEPTED
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  accepted_by TEXT,
+  bed_id TEXT REFERENCES bed(id),
+  to_encounter_id TEXT REFERENCES encounter(id),
+  responsible_by TEXT,
+  note TEXT
+);
+`,
+  },
+  {
+    version: 4,
+    name: 'discharge',
+    sql: `
+-- Discharge (Shared Lifecycle Object 222). Considering, deciding and discharging are
+-- separate acts; each outstanding requirement is recorded by the person who met it.
+CREATE TABLE discharge (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  encounter_id TEXT NOT NULL REFERENCES encounter(id),
+  destination TEXT NOT NULL,
+  expected_date TEXT,
+  state TEXT NOT NULL,                  -- CONSIDERED | DECIDED | DISCHARGED | CANCELLED
+  considered_by TEXT NOT NULL,
+  considered_at TEXT NOT NULL,
+  decided_by TEXT,
+  discharged_by TEXT,
+  discharged_at TEXT,
+  note TEXT
+);
+
+CREATE TABLE discharge_requirement (
+  id TEXT PRIMARY KEY,
+  discharge_id TEXT NOT NULL REFERENCES discharge(id),
+  code TEXT NOT NULL,                   -- readiness | medicines | summary | whanau | followup | destination
+  status TEXT NOT NULL,                 -- DONE | NOT_APPLICABLE
+  note TEXT,
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  UNIQUE (discharge_id, code)
+);
+`,
+  },
+  {
+    version: 5,
+    name: 'escalation',
+    sql: `
+-- Escalation (Shared Lifecycle Object 225). Raised by the person who is worried, addressed
+-- to a role in the service responsible for the person. Received, acknowledged and responded
+-- are separate acts; the raiser's reassessment resolves it or escalates further.
+CREATE TABLE escalation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),     -- service responsible for the person
+  recipient_role_key TEXT NOT NULL,
+  urgency TEXT NOT NULL,                -- IMMEDIATE | URGENT | ROUTINE
+  concern TEXT NOT NULL,
+  trigger_text TEXT NOT NULL,           -- what changed, in the raiser's words
+  state TEXT NOT NULL,                  -- RAISED | RECEIVED | ACKNOWLEDGED | RESPONDED | RESOLVED | ESCALATED
+  raised_by TEXT NOT NULL,
+  raised_service_id TEXT NOT NULL REFERENCES service(id),
+  raised_at TEXT NOT NULL,
+  parent_id TEXT REFERENCES escalation(id),
+  level INTEGER NOT NULL DEFAULT 1,
+  received_by TEXT,
+  acknowledged_by TEXT,
+  response TEXT,
+  responded_by TEXT,
+  reassessment TEXT,
+  reassessed_by TEXT,
+  closed_at TEXT
+);
+`,
+  },
 ];

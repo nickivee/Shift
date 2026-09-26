@@ -19,9 +19,10 @@ export const SYNTHETIC_USERS = [
   { username: 'mere', label: 'Mere Parata, Registered Nurse (Emergency Department)' },
   { username: 'ravi', label: 'Dr Ravi Singh, Emergency Physician (Emergency Department)' },
   { username: 'lena', label: 'Lena Fox, Physiotherapist (General Medicine caseload)' },
+  { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 2;
+const SET = 5;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -313,13 +314,32 @@ export function loadSynthetic(store: Store, password: string): void {
   extendSynthetic(store, password);
 }
 
-// Later additions to the synthetic data set: the Emergency Department, a physiotherapy
-// caseload and rostering for Residential Care. A device holding an earlier synthetic set
-// receives them once; a database without the synthetic organisations is never touched.
+// Later additions to the synthetic data set. A device holding an earlier synthetic set
+// receives each missing set once; a database without the synthetic organisations is never touched.
 export function extendSynthetic(store: Store, password: string): void {
   if (!store.get("SELECT 1 FROM organisation WHERE id = 'org-hosp' AND data_source = 'SYNTHETIC'")) return;
-  const done = store.get<{ value: string }>("SELECT value FROM meta WHERE key = 'synthetic_set'");
-  if (done && Number(done.value) >= SET) return;
+  const at = Number(store.get<{ value: string }>("SELECT value FROM meta WHERE key = 'synthetic_set'")?.value ?? 1);
+  if (at >= SET) return;
+  store.tx(() => {
+    if (at < 2) set2(store, password);
+    if (at < 3) set3(store, password);
+    if (at < 4) set4(store);
+    if (at < 5) set5(store);
+    store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
+    audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
+  });
+}
+
+const newWorker = (store: Store, pw: string, username: string, given: string, family: string, display: string) => {
+  const pid = newId();
+  store.insert('person', { id: pid, family_name: family, given_name: given, data_source: 'SYNTHETIC', created_at: now() });
+  const wid = newId();
+  store.insert('workforce_person', { id: wid, person_id: pid, display_name: display, username, password_hash: pw, status: 'ACTIVE' });
+  return wid;
+};
+
+// Set 2: the Emergency Department, a physiotherapy caseload and rostering for Residential Care.
+function set2(store: Store, password: string): void {
   const S = 'SYNTHETIC';
   const today = todayLocal();
   const pw = hashPassword(password);
@@ -338,13 +358,7 @@ export function extendSynthetic(store: Store, password: string): void {
     dest('eddr', 'Emergency doctor', 'svc-ed', 'ed-doctor', 1);
     dest('physio', 'Physiotherapy referral', 'svc-physio', 'physio', 1);
 
-    const worker = (username: string, given: string, family: string, display: string) => {
-      const pid = newId();
-      store.insert('person', { id: pid, family_name: family, given_name: given, data_source: S, created_at: now() });
-      const wid = newId();
-      store.insert('workforce_person', { id: wid, person_id: pid, display_name: display, username, password_hash: pw, status: 'ACTIVE' });
-      return wid;
-    };
+    const worker = (username: string, given: string, family: string, display: string) => newWorker(store, pw, username, given, family, display);
     const authority = (wid: string, profession: string, regulator: string, reg: string, scope: string) =>
       store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession, regulator, registration_number: reg, scope, valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
     const position = (wid: string, org: string, service: string, title: string, role: string) => {
@@ -485,8 +499,104 @@ export function extendSynthetic(store: Store, password: string): void {
     if (hannah) {
       store.insert('knowledge_question', { id: newId(), author_id: hannah, topic: 'Low-risk chest pain pathways', body: 'For ED colleagues: when a 2-hour high-sensitivity troponin pathway is negative, what follow-up are you arranging for patients with ongoing risk factors?', created_at: minsAgo(60 * 30), state: 'OPEN' });
     }
-
-    store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
-    audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
+}
+
+// Set 3: beds on Ward K, a patient flow coordinator, and Tom Harris waiting for admission
+// from the Emergency Department to General Medicine.
+function set3(store: Store, password: string): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  store.insert('service', { id: 'svc-flow', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Patient Flow', sector: 'Hospital operations', subject_label: 'Patient' });
+  const pita = newWorker(store, hashPassword(password), 'pita', 'Pita', 'Hohaia', 'Pita Hohaia');
+  const eid = newId();
+  store.insert('employment', { id: eid, workforce_person_id: pita, organisation_id: 'org-hosp', employment_type: 'PERMANENT', start_date: '2023-07-01' });
+  const pos = newId();
+  store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-flow', title: 'Patient Flow Coordinator', role_key: 'flow-coordinator', start_date: '2023-07-01' });
+  const today = todayLocal();
+  for (let d = -7; d < 28; d++) {
+    const date = addDays(today, d);
+    const dow = new Date(`${date}T00:00:00`).getDay();
+    if (dow === 0 || dow === 6) continue;
+    store.insert('roster_shift', { id: newId(), workforce_person_id: pita, position_id: pos, service_id: 'svc-flow', shift_date: date, start_time: '07:30', end_time: '16:00', state: 'PLANNED', data_source: 'SYNTHETIC' });
+  }
+
+  // Ward K beds. Beds already holding a General Medicine inpatient are occupied by them.
+  const inpatients = store.all<{ person_id: string; location: string }>("SELECT person_id, location FROM encounter WHERE service_id = 'svc-genmed' AND state = 'ACTIVE'");
+  for (let n = 1; n <= 12; n++) {
+    const label = `Ward K Bed ${n}`;
+    const who = inpatients.find((e) => e.location === label);
+    store.insert('bed', { id: newId(), service_id: 'svc-genmed', label, state: who ? 'OCCUPIED' : n === 2 || n === 10 ? 'CLEANING' : 'AVAILABLE', person_id: who?.person_id ?? null, updated_at: minsAgo(30 + n * 7) });
+  }
+
+  const tom = store.get<{ person_id: string; id: string }>("SELECT e.person_id, e.id FROM encounter e JOIN external_identifier x ON x.person_id = e.person_id AND x.system = 'NHI' AND x.value = 'ZZZ0148' WHERE e.service_id = 'svc-ed' AND e.state = 'ACTIVE'");
+  const ravi = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'ravi'")?.id;
+  if (tom && ravi) {
+    const id = newId();
+    const reason = 'Fall on apixaban with scalp laceration; needs observation overnight and a falls and medicines review';
+    store.insert('transfer', {
+      id, person_id: tom.person_id, kind: 'ADMISSION', from_service_id: 'svc-ed', from_encounter_id: tom.id, to_service_id: 'svc-genmed',
+      reason, priority: 'ROUTINE', state: 'REQUESTED', requested_by: ravi, requested_at: minsAgo(20),
+    });
+    recordInitial(store, 'transfer', id, 'REQUESTED', { actorId: ravi, workContextId: null }, reason);
+  }
+}
+
+// Set 4: discharge planning on Ward K. Peggy Oliver is being considered for discharge home
+// with support; Wiremu Te Whare has a decision to discharge with one requirement left.
+function set4(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const hannah = who('hannah');
+  const nicki = who('nicki');
+  if (!hannah || !nicki) return;
+  const admitted = (nhi: string) => store.get<{ person_id: string; id: string }>(
+    "SELECT e.person_id, e.id FROM encounter e JOIN external_identifier x ON x.person_id = e.person_id AND x.system = 'NHI' AND x.value = ? WHERE e.service_id = 'svc-genmed' AND e.state = 'ACTIVE'", nhi,
+  );
+  const plan = (enc: { person_id: string; id: string }, destination: string, expected: string, mins: number, note: string) => {
+    const id = newId();
+    store.insert('discharge', { id, person_id: enc.person_id, service_id: 'svc-genmed', encounter_id: enc.id, destination, expected_date: expected, state: 'CONSIDERED', considered_by: hannah, considered_at: minsAgo(mins), note });
+    recordInitial(store, 'discharge', id, 'CONSIDERED', { actorId: hannah, workContextId: null }, note);
+    return id;
+  };
+  const met = (id: string, code: string, by: string, note: string, mins: number) =>
+    store.insert('discharge_requirement', { id: newId(), discharge_id: id, code, status: 'DONE', note, recorded_by: by, recorded_at: minsAgo(mins) });
+
+  const peggy = admitted('ZZZ0032');
+  if (peggy) {
+    const id = plan(peggy, 'Home with support', addDays(today, 2), 60 * 5, 'Aim for home with increased home support once walking to the bathroom with her frame');
+    met(id, 'whanau', nicki, 'Daughter Sarah told of the plan; wants to be there on the day', 60 * 3);
+  }
+  const wiremu = admitted('ZZZ0016');
+  if (wiremu) {
+    const id = plan(wiremu, 'Home', addDays(today, 1), 60 * 26, 'Heart failure improving; weight back to dry weight');
+    met(id, 'readiness', hannah, 'Euvolaemic, weight stable 2 days, walking independently', 60 * 25);
+    store.run("UPDATE discharge SET state = 'DECIDED', decided_by = ? WHERE id = ?", hannah, id);
+    store.insert('state_transition', { id: newId(), object_type: 'discharge', object_id: id, from_state: 'CONSIDERED', to_state: 'DECIDED', actor_id: hannah, work_context_id: null, at: minsAgo(60 * 24), reason: 'Decision to discharge tomorrow', transaction_id: null });
+    met(id, 'medicines', hannah, 'Furosemide 40 mg mane (was 80 mg); cilazapril restarted at 2.5 mg; no other changes', 60 * 4);
+    met(id, 'summary', hannah, 'Admitted with decompensated heart failure. Diuresed 3.1 kg to dry weight 83.9 kg. Potassium 5.4 on admission, cilazapril held and restarted at lower dose. GP to check electrolytes in one week.', 60 * 4);
+    met(id, 'whanau', nicki, 'Wiremu and his wife Ana understand the new doses and daily weights', 60 * 3);
+    met(id, 'followup', hannah, 'GP bloods in 1 week; heart failure nurse clinic in 2 weeks', 60 * 3);
+  }
+}
+
+// Set 5: escalations waiting to be received. Nicki is worried about Sione's leg on Ward K;
+// Tama has escalated Frank's heels to the RN on duty in Residential Care.
+function set5(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const raise = (personId: string | null, by: string | null, fromService: string, toService: string, role: string, urgency: string, concern: string, trigger: string, mins: number) => {
+    if (!personId || !by) return;
+    const id = newId();
+    store.insert('escalation', {
+      id, person_id: personId, service_id: toService, recipient_role_key: role, urgency, concern, trigger_text: trigger, state: 'RAISED',
+      raised_by: by, raised_service_id: fromService, raised_at: minsAgo(mins), level: 1,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'escalation', object_id: id, from_state: null, to_state: 'RAISED', actor_id: by, work_context_id: null, at: minsAgo(mins), reason: `${urgency.toLowerCase()} · ${concern}`, transaction_id: null });
+  };
+  raise(person('ZZZ0024'), who('nicki'), 'svc-genmed', 'svc-genmed', 'genmed-physician', 'URGENT', 'Deterioration',
+    'Redness has spread about 3 cm past the marked border since 08:00. T 38.3, HR 108, more pain walking. Worried the cellulitis is not responding.', 25);
+  raise(person('ZZZ0075'), who('tama'), 'svc-arc', 'svc-arc', 'arc-rn', 'URGENT', 'Wound or skin',
+    'Both heels redder than yesterday and there is a blister on the left heel. Frank says it hurts when his feet touch the bed.', 40);
 }
