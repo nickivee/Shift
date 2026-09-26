@@ -15,6 +15,8 @@
   /* Pāua shell: the photograph itself, so every pāua surface shows real shell. */
   --paua: url("paua.jpg") center / cover no-repeat #0b4f6c;
   /* The same shell, shaded so white text on it stays readable. */
+  /* For lettering: the shell at a small scale, deepened so words read on white. */
+  --paua-ink: linear-gradient(#0020341f, #0020341f), url("paua.jpg") center / 220px auto repeat #0b4f6c;
   --paua-shade: linear-gradient(#03182688, #03182655), url("paua.jpg") center / cover no-repeat #0b4f6c;
   font-synthesis: none;
 }
@@ -256,21 +258,17 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .synthetic { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 /* Live Workstation ------------------------------------------------------------------- */
-.workstation { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; margin-top: 12px; }
-.destinations { display: grid; gap: 8px; align-content: start; }
+.workstation { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+.destinations { display: grid; gap: 6px; align-content: start; }
 .dest {
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 12px; border: 2px solid #3aa5b0; border-radius: 16px;
-  background: var(--card); font-weight: 800; text-align: center; line-height: 1.15;
+  padding: 8px 6px; border: 2px solid #3aa5b0; border-radius: 12px;
+  background: var(--card); font-weight: 800; font-size: 14px; text-align: center; line-height: 1.15;
   overflow-wrap: anywhere; min-width: 0;
 }
 .dest svg { width: 24px; height: 24px; flex: none; color: var(--line); }
 .dest.active { background: var(--paua-shade); color: #fff; border-color: #0b3d4a; text-shadow: 0 1px 3px #000a; }
-.ws-tabs { border-radius: var(--radius); padding: 10px 12px 12px; margin-top: 12px; }
-.ws-tabs h2 { margin: 0 0 8px; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-soft); }
-.ws-tabs .strip { border: 0; padding: 0; margin: 0; border-radius: 0; background: none; }
-.ws-tabs .pill { background: var(--tint); border-color: transparent; }
-.ws-tabs .pill.active { border-color: var(--line); }
+
 .dest.active svg { color: #fff; }
 .live { border: 2px solid var(--line); border-radius: var(--radius); background: var(--card); display: flex; flex-direction: column; min-height: 62vh; overflow: hidden; }
 .live-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; }
@@ -280,8 +278,10 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 
 @media (max-width: 760px) {
   /* Record destinations stay down the side on a phone, as narrow text buttons. */
-  .workstation { grid-template-columns: 120px minmax(0, 1fr); gap: 8px; }
-  .dest { padding: 10px 4px; font-size: 13px; border-radius: 14px; }
+  .workstation { grid-template-columns: 96px minmax(0, 1fr); gap: 6px; }
+  .destinations { gap: 5px; }
+  .dest { padding: 7px 3px; font-size: 11px; border-radius: 10px; }
+  #app { padding-left: 10px; padding-right: 10px; }
   .dest svg { display: none; }
   .live { min-height: 70vh; }
   .live-title { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
@@ -365,7 +365,16 @@ dialog h2 { margin-top: 0; }
 .candidate:first-of-type { border-top: 0; }
 
 /* Pāua frames: a shell edge around the main working surfaces. */
-.header-card, .patient-header, .live, .ws-tabs {
+.header-card, .patient-header, .live {
   border: 5px solid transparent;
   background: linear-gradient(var(--card), var(--card)) padding-box, var(--paua) border-box;
 }
+
+/* Pāua lettering in boxes: tab labels, workstation tabs and card titles. */
+.dest span, .pill, .home-card h2, .list-item h3 {
+  background: var(--paua-ink);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.dest.active span { background: none; color: #fff; }
