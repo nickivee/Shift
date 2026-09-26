@@ -23,6 +23,7 @@ import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
 import { codingPanel } from './coding.js';
+import { reportsPanel } from './reports.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -344,6 +345,7 @@ export async function workstationView(personId, initialView) {
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
+      case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'coding': return codingPanel(personId, d, () => go(`/work/patient/${personId}/coding`));
       case 'external': return externalPanel(personId, d, () => go(`/work/patient/${personId}/external`));
       case 'access': return accessPanel(personId, d, () => go(`/work/patient/${personId}/access`));

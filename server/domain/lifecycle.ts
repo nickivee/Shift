@@ -149,6 +149,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  report: {
+    table: 'patient_report',
+    initial: 'RECORDED',
+    next: { RECORDED: ['REVIEWED', 'SUPERSEDED'], REVIEWED: ['SUPERSEDED'] },
+  },
   coding: {
     table: 'coding_case',
     initial: 'REQUIRED',

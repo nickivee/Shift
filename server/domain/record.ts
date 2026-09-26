@@ -23,6 +23,7 @@ import { forPerson as whanauFor, current as whanauNow } from './whanau.ts';
 import { forPerson as accessFor, current as accessNow } from './access.ts';
 import { forPerson as externalFor, current as externalNow } from './external.ts';
 import { forPerson as codingFor } from './coding.ts';
+import { forPerson as reportsFor } from './reports.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -363,6 +364,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'coding':
       body = codingFor(store, ctx, personId);
+      break;
+    case 'reported':
+      body = reportsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {
