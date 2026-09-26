@@ -708,4 +708,34 @@ CREATE TABLE escalation (
 );
 `,
   },
+  {
+    version: 6,
+    name: 'consultation',
+    sql: `
+-- Clinical consultation (Shared Lifecycle Object 240). Advice, not a transfer: the requesting
+-- team stays responsible. Received, accepted, advised and advice received are separate acts.
+CREATE TABLE consultation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  to_role_key TEXT NOT NULL,
+  question TEXT NOT NULL,
+  urgency TEXT NOT NULL,                -- URGENT | ROUTINE
+  state TEXT NOT NULL,                  -- REQUESTED | RECEIVED | ACCEPTED | DECLINED | ADVISED | ADVICE_RECEIVED | CLOSED | WITHDRAWN
+  received_by TEXT,
+  accepted_by TEXT,
+  decline_reason TEXT,
+  advice TEXT,
+  advised_by TEXT,
+  advised_at TEXT,
+  advice_received_by TEXT,
+  actions TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+`,
+  },
 ];

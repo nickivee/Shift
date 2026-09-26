@@ -56,6 +56,17 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       RESPONDED: ['RESOLVED', 'ESCALATED'],
     },
   },
+  consultation: {
+    table: 'consultation',
+    initial: 'REQUESTED',
+    next: {
+      REQUESTED: ['RECEIVED', 'WITHDRAWN'],
+      RECEIVED: ['ACCEPTED', 'DECLINED', 'WITHDRAWN'],
+      ACCEPTED: ['ADVISED', 'WITHDRAWN'],
+      ADVISED: ['ADVICE_RECEIVED'],
+      ADVICE_RECEIVED: ['CLOSED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',

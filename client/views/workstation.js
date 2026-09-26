@@ -4,6 +4,7 @@ import { showError, toast, ask, fmtDate, fmtDateTime, stateTag, titleCase } from
 import { transfersPanel } from './transfers.js';
 import { dischargePanel } from './discharges.js';
 import { escalationsPanel } from './escalations.js';
+import { consultationsPanel } from './consultations.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -330,6 +331,7 @@ export async function workstationView(personId, initialView) {
       case 'transfers': return transfersPanel(personId, d, () => openView('transfers'));
       case 'discharge': return dischargePanel(personId, d, () => openView('discharge'));
       case 'escalations': return escalationsPanel(personId, d, () => openView('escalations'));
+      case 'consults': return consultationsPanel(personId, d, () => openView('consults'));
       case 'routes': return h('div', { class: 'stack' }, d.routes.length ? d.routes.map((r) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, `→ ${r.destination}`), stateTag(r.state)),
         h('div', {}, r.text),

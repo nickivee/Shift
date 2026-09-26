@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 5;
+const SET = 6;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -325,6 +325,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 3) set3(store, password);
     if (at < 4) set4(store);
     if (at < 5) set5(store);
+    if (at < 6) set6(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -599,4 +600,39 @@ function set5(store: Store): void {
     'Redness has spread about 3 cm past the marked border since 08:00. T 38.3, HR 108, more pain walking. Worried the cellulitis is not responding.', 25);
   raise(person('ZZZ0075'), who('tama'), 'svc-arc', 'svc-arc', 'arc-rn', 'URGENT', 'Wound or skin',
     'Both heels redder than yesterday and there is a blister on the left heel. Frank says it hurts when his feet touch the bed.', 40);
+}
+
+// Set 6: consultations. Ravi in ED wants General Medicine's advice about Kiri; Hannah has
+// asked Physiotherapy about James before he goes home, and Lena has accepted.
+function set6(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'consultation', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const ravi = who('ravi');
+  const hannah = who('hannah');
+  const lena = who('lena');
+  const kiri = person('ZZZ0105');
+  const james = person('ZZZ0040');
+  if (ravi && kiri) {
+    const id = newId();
+    store.insert('consultation', {
+      id, person_id: kiri, from_service_id: 'svc-ed', requested_by: ravi, requested_at: minsAgo(30), to_service_id: 'svc-genmed', to_role_key: 'genmed-physician',
+      question: 'Kiri Moana, 48, 2 h central chest pain, first troponin 9. If the 2-hour troponin is also normal, would General Medicine prefer to see her as an outpatient, or admit for observation given her strong family history?',
+      urgency: 'URGENT', state: 'REQUESTED',
+    });
+    step(id, null, 'REQUESTED', ravi, 30, 'To Physician, General Medicine');
+  }
+  if (hannah && lena && james) {
+    const id = newId();
+    store.insert('consultation', {
+      id, person_id: james, from_service_id: 'svc-genmed', requested_by: hannah, requested_at: minsAgo(180), to_service_id: 'svc-physio', to_role_key: 'physio',
+      question: 'James lives alone up a flight of stairs. Please assess mobility and stairs before discharge with his leg cellulitis.',
+      urgency: 'ROUTINE', state: 'ACCEPTED', received_by: lena, accepted_by: lena,
+    });
+    step(id, null, 'REQUESTED', hannah, 180, 'To Physiotherapist, Physiotherapy');
+    step(id, 'REQUESTED', 'RECEIVED', lena, 120);
+    step(id, 'RECEIVED', 'ACCEPTED', lena, 119, 'Will see him this afternoon');
+  }
 }
