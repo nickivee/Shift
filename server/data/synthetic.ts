@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 20;
+const SET = 21;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -340,6 +340,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 18) set18(store);
     if (at < 19) set19(store);
     if (at < 20) set20(store);
+    if (at < 21) set21(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1334,5 +1335,51 @@ function set20(store: Store): void {
       });
     add('ZZZ0067', 'svc-arc', 'Whether to have her remaining teeth taken out under general anaesthetic', 'TREATMENT',
       'Dentist recommends removal. Elsie has advanced dementia and says different things each time it is raised.', 'nicki', 60 * 24 * 2);
+  });
+}
+
+function set21(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface Support {
+    nhi: string; name: string; relationship: string; note?: string; phone?: string; first?: boolean; wishes: string; share: string;
+    involve?: string; limits?: string; authority?: string; authorityRef?: string; by: string; mins: number;
+    contacts?: [string, string, string, string, string, number][];
+  }
+  const add = (x: Support) => {
+    const pid = person(x.nhi);
+    const by = who(x.by);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('support_person', {
+      id, person_id: pid, name: x.name, relationship: x.relationship, relationship_note: x.note ?? null, phone: x.phone ?? null, first_contact: x.first ? 1 : 0,
+      wishes: x.wishes, share: x.share, involve: x.involve ?? null, limits: x.limits ?? null, authority: x.authority ?? 'NONE', authority_ref: x.authorityRef ?? null,
+      authority_seen_by: x.authority ? by : null, authority_seen_at: x.authority ? ago(x.mins) : null, state: 'ACTIVE', added_by: by, added_at: ago(x.mins),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'supportperson', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: by, work_context_id: null, at: ago(x.mins), reason: x.name, transaction_id: null });
+    for (const [kind, summary, shared, u, service, m] of x.contacts ?? []) {
+      store.insert('support_contact', { id: newId(), support_person_id: id, kind, summary, shared, by_id: who(u), service_id: service, at: ago(m) });
+    }
+  };
+  store.tx(() => {
+    add({
+      nhi: 'ZZZ0032', name: 'Karen Oliver', relationship: 'CHILD', note: 'Daughter, lives in Epsom', phone: '021 555 0132', first: true, wishes: 'ASKED', share: 'ALL',
+      involve: 'Discharge planning and anything about going home', by: 'nicki', mins: 60 * 24 * 5,
+      contacts: [['WE_CALLED', 'Update on the fall and the plan for a home visit with the OT. Karen can come Thursday.', 'HEALTH', 'nicki', 'svc-genmed', 60 * 6]],
+    });
+    add({
+      nhi: 'ZZZ0032', name: 'Paul Oliver', relationship: 'CHILD', note: 'Son, Australia', wishes: 'ASKED', share: 'NOTHING',
+      limits: 'Peggy does not want Paul told anything about her health. Pass messages to her.', by: 'nicki', mins: 60 * 24 * 5,
+      contacts: [['THEY_CALLED', 'Asked how Mum is. Told him she is on the ward and would love a call; put him through to her phone.', 'NONE', 'nicki', 'svc-genmed', 60 * 30]],
+    });
+    add({
+      nhi: 'ZZZ0016', name: 'Rawiri Te Whare', relationship: 'CHILD', note: 'Son', phone: '027 555 0116', first: true, wishes: 'NOT_ABLE', share: 'UNKNOWN',
+      authority: 'EPOA_CARE', authorityRef: 'Enduring power of attorney for personal care and welfare, signed 12 March 2021; copy seen and on file', by: 'nicki', mins: 60 * 29,
+      contacts: [['THEY_CALLED', 'Rawiri rang to ask how his dad slept. Asked him to come in this afternoon to talk with Dr Li.', 'NONE', 'nicki', 'svc-genmed', 60 * 5]],
+    });
+    add({ nhi: 'ZZZ0024', name: 'Ana Tuilagi', relationship: 'PARTNER', note: 'Wife', phone: '021 555 0124', first: true, wishes: 'ASKED', share: 'ALL', involve: 'Results and big decisions', by: 'hannah', mins: 60 * 20 });
+    add({ nhi: 'ZZZ0083', name: 'Mele Faleolo', relationship: 'CHILD', note: 'Daughter', phone: '021 555 0183', first: true, wishes: 'ASKED', share: 'ALL', involve: 'Anything important, and to interpret', by: 'nicki', mins: 60 * 24 * 50 });
+    add({ nhi: 'ZZZ0059', name: 'Aroha Hēnare', relationship: 'GRANDCHILD', note: 'Mokopuna', phone: '022 555 0159', wishes: 'NOT_YET', share: 'UNKNOWN', by: 'nicki', mins: 60 * 24 * 3 });
   });
 }

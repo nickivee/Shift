@@ -189,6 +189,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-WHANAU-001',
+    question: 'When health information may be shared with whānau, family or support people who the person has not agreed to, or when the person cannot say (HIPC 2020 rule 11 and the Code of Rights), and how that decision is recorded.',
+    blocks: 'Recording health information as shared with someone the person has not agreed to. SHIFT lets staff record a contact with them only as "no health information shared".',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

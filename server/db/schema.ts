@@ -1387,5 +1387,55 @@ CREATE INDEX capacity_person ON capacity_assessment(person_id, state);
 CREATE INDEX capacity_service ON capacity_assessment(service_id, state);
 `,
   },
+  {
+    version: 21,
+    name: 'whanau and support person involvement',
+    sql: `
+-- Whānau / family / support-person involvement (Shared Lifecycle Object 252): person identity →
+-- relationship → the patient's wishes → involvement asked for or allowed → what may be shared →
+-- decision-making authority where independently established → contacts → changes and limits.
+-- Sharing without the person's agreement, and whether a legal authority is in effect, are
+-- research requirements (RR-WHANAU-001, RR-CAP-001).
+CREATE TABLE support_person (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  name TEXT NOT NULL,
+  relationship TEXT NOT NULL,           -- PARTNER | CHILD | PARENT | SIBLING | GRANDCHILD | WHANAU | FRIEND | ADVOCATE | OTHER
+  relationship_note TEXT,
+  phone TEXT,
+  first_contact INTEGER NOT NULL DEFAULT 0,
+  wishes TEXT NOT NULL,                 -- ASKED | NOT_ABLE | NOT_YET: whether the person has said what they want
+  share TEXT NOT NULL,                  -- ALL | GENERAL | NOTHING | UNKNOWN: what the person agrees can be shared with them
+  involve TEXT,                         -- what the person wants them involved in, in their words
+  limits TEXT,                          -- anything this person must not be told or do
+  authority TEXT NOT NULL,              -- NONE | EPOA_CARE | EPOA_PROPERTY | WELFARE_GUARDIAN | OTHER
+  authority_ref TEXT,                   -- the document seen
+  authority_seen_by TEXT,
+  authority_seen_at TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | ENDED
+  added_by TEXT NOT NULL,
+  added_at TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_reason TEXT
+);
+CREATE INDEX support_person_person ON support_person(person_id, state);
+
+-- Every contact with them: who, how, what was talked about and what was shared.
+CREATE TABLE support_contact (
+  id TEXT PRIMARY KEY,
+  support_person_id TEXT NOT NULL REFERENCES support_person(id),
+  kind TEXT NOT NULL,                   -- WE_CALLED | THEY_CALLED | VISIT | MEETING | MESSAGE
+  summary TEXT NOT NULL,
+  shared TEXT NOT NULL,                 -- HEALTH | NONE: whether health information was shared
+  by_id TEXT NOT NULL,
+  service_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+CREATE INDEX support_contact_person ON support_contact(support_person_id, at);
+`,
+  },
 ];
 
