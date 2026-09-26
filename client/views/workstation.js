@@ -12,6 +12,7 @@ import { appointmentsPanel } from './appointments.js';
 import { alertsPanel } from './alerts.js';
 import { communicationsPanel } from './communications.js';
 import { monitoringPanel } from './monitoring.js';
+import { restrictionsPanel } from './restrictions.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -332,6 +333,7 @@ export async function workstationView(personId, initialView) {
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
+      case 'restrictions': return restrictionsPanel(personId, d, () => go(`/work/patient/${personId}/restrictions`));
       case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, t.description), stateTag(t.state)),
@@ -390,6 +392,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.restrictions?.length) {
+      block.append(h('button', { class: 'patient-restriction', onclick: () => openView('restrictions') }, icon('restrictions'),
+        h('span', {}, h('b', {}, patient.restrictions.length === 1 ? patient.restrictions[0].label.toUpperCase() : `${patient.restrictions.length} RESTRICTIONS`),
+          patient.restrictions.map((r) => r.detail).join(' · '))));
     }
     return block;
   };

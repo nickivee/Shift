@@ -1030,4 +1030,63 @@ CREATE TABLE monitoring_review (
 );
 `,
   },
+  {
+    version: 14,
+    name: 'clinical restriction lifecycle',
+    sql: `
+-- Clinical restriction / precaution (Shared Lifecycle Object 243): clinical need identified →
+-- authorised restriction → parameters → effective time → communication → implementation →
+-- review → modification (superseded, never overwritten) or cessation. Who may authorise each
+-- kind is organisational configuration. Restraint is not recorded here (RR-RESTRAINT-001).
+CREATE TABLE restriction (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- NBM | FLUIDS | WEIGHT_BEARING | LIMB | SPINAL | ACTIVITY | OTHER
+  side TEXT,                            -- LEFT | RIGHT | BOTH, where the kind has one
+  detail TEXT NOT NULL,                 -- the restriction itself, in the clinician's words
+  instructions TEXT,                    -- what staff should do
+  reason TEXT NOT NULL,
+  patient_view TEXT NOT NULL,           -- AGREED | NOT_AGREED | UNABLE | NOT_YET
+  effective_from TEXT NOT NULL,
+  effective_until TEXT,
+  review_date TEXT,
+  state TEXT NOT NULL,                  -- PROPOSED | ACTIVE | DECLINED | SUPERSEDED | CEASED
+  proposed_by TEXT NOT NULL,
+  proposed_at TEXT NOT NULL,
+  authorised_by TEXT,
+  authorised_at TEXT,
+  supersedes_id TEXT REFERENCES restriction(id),
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX restriction_person ON restriction(person_id, state);
+CREATE INDEX restriction_service ON restriction(service_id, state);
+
+-- Communication: each worker who has read it. Implementation: checks that it is being followed.
+CREATE TABLE restriction_ack (
+  restriction_id TEXT NOT NULL REFERENCES restriction(id),
+  worker_id TEXT NOT NULL,
+  at TEXT NOT NULL,
+  PRIMARY KEY (restriction_id, worker_id)
+);
+CREATE TABLE restriction_check (
+  id TEXT PRIMARY KEY,
+  restriction_id TEXT NOT NULL REFERENCES restriction(id),
+  checked_by TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  followed INTEGER NOT NULL,
+  note TEXT
+);
+CREATE TABLE restriction_review (
+  id TEXT PRIMARY KEY,
+  restriction_id TEXT NOT NULL REFERENCES restriction(id),
+  reviewed_by TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- CONTINUE | CHANGED | STOPPED
+  finding TEXT NOT NULL
+);
+`,
+  },
 ];

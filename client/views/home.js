@@ -25,12 +25,13 @@ const DESCRIPTIONS = {
   alerts: () => 'Alerts from the record for your role, and alerts staff have raised.',
   communications: () => 'People your service needs to contact, every attempt, and follow-ups.',
   monitoring: () => 'Monitoring that is overdue or due soon for your patients.',
+  restrictions: () => 'Nil by mouth, fluid limits, weight-bearing and other precautions, and any waiting for authorisation.',
   escalations: () => 'Concerns raised to you, and the ones you raised, until reassessed.',
 };
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions',
 };
 
 export function openTab(tabId) {
@@ -60,6 +61,7 @@ export async function homeView() {
     if (want.includes('alerts')) jobs.push(get('/api/work/alerts/count').then((d) => (counts.alerts = d.open)));
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
+    if (want.includes('restrictions')) jobs.push(get('/api/work/restrictions').then((d) => (counts.restrictions = d.restrictions.filter((r) => r.actions.includes('authorise') || r.actions.includes('read')).length)));
     if (want.includes('wounds')) jobs.push(get('/api/work/wounds').then((rows) => (counts.wounds = rows.filter((w) => w.state === 'IDENTIFIED' || w.due).length)));
     if (want.includes('careplans')) jobs.push(get('/api/work/careplan-reviews').then((rows) => (counts.careplans = rows.length)));
     if (want.includes('flow')) jobs.push(get('/api/work/beds').then((rows) => (counts.flow = rows.filter((b) => b.state === 'AVAILABLE').length)));

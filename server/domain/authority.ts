@@ -35,6 +35,8 @@ export type Operation =
   | { op: 'ALERT_RAISE'; personId: string }
   | { op: 'COMMUNICATION'; personId: string }
   | { op: 'MONITORING_PLAN'; personId: string }
+  | { op: 'RESTRICTION'; personId: string }
+  | { op: 'RESTRICTION_CHECK'; personId: string }
   | { op: 'COMMUNICATION_ACT'; serviceId: string }
   | { op: 'ALERT_RECEIVE'; serviceId: string; capability: string }
   | { op: 'APPOINTMENT_MANAGE'; serviceId: string; clinical: boolean }
@@ -166,6 +168,15 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'monitoring.plan') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can set their monitoring`));
+    case 'RESTRICTION':
+      // Only a service caring for the person proposes, changes or stops a restriction.
+      return need(ctx, 'restriction.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can set restrictions`));
+    case 'RESTRICTION_CHECK':
+      return need(ctx, 'restriction.check') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only staff caring for this ${ctx.subjectLabel.toLowerCase()} record checks`));
     case 'CAREPLAN':
       return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':

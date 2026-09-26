@@ -262,6 +262,14 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 }
 .patient-alert svg { width: 26px; height: 26px; flex: none; }
 .patient-alert b { display: block; font-size: 13px; letter-spacing: .6px; }
+.patient-restriction {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #5a3fa0, #3b2878); color: #fff;
+  border-radius: 14px; padding: 8px 14px; border: 0; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-restriction svg { width: 26px; height: 26px; flex: none; }
+.patient-restriction b { display: block; font-size: 13px; letter-spacing: .6px; }
+.restriction-on { border-left: 6px solid #5a3fa0; }
 .synthetic { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 /* Live Workstation ------------------------------------------------------------------- */

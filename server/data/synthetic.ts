@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 13;
+const SET = 14;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -333,6 +333,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 11) set11(store);
     if (at < 12) set12(store);
     if (at < 13) set13(store);
+    if (at < 14) set14(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -965,3 +966,68 @@ function set13(store: Store): void {
   plan(frank, 'svc-arc', who('kate'), 60 * 24 * 3, { parameter: 'PAIN', reason: 'Painful heels', method: 'Ask Frank; if he cannot say, watch his face during cares', frequency: 8,
     responsible: 'All staff', limits: 'Tell the RN on duty if 5 or more, or if he winces with every touch' });
 }
+
+// Set 14: restrictions and precautions. James is nil by mouth from midnight for his
+// endoscopy; Wiremu is on a fluid restriction whose review is overdue; Nicki has proposed a
+// fluid restriction for Sione that waits for a doctor; Lena has limited Peggy's weight-bearing;
+// Kate has set a limb precaution for Elsie that Tama has not read yet; Tom is on bed rest in ED.
+function set14(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return todayLocal(d); };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
+  const tomorrow10 = new Date(midnight.getTime() + 10 * 3_600_000);
+  const add = (pid: string | null, service: string, by: string | null, mins: number, v: {
+    kind: string; side?: string; detail: string; instructions?: string; reason: string; view: string; from?: string; until?: string; review?: string; authorisedBy?: string | null;
+  }) => {
+    if (!pid || !by) return null;
+    const id = newId();
+    const authorised = v.authorisedBy !== undefined ? v.authorisedBy : by;
+    store.insert('restriction', {
+      id, person_id: pid, service_id: service, kind: v.kind, side: v.side ?? null, detail: v.detail, instructions: v.instructions ?? null, reason: v.reason,
+      patient_view: v.view, effective_from: v.from ?? minsAgo(mins), effective_until: v.until ?? null, review_date: v.review ?? null,
+      state: authorised ? 'ACTIVE' : 'PROPOSED', proposed_by: by, proposed_at: minsAgo(mins), authorised_by: authorised, authorised_at: authorised ? minsAgo(mins) : null,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'restriction', object_id: id, from_state: null, to_state: authorised ? 'ACTIVE' : 'PROPOSED', actor_id: by, work_context_id: null, at: minsAgo(mins), reason: v.detail, transaction_id: null });
+    if (authorised) store.insert('restriction_ack', { restriction_id: id, worker_id: authorised, at: minsAgo(mins) });
+    return id;
+  };
+  const read = (id: string | null, u: string, mins: number) => { const w = who(u); if (id && w) store.insert('restriction_ack', { restriction_id: id, worker_id: w, at: minsAgo(mins) }); };
+  const check = (id: string | null, u: string, mins: number, note: string) => {
+    const w = who(u);
+    if (id && w) store.insert('restriction_check', { id: newId(), restriction_id: id, checked_by: w, checked_at: minsAgo(mins), followed: 1, note });
+  };
+  store.tx(() => {
+    const james = add(person('ZZZ0040'), 'svc-genmed', who('hannah'), 90, {
+      kind: 'NBM', detail: 'Nil by mouth from midnight, including water', instructions: 'Sign above the bed. Sips of water for tablets are allowed until 6 am.',
+      reason: 'Gastroscopy tomorrow morning', view: 'AGREED', from: midnight.toISOString(), until: tomorrow10.toISOString(),
+    });
+    read(james, 'nicki', 60);
+    const wiremu = add(person('ZZZ0016'), 'svc-genmed', who('hannah'), 60 * 72, {
+      kind: 'FLUIDS', detail: 'No more than 1.5 L a day, all drinks', instructions: 'Jug at the bedside marked. Count soup and jelly as fluid.',
+      reason: 'Heart failure with fluid overload', view: 'AGREED', review: day(-1),
+    });
+    read(wiremu, 'nicki', 60 * 20);
+    check(wiremu, 'nicki', 60 * 3, '1.1 L so far today, whānau know not to bring drinks');
+    add(person('ZZZ0024'), 'svc-genmed', who('nicki'), 40, {
+      kind: 'FLUIDS', detail: 'Limit to 1 L a day', instructions: 'Chart all drinks.', reason: 'Sodium 126 and falling', view: 'NOT_YET', authorisedBy: null,
+    });
+    const peggy = add(person('ZZZ0032'), 'svc-physio', who('lena'), 60 * 20, {
+      kind: 'WEIGHT_BEARING', side: 'LEFT', detail: 'Partial weight-bearing on the left leg with her frame', instructions: 'Walk with a physio or nurse until reviewed. No stairs.',
+      reason: 'Pain in the left hip after the fall; X-ray showed no fracture', view: 'AGREED', review: day(2),
+    });
+    read(peggy, 'nicki', 60 * 18);
+    add(person('ZZZ0067'), 'svc-arc', who('kate'), 60 * 30, {
+      kind: 'LIMB', side: 'RIGHT', detail: 'No blood pressure, blood tests or injections in the right arm', instructions: 'Use the left arm. Tell the RN if the right arm is swollen.',
+      reason: 'Lymphoedema after breast cancer surgery', view: 'AGREED', review: day(90),
+    });
+    const tom = add(person('ZZZ0148'), 'svc-ed', who('ravi'), 45, {
+      kind: 'ACTIVITY', detail: 'Bed rest, head of the bed up 30 degrees', instructions: 'Help to the toilet. Call the doctor if he tries to get up confused.',
+      reason: 'Head injury on apixaban, CT pending', view: 'AGREED', review: today,
+    });
+    read(tom, 'mere', 40);
+  });
+}
+

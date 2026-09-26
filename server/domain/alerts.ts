@@ -6,6 +6,7 @@ import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 import { overdue as monitoringOverdue } from './monitoring.ts';
+import { reviewOverdue as restrictionReviewOverdue } from './restrictions.ts';
 
 // Alert (Shared Lifecycle Object 218):
 //   trigger condition → alert generated → visible to an authorised recipient →
@@ -49,6 +50,10 @@ const RULES: Rule[] = [
   {
     rule: 'MONITORING_OVERDUE', objectType: 'monitoring_plan', capability: 'monitoring.record',
     current: (store, serviceId) => monitoringOverdue(store, serviceId),
+  },
+  {
+    rule: 'RESTRICTION_REVIEW_OVERDUE', objectType: 'restriction', capability: 'restriction.manage',
+    current: (store, serviceId) => restrictionReviewOverdue(store, serviceId),
   },
 ];
 

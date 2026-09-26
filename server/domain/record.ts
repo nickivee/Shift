@@ -12,6 +12,7 @@ import { forPerson as appointmentsFor } from './appointments.ts';
 import { forPerson as alertsFor, activeRaised } from './alerts.ts';
 import { forPerson as communicationsFor } from './communications.ts';
 import { forPerson as monitoringFor } from './monitoring.ts';
+import { forPerson as restrictionsFor, current as restrictionsNow } from './restrictions.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -171,6 +172,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     allergyStatus,
     allergies: reactions.map((a) => ({ kind: a.kind, substance: a.substance, reaction: a.reaction, severity: a.severity, certainty: a.certainty })),
     alerts: activeRaised(store, personId),
+    restrictions: restrictionsNow(store, personId),
   };
 }
 
@@ -309,6 +311,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'monitoring':
       body = monitoringFor(store, ctx, personId);
+      break;
+    case 'restrictions':
+      body = restrictionsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {
