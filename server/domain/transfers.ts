@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
+import { occupy, vacate } from './locations.ts';
 
 // Admission and transfer of care (Shared Lifecycle Objects 220 and 221):
 //   requested → accepted (or declined) → bed allocated → arrived → responsibility accepted.
@@ -143,6 +144,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         const encId = newId();
         store.insert('encounter', { id: encId, person_id: personId, service_id: t.toServiceId, location: t.bed, kind: 'INPATIENT', started_at: now(), state: 'ACTIVE' });
         store.run("UPDATE bed SET state = 'OCCUPIED', updated_at = ? WHERE id = ?", now(), t.bedId);
+        if (t.bedId) occupy(store, String(t.bedId), personId, String(t.toServiceId), `Arrived from ${t.fromService ?? 'another service'}`);
         store.run('UPDATE transfer SET to_encounter_id = ? WHERE id = ?', encId, id);
         transition(store, 'transfer', id, 'ARRIVED', who, note ?? `Arrived in ${t.bed}`);
         break;
@@ -152,6 +154,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         const from = store.get<{ id: string }>('SELECT from_encounter_id AS id FROM transfer WHERE id = ?', id);
         if (from?.id) {
           store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = ? AND state = 'ACTIVE'", now(), from.id);
+          vacate(store, personId, String(t.fromServiceId), `Transferred to ${ctx.serviceName}`);
           store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", now(), personId, t.fromServiceId);
         }
         store.run('UPDATE transfer SET responsible_by = ? WHERE id = ?', ctx.workerId, id);
