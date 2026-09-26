@@ -677,4 +677,35 @@ CREATE TABLE discharge_requirement (
 );
 `,
   },
+  {
+    version: 5,
+    name: 'escalation',
+    sql: `
+-- Escalation (Shared Lifecycle Object 225). Raised by the person who is worried, addressed
+-- to a role in the service responsible for the person. Received, acknowledged and responded
+-- are separate acts; the raiser's reassessment resolves it or escalates further.
+CREATE TABLE escalation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),     -- service responsible for the person
+  recipient_role_key TEXT NOT NULL,
+  urgency TEXT NOT NULL,                -- IMMEDIATE | URGENT | ROUTINE
+  concern TEXT NOT NULL,
+  trigger_text TEXT NOT NULL,           -- what changed, in the raiser's words
+  state TEXT NOT NULL,                  -- RAISED | RECEIVED | ACKNOWLEDGED | RESPONDED | RESOLVED | ESCALATED
+  raised_by TEXT NOT NULL,
+  raised_service_id TEXT NOT NULL REFERENCES service(id),
+  raised_at TEXT NOT NULL,
+  parent_id TEXT REFERENCES escalation(id),
+  level INTEGER NOT NULL DEFAULT 1,
+  received_by TEXT,
+  acknowledged_by TEXT,
+  response TEXT,
+  responded_by TEXT,
+  reassessment TEXT,
+  reassessed_by TEXT,
+  closed_at TEXT
+);
+`,
+  },
 ];

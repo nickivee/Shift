@@ -11,6 +11,7 @@ import * as knowledge from '../domain/knowledge.ts';
 import * as rostering from '../domain/rostering.ts';
 import * as transfers from '../domain/transfers.ts';
 import * as discharges from '../domain/discharges.ts';
+import * as escalations from '../domain/escalations.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
@@ -134,6 +135,9 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/transfers', (req) => transfers.request(store, work(req), req.params.id, { toServiceId: str(req.body.toServiceId), reason: str(req.body.reason), priority: str(req.body.priority) }));
   r.on('GET', '/api/work/transfers/:id/beds', (req) => transfers.bedsFor(store, work(req), req.params.id));
   r.on('POST', '/api/work/transfers/:id/:action', (req) => transfers.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), bedId: str(req.body.bedId) }));
+  r.on('GET', '/api/work/escalations', (req) => escalations.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/escalations', (req) => escalations.raise(store, work(req), req.params.id, { roleKey: str(req.body.roleKey), urgency: str(req.body.urgency), concern: str(req.body.concern), trigger: str(req.body.trigger) }));
+  r.on('POST', '/api/work/escalations/:id/:action', (req) => escalations.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), roleKey: str(req.body.roleKey), urgency: str(req.body.urgency), trigger: str(req.body.trigger) }));
   r.on('GET', '/api/work/discharges', (req) => discharges.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/discharge', (req) => discharges.start(store, work(req), req.params.id, { destination: str(req.body.destination), expectedDate: str(req.body.expectedDate), note: str(req.body.note) }));
   r.on('POST', '/api/work/discharges/:id/requirements/:code', (req) => discharges.record(store, work(req), req.params.id, req.params.code, { status: str(req.body.status), note: str(req.body.note) }));

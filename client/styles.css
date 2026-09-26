@@ -405,3 +405,11 @@ dialog h2 { margin-top: 0; }
 .req { border: 2px solid var(--warn-bg); border-radius: 12px; padding: 8px 10px; display: grid; gap: 4px; background: #fffdf6; }
 .req.met { border-color: #d4e6ea; background: #fff; }
 .req .summary { white-space: pre-wrap; background: var(--tint); border-radius: 10px; padding: 8px 10px; }
+
+/* Escalation */
+.esc { border-left-width: 6px; }
+.esc-immediate { border-left-color: var(--danger); }
+.esc-urgent { border-left-color: #c05600; }
+.esc-routine { border-left-color: var(--line); }
+.esc.closed { opacity: .85; border-left-color: #c9d3da; }
+.grow { flex: 1 1 160px; min-width: 0; }

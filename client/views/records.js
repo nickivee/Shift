@@ -32,6 +32,7 @@ export async function recordsView(openTab) {
           h('div', { class: 'row small' },
             board ? (p.triage?.category ? h('span', { class: `tag ats ats-${p.triage.category.replace(/\D/g, '')}` }, p.triage.category) : h('span', { class: 'tag warn' }, 'Not yet triaged')) : null,
             board ? h('span', { class: 'tag' }, waited(p.arrivedAt)) : null,
+            p.escalation ? h('span', { class: `tag ${p.escalation === 'IMMEDIATE' ? 'danger' : 'warn'}` }, `Escalated · ${p.escalation.toLowerCase()}`) : null,
             p.discharge ? h('span', { class: `tag ${p.discharge.state === 'DECIDED' ? 'ok' : 'warn'}` }, p.discharge.state === 'DECIDED' ? `Discharge ${p.discharge.expected ? fmtDate(p.discharge.expected) : 'decided'}` : 'Discharge being planned') : null,
             p.transfer ? h('span', { class: 'tag paua' }, { REQUESTED: `Referred to ${p.transfer.to}`, ACCEPTED: `Accepted by ${p.transfer.to}`, BED_ALLOCATED: `Bed ready in ${p.transfer.to}`, ARRIVED: 'Arrived, responsibility not yet accepted' }[p.transfer.state]) : null,
             p.hasAllergy ? h('span', { class: 'tag danger' }, 'Allergy') : null,

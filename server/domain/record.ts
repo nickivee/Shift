@@ -5,6 +5,7 @@ import { audit } from './audit.ts';
 import { history } from './lifecycle.ts';
 import { forPerson as transfersFor } from './transfers.ts';
 import { forPerson as dischargesFor } from './discharges.ts';
+import { forPerson as escalationsFor } from './escalations.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
@@ -53,6 +54,8 @@ export function patientList(store: Store, ctx: WorkContext) {
             (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage,
             (SELECT t.state || '|' || s.name FROM transfer t JOIN service s ON s.id = t.to_service_id
               WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer,
+            (SELECT x.urgency FROM escalation x WHERE x.person_id = p.id AND x.state IN ('RAISED','RECEIVED','ACKNOWLEDGED','RESPONDED')
+              ORDER BY CASE x.urgency WHEN 'IMMEDIATE' THEN 0 WHEN 'URGENT' THEN 1 ELSE 2 END LIMIT 1) AS escalation,
             (SELECT d.state || '|' || COALESCE(d.expected_date, '') FROM discharge d WHERE d.person_id = p.id AND d.service_id = ? AND d.state IN ('CONSIDERED','DECIDED') LIMIT 1) AS discharge
        FROM person p
        LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
@@ -69,6 +72,7 @@ export function patientList(store: Store, ctx: WorkContext) {
       age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
       allocated: Boolean(r.allocated), handover: Number(r.handover), openTasks: Number(r.open_tasks), hasAllergy: Number(r.allergies) > 0,
       arrivedAt: r.arrived_at, triage: triage ? { category: triage.category ?? null, complaint: triage.complaint ?? null } : null,
+      escalation: r.escalation ?? null,
       discharge: r.discharge ? { state: String(r.discharge).split('|')[0], expected: String(r.discharge).split('|')[1] || null } : null,
       transfer: r.transfer ? { state: String(r.transfer).split('|')[0], to: String(r.transfer).split('|')[1] } : null,
     };
@@ -278,6 +282,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'discharge':
       body = dischargesFor(store, ctx, personId);
+      break;
+    case 'escalations':
+      body = escalationsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

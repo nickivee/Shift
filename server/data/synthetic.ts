@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 4;
+const SET = 5;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -324,6 +324,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 2) set2(store, password);
     if (at < 3) set3(store, password);
     if (at < 4) set4(store);
+    if (at < 5) set5(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -577,4 +578,25 @@ function set4(store: Store): void {
     met(id, 'whanau', nicki, 'Wiremu and his wife Ana understand the new doses and daily weights', 60 * 3);
     met(id, 'followup', hannah, 'GP bloods in 1 week; heart failure nurse clinic in 2 weeks', 60 * 3);
   }
+}
+
+// Set 5: escalations waiting to be received. Nicki is worried about Sione's leg on Ward K;
+// Tama has escalated Frank's heels to the RN on duty in Residential Care.
+function set5(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const raise = (personId: string | null, by: string | null, fromService: string, toService: string, role: string, urgency: string, concern: string, trigger: string, mins: number) => {
+    if (!personId || !by) return;
+    const id = newId();
+    store.insert('escalation', {
+      id, person_id: personId, service_id: toService, recipient_role_key: role, urgency, concern, trigger_text: trigger, state: 'RAISED',
+      raised_by: by, raised_service_id: fromService, raised_at: minsAgo(mins), level: 1,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'escalation', object_id: id, from_state: null, to_state: 'RAISED', actor_id: by, work_context_id: null, at: minsAgo(mins), reason: `${urgency.toLowerCase()} · ${concern}`, transaction_id: null });
+  };
+  raise(person('ZZZ0024'), who('nicki'), 'svc-genmed', 'svc-genmed', 'genmed-physician', 'URGENT', 'Deterioration',
+    'Redness has spread about 3 cm past the marked border since 08:00. T 38.3, HR 108, more pain walking. Worried the cellulitis is not responding.', 25);
+  raise(person('ZZZ0075'), who('tama'), 'svc-arc', 'svc-arc', 'arc-rn', 'URGENT', 'Wound or skin',
+    'Both heels redder than yesterday and there is a blister on the left heel. Frank says it hurts when his feet touch the bed.', 40);
 }

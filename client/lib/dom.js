@@ -89,6 +89,7 @@ const PATHS = {
   transfers: 'M3 17h12m-3-3 3 3-3 3M21 7H9m3-3-3 3 3 3',
   flow: 'M3 18v-7h18v7M3 14h18M6 11V8h5v3m-8 7v2m18-2v2',
   discharges: 'M4 20V4h9v16M13 12h8m-3-3 3 3-3 3M10 12h.01',
+  escalations: 'M12 3 2 20h20Zm0 5v6m0 3v.5M12 3v0',
   pain: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-3-11h.01M15 10h.01M8.5 16c2-2 5-2 7 0',
 };
 

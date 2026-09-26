@@ -27,6 +27,8 @@ export type Operation =
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
   | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
   | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
+  | { op: 'ESCALATE'; personId: string }
+  | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
 
@@ -64,6 +66,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.organisationId !== ctx.organisationId) return block('That bed belongs to another organisation');
       if (!ctx.role.capabilities.includes('record.view')) return need(ctx, 'bed.manage') ?? allow();
       return need(ctx, 'bed.manage') ?? (o.serviceId === ctx.serviceId ? allow() : block('That bed belongs to another service'));
+    case 'ESCALATION_RESPOND':
+      // Only the addressed role in the responsible service receives and answers an escalation.
+      if (o.serviceId !== ctx.serviceId) return block('This escalation is addressed to another service');
+      if (o.roleKey !== ctx.role.roleKey) return block('This escalation is addressed to another role');
+      return need(ctx, 'escalation.respond') ?? professional(ctx) ?? allow();
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -98,6 +105,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'handover.use') ?? allow();
     case 'TRANSFER_REQUEST':
       return need(ctx, 'transfer.request') ?? professional(ctx) ?? allow();
+    case 'ESCALATE':
+      return need(ctx, 'escalation.raise') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'DISCHARGE':
       // Only the service the person is admitted to can discharge them.
       return need(ctx, o.cap) ?? professional(ctx) ?? (rel === 'ENCOUNTER' ? allow() : block(`Only the service this ${ctx.subjectLabel.toLowerCase()} is admitted to can discharge them`));

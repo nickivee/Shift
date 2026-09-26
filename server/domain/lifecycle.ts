@@ -46,6 +46,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       DECIDED: ['DISCHARGED', 'CONSIDERED', 'CANCELLED'],
     },
   },
+  escalation: {
+    table: 'escalation',
+    initial: 'RAISED',
+    next: {
+      RAISED: ['RECEIVED', 'ESCALATED', 'RESOLVED'],
+      RECEIVED: ['ACKNOWLEDGED', 'ESCALATED', 'RESOLVED'],
+      ACKNOWLEDGED: ['RESPONDED', 'ESCALATED', 'RESOLVED'],
+      RESPONDED: ['RESOLVED', 'ESCALATED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
