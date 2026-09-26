@@ -33,5 +33,5 @@ await build({
   logLevel: 'info',
 });
 
-for (const f of ['index.html', 'styles.css', 'icon.svg']) cpSync(resolve(root, 'client', f), resolve(dist, f));
+for (const f of ['index.html', 'styles.css', 'icon.svg', 'paua.jpg']) cpSync(resolve(root, 'client', f), resolve(dist, f));
 cpSync(resolve(root, 'node_modules/sql.js/dist/sql-wasm.wasm'), resolve(dist, 'sql-wasm.wasm'));

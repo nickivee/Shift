@@ -9,7 +9,7 @@ import { state, go } from '../app.js';
 //   ?view  retrieves existing authorised information from its source (no copy is made)
 //   +dest  routes existing canonical information to a registered destination
 export async function workstationView(personId, initialView) {
-  const [patient, config] = await Promise.all([get(`/api/work/patients/${personId}`), get('/api/work/config')]);
+  const [patient, config, home] = await Promise.all([get(`/api/work/patients/${personId}`), get('/api/work/config'), get('/api/work/home')]);
   const keys = new Map(config.keys.map((k) => [k.code, k]));
   const views = new Map(config.views.map((v) => [v.code, v]));
   const dests = config.destinations;
@@ -34,16 +34,26 @@ export async function workstationView(personId, initialView) {
   const to = h('input', { type: 'datetime-local' });
   const toggles = h('div', { class: 'toggles' });
 
-  // Destinations column: role tabs from the workstation configuration.
-  const tabs = config.tabs.filter((t) => t.id !== 'list');
-  const drawDestinations = () => mount(destCol,
-    tabs.map((t) => h('button', { class: `dest${ws.view === t.id ? ' active' : ''}`, onclick: () => openView(t.id) }, viewIcon(t.id), t.label)),
-    h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.form = null; ws.selected = null; draw(); input.focus(); } }, icon('pulse'), 'Live Workstation'),
-  );
-  // On narrow screens the column becomes a sliding strip; keep the active item in view.
+  // Workstation tabs: the worker's own arrangement from Home, across the top.
+  // Record destinations: every record area this role may open, down the side.
+  const strip = h('div', { class: 'strip ws-strip', role: 'list' });
+  const drawStrip = () => mount(strip, home.tabs.filter((t) => !t.hidden).map((t) =>
+    h('button', { class: `pill${ws.view === t.id ? ' active' : ''}`, onclick: () => (t.id === 'list' ? go('/work/records') : openView(t.id)) }, t.label)));
+  const subject = state.me.context.subjectLabel;
+  const destLabel = (v) => (v.code === 'overview' ? `${subject} Overview` : v.label);
+  const drawDestinations = () => {
+    mount(destCol,
+      config.views.map((v) => h('button', { class: `dest${ws.view === v.code ? ' active' : ''}`, onclick: () => openView(v.code) }, viewIcon(v.code), h('span', {}, destLabel(v)))),
+      h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.form = null; ws.selected = null; draw(); input.focus(); } }, icon('pulse'), h('span', {}, 'Live Workstation')),
+    );
+    drawStrip();
+  };
   const keepActiveVisible = () => {
-    const active = destCol.querySelector('.dest.active');
-    if (active && destCol.scrollWidth > destCol.clientWidth) destCol.scrollLeft = active.offsetLeft - destCol.offsetLeft - 12;
+    for (const box of [destCol, strip]) {
+      const active = box.querySelector('.active');
+      if (!active) continue;
+      if (box.scrollWidth > box.clientWidth) box.scrollLeft = active.offsetLeft - box.offsetLeft - 12;
+    }
   };
 
   async function openView(code) {
@@ -399,6 +409,7 @@ export async function workstationView(personId, initialView) {
 
   return h('div', {},
     header,
+    home.tabs.some((t) => !t.hidden) ? h('div', { class: 'ws-tabs' }, h('h2', {}, 'Workstation tabs'), strip) : null,
     h('div', { class: 'workstation' },
       destCol,
       h('section', { class: 'live', 'aria-label': 'Live Workstation' },
