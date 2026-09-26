@@ -183,6 +183,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-CAP-001',
+    question: 'What follows in law from a finding that a person lacks capacity for a decision (Code of Rights Right 7(4), the Protection of Personal and Property Rights Act 1988, enduring powers of attorney and welfare guardians): who may then decide, what certificate is needed, and how that is recorded.',
+    blocks: 'Recording who decides for a person, activating an enduring power of attorney, or treating a capacity finding as consent. SHIFT records the assessment only.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 19;
+const SET = 20;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -339,6 +339,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 17) set17(store);
     if (at < 18) set18(store);
     if (at < 19) set19(store);
+    if (at < 20) set20(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1284,5 +1285,54 @@ function set19(store: Store): void {
     add('ZZZ0075', 'svc-arc', 'PERSONAL_CARE', 'I would rather a man helps me in the shower.', 'PERSON', 'nicki', 60 * 24 * 40, {
       outcome: ['NOT_MET', 'No male caregiver on the afternoon shift. Frank chose a sponge wash tonight and a shower with Ravi in the morning.', 'tama', 60 * 26],
     });
+  });
+}
+
+function set20(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string | null, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'capacity', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  interface Found {
+    by: string; mins: number; answers: [string, string, string, string]; findings: string; supports: string | null; present?: string;
+    determination: string; note?: string; reassessBy?: string | null;
+  }
+  const add = (nhi: string, service: string, decision: string, kind: string, concern: string, by: string, mins: number, found?: Found) => {
+    const pid = person(nhi);
+    const raiser = who(by);
+    if (!pid || !raiser) return;
+    const id = newId();
+    const assessor = found ? who(found.by) : null;
+    store.insert('capacity_assessment', {
+      id, person_id: pid, service_id: service, decision, decision_kind: kind, concern, state: found ? 'DETERMINED' : 'RAISED', raised_by: raiser, raised_at: ago(mins),
+      understand: found?.answers[0] ?? null, retain: found?.answers[1] ?? null, weigh: found?.answers[2] ?? null, communicate: found?.answers[3] ?? null,
+      findings: found?.findings ?? null, supports: found?.supports ?? null, present: found?.present ?? null, determination: found?.determination ?? null,
+      determination_note: found?.note ?? null, assessed_by: assessor, assessed_at: found ? ago(found.mins) : null, reassess_by: found?.reassessBy ?? null,
+    });
+    step(id, null, 'RAISED', raiser, mins, decision);
+    if (found) step(id, 'RAISED', 'DETERMINED', assessor, found.mins, found.determination);
+  };
+  store.tx(() => {
+    add('ZZZ0032', 'svc-genmed', 'Whether to go home to live alone or move into residential care', 'LIVING',
+      'Karen is worried Peggy does not remember her falls at home and says she "never falls". Peggy wants to go home.', 'nicki', 120);
+    add('ZZZ0016', 'svc-genmed', 'Whether to leave hospital before the infection is treated', 'TREATMENT',
+      'Wiremu tried to leave twice overnight to "feed the dogs". New confusion since admission, likely delirium.', 'nicki', 60 * 30, {
+        by: 'hannah', mins: 60 * 28, answers: ['NO', 'NO', 'NO', 'YES'],
+        findings: 'Explained the kidney infection and the risk of leaving. He could not say why he was in hospital two minutes later, and said he needed to go because it was 1985 and the dogs were hungry.',
+        supports: 'Spoke with him in the morning when he is clearest, with his hearing aid in. His son Rawiri was on the phone and explained things in te reo Māori. Dogs confirmed fed by his neighbour.',
+        present: 'Rawiri Te Whare (son) by phone, Nicki V RN', determination: 'LACKS',
+        note: 'Likely delirium, expected to improve with treatment. Assess again as it settles.', reassessBy: day(-1),
+      });
+    add('ZZZ9999', 'svc-genmed', 'Whether to have a colonoscopy', 'TREATMENT',
+      'Drowsy after a night of poor sleep and new pain relief; wanted to be sure she could decide.', 'nicki', 60 * 20, {
+        by: 'hannah', mins: 60 * 18, answers: ['YES', 'YES', 'YES', 'YES'],
+        findings: 'Explained what a colonoscopy is, why it is suggested, the risks and the choice not to have it. Aroha repeated this back in her own words and asked about sedation.',
+        supports: 'Waited until the afternoon when she was more awake. Written leaflet given.', present: 'Aroha\'s partner Hemi', determination: 'HAS',
+        note: 'She is still thinking about it and will tell us tomorrow.',
+      });
+    add('ZZZ0067', 'svc-arc', 'Whether to have her remaining teeth taken out under general anaesthetic', 'TREATMENT',
+      'Dentist recommends removal. Elsie has advanced dementia and says different things each time it is raised.', 'nicki', 60 * 24 * 2);
   });
 }

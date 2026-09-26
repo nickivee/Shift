@@ -21,6 +21,7 @@ import * as monitoring from '../domain/monitoring.ts';
 import * as restrictions from '../domain/restrictions.ts';
 import * as leave from '../domain/leave.ts';
 import * as preferences from '../domain/preferences.ts';
+import * as capacity from '../domain/capacity.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -166,6 +167,13 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/monitoring', (req) => monitoring.start(store, work(req), req.params.id, planFields(req.body)));
   r.on('POST', '/api/work/monitoring/:id/review', (req) => monitoring.review(store, work(req), req.params.id, {
     ...planFields(req.body), outcome: str(req.body.outcome), finding: str(req.body.finding), action: str(req.body.action),
+  }));
+  r.on('GET', '/api/work/capacity', (req) => capacity.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/capacity', (req) => capacity.raise(store, work(req), req.params.id, { decision: str(req.body.decision), kind: str(req.body.kind), concern: str(req.body.concern) }));
+  r.on('POST', '/api/work/capacity/:id/:action', (req) => capacity.act(store, work(req), req.params.id, req.params.action, {
+    understand: str(req.body.understand), retain: str(req.body.retain), weigh: str(req.body.weigh), communicate: str(req.body.communicate),
+    findings: str(req.body.findings), supports: str(req.body.supports), present: str(req.body.present), determination: str(req.body.determination),
+    note: str(req.body.note), reassessBy: str(req.body.reassessBy),
   }));
   const preferenceFields = (b: Record<string, unknown>) => ({
     category: str(b.category), statement: str(b.statement), source: str(b.source), sourceName: str(b.sourceName),

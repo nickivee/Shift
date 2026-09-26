@@ -149,6 +149,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  capacity: {
+    table: 'capacity_assessment',
+    initial: 'RAISED',
+    next: { RAISED: ['DETERMINED', 'WITHDRAWN'], DETERMINED: ['SUPERSEDED'] },
+  },
   preference: {
     table: 'preference',
     initial: 'ACTIVE',
