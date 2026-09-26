@@ -6,7 +6,7 @@ import { audit } from '../domain/audit.ts';
 import { recordInitial } from '../domain/lifecycle.ts';
 import { KEY_BY_CODE } from '../config/keys.ts';
 import { render } from '../domain/commands.ts';
-import { newId, now, todayLocal, addDays } from '../lib/util.ts';
+import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
 export const SYNTHETIC_USERS = [
   { username: 'nicki', label: 'Nicki V, Registered Nurse (Residential Care and General Medicine)' },
@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 22;
+const SET = 23;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -342,6 +342,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 20) set20(store);
     if (at < 21) set21(store);
     if (at < 22) set22(store);
+    if (at < 23) set23(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1435,5 +1436,101 @@ function set22(store: Store): void {
     });
     need('ZZZ0075', 'HEARING', null, 'Hearing aid in the left ear; check the battery each morning. Face Frank and speak slowly; he lip-reads.', 'ALWAYS', 'kate', 60 * 24 * 140, new Date(Date.now() - 60 * 60_000 * 24).toISOString().slice(0, 10));
     need('ZZZ0067', 'VISION', null, 'Macular degeneration. Large print only, and tell Elsie who you are when you come in.', 'ALWAYS', 'kate', 60 * 24 * 600);
+  });
+}
+
+// Information from other providers (Object 254).
+function set23(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = (days: number) => ago(days * 24 * 60).slice(0, 10);
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'external', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Item {
+    service: string; org: string; author?: string; kind: string; channel: string; written: string; title: string; content: string;
+    name: string; nhi?: string; dob?: string; u: string; mins: number;
+    match?: { nhi: string; checks: string };
+    review?: { u: string; summary: string; outcome: string; note?: string; mins: number };
+    supersedes?: string;
+  }
+  const add = (x: Item) => {
+    const by = who(x.u);
+    if (!by) return null;
+    const pid = x.match ? person(x.match.nhi) : null;
+    if (x.match && !pid) return null;
+    const id = newId();
+    const reviewer = x.review ? who(x.review.u) : null;
+    store.insert('external_info', {
+      id, service_id: x.service, person_id: pid, source_org: x.org, source_author: x.author ?? null, source_kind: x.kind, channel: x.channel, written_at: x.written,
+      title: x.title, content: x.content, content_hash: sha256(x.content), stated_name: x.name, stated_nhi: x.nhi ?? null, stated_dob: x.dob ?? null,
+      state: x.review ? x.review.outcome : x.match ? 'MATCHED' : 'RECEIVED', received_by: by, received_at: ago(x.mins),
+      matched_by: pid ? by : null, matched_at: pid ? ago(x.mins - 5) : null, match_checks: x.match?.checks ?? null,
+      reviewed_by: reviewer, reviewed_at: x.review ? ago(x.review.mins) : null, review_summary: x.review?.summary ?? null, outcome_note: x.review?.note ?? null,
+      supersedes: x.supersedes ?? null,
+    });
+    step(id, null, 'RECEIVED', by, ago(x.mins), `${x.org}: ${x.title}`);
+    if (pid) step(id, 'RECEIVED', 'MATCHED', by, ago(x.mins - 5), `Matched on ${x.match!.checks}`);
+    if (x.review && reviewer) step(id, 'MATCHED', x.review.outcome, reviewer, ago(x.review.mins), x.review.summary);
+    return id;
+  };
+  store.tx(() => {
+    // General Medicine inbox.
+    add({
+      service: 'svc-genmed', org: 'Epsom Medical Centre', author: 'Dr Grace Lin, GP', kind: 'GP_LETTER', channel: 'ELECTRONIC', written: day(1),
+      title: 'GP letter about Peggy', name: 'Margaret Oliver', nhi: 'ZZZ0032', dob: '1938-09-30', u: 'nicki', mins: 90,
+      content: 'Dear Ward K team,\n\nThank you for caring for Peggy. She had two falls at home in August. Her daughter Karen has been worried about her managing stairs. Peggy stopped her evening amlodipine in July because of dizziness; I agreed with this. Please let me know the outcome of your home visit assessment.\n\nGrace Lin, GP',
+    });
+    add({
+      service: 'svc-genmed', org: 'Northern Community Laboratory', kind: 'RESULT', channel: 'FAX', written: day(2),
+      title: 'Ferritin and B12', name: 'J Chen', dob: '1985-01-17', u: 'nicki', mins: 60,
+      content: 'Patient: J CHEN  DOB 17/01/1985\nFerritin 9 ug/L (L)  [30-400]\nVitamin B12 310 pmol/L  [150-700]\nRequested by: Harbour Urgent Care',
+    });
+    add({
+      service: 'svc-genmed', org: 'Harbour Physiotherapy', kind: 'OTHER', channel: 'EMAIL', written: day(3),
+      title: 'Physio discharge letter', name: 'Mary Olsen', nhi: 'ZZZ0999', dob: '1950-05-05', u: 'nicki', mins: 45,
+      content: 'Mary Olsen has completed her course of physiotherapy after her hip replacement and is walking independently with one stick.',
+    });
+    add({
+      service: 'svc-genmed', org: 'St John Ambulance', author: 'Paramedic crew 412', kind: 'AMBULANCE', channel: 'ELECTRONIC', written: day(1),
+      title: 'Ambulance patient report form', name: 'Sione Tuilagi', nhi: 'ZZZ0024', dob: '1972-06-21', u: 'nicki', mins: 60 * 20, match: { nhi: 'ZZZ0024', checks: 'NHI,DOB,NAME' },
+      content: 'Called 06:40 for chest tightness at work, 45 minutes. Aspirin 300 mg given 06:58. GTN 400 mcg x2 with some relief. ECG: no ST elevation. Pain 6/10 on arrival at ED.',
+    });
+    add({
+      service: 'svc-genmed', org: 'Ponsonby Family Doctors', author: 'Dr Rewi Karaka, GP', kind: 'MEDICINES', channel: 'ELECTRONIC', written: day(3),
+      title: 'Current medicines from GP', name: 'Aroha Rangi', nhi: 'ZZZ9999', dob: '1964-03-14', u: 'nicki', mins: 60 * 30, match: { nhi: 'ZZZ9999', checks: 'NHI,DOB,NAME' },
+      review: { u: 'hannah', mins: 60 * 26, outcome: 'INCORPORATED', summary: 'GP list matches ours except metformin, which the GP increased to 1 g twice daily last month.', note: 'Medicines chart updated to metformin 1 g twice daily.' },
+      content: 'Metformin 1 g twice daily (increased 14 Aug)\nCilazapril 2.5 mg daily\nAtorvastatin 40 mg at night\nAllergy: penicillin (rash)',
+    });
+    // Residential Care.
+    add({
+      service: 'svc-arc', org: 'Te Awa Hospital, Older Adults Service', author: 'Dr Ana Fifita, Geriatrician', kind: 'SPECIALIST_LETTER', channel: 'ELECTRONIC', written: day(2),
+      title: 'Geriatrician clinic letter', name: 'Losa Faleolo', nhi: 'ZZZ0083', dob: '1946-04-19', u: 'kate', mins: 60 * 6, match: { nhi: 'ZZZ0083', checks: 'NHI,DOB,NAME' },
+      content: 'Seen with her daughter Mele, Tongan interpreter present. Memory testing shows mild cognitive impairment, stable since March. Please continue the daily walk and church outings. Review in 6 months. No medicine changes.',
+    });
+    const first = add({
+      service: 'svc-arc', org: 'Hear Well Audiology', author: 'Sam Reid, Audiologist', kind: 'SPECIALIST_LETTER', channel: 'EMAIL', written: day(40),
+      title: 'Audiology report', name: 'Frank Dawson', nhi: 'ZZZ0075', dob: '1941-12-01', u: 'kate', mins: 60 * 24 * 40, match: { nhi: 'ZZZ0075', checks: 'NHI,DOB,NAME' },
+      review: { u: 'kate', mins: 60 * 24 * 39, outcome: 'REFERENCED', summary: 'Severe loss in the right ear, moderate in the left. New left hearing aid to be fitted.' },
+      content: 'Severe sensorineural loss right, moderate left. Left aid to be fitted on 20 August. Right ear aid not helpful.',
+    });
+    if (first) {
+      const second = add({
+        service: 'svc-arc', org: 'Hear Well Audiology', author: 'Sam Reid, Audiologist', kind: 'SPECIALIST_LETTER', channel: 'EMAIL', written: day(20),
+        title: 'Audiology report (updated)', name: 'Frank Dawson', nhi: 'ZZZ0075', dob: '1941-12-01', u: 'kate', mins: 60 * 24 * 20, match: { nhi: 'ZZZ0075', checks: 'NHI,DOB,NAME' },
+        review: { u: 'kate', mins: 60 * 24 * 19, outcome: 'REFERENCED', summary: 'Left aid fitted 20 August. Battery size 312, change weekly. Face him when speaking.' },
+        supersedes: first,
+        content: 'Severe sensorineural loss right, moderate left. Left aid fitted 20 August and working well. Battery size 312, change weekly. Staff to face Frank when speaking.',
+      });
+      if (second) {
+        store.run("UPDATE external_info SET state = 'SUPERSEDED', superseded_by = ? WHERE id = ?", second, first);
+        step(first, 'REFERENCED', 'SUPERSEDED', who('kate')!, ago(60 * 24 * 20), 'Replaced by a newer version from Hear Well Audiology');
+      }
+    }
+    add({
+      service: 'svc-arc', org: 'Remuera Pharmacy', kind: 'MEDICINES', channel: 'FAX', written: day(1),
+      title: 'Blister pack medicines list', name: 'Elsie Morgan', dob: '1933-07-12', u: 'kate', mins: 120,
+      content: 'ELSIE MORGAN  12/07/1933\nDonepezil 5 mg at night\nParacetamol 1 g four times daily\nCholecalciferol 1.25 mg monthly',
+    });
   });
 }

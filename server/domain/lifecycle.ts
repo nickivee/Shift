@@ -149,6 +149,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  external: {
+    table: 'external_info',
+    initial: 'RECEIVED',
+    next: { RECEIVED: ['MATCHED', 'NOT_OURS'], MATCHED: ['INCORPORATED', 'REFERENCED', 'SUPERSEDED'], INCORPORATED: ['SUPERSEDED'], REFERENCED: ['SUPERSEDED'] },
+  },
   commneed: {
     table: 'comm_need',
     initial: 'ACTIVE',
