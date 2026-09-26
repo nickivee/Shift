@@ -738,4 +738,51 @@ CREATE TABLE consultation (
 );
 `,
   },
+  {
+    version: 7,
+    name: 'wounds',
+    sql: `
+-- Wound (Shared Lifecycle Object 213): identified → assessed → treatment plan → serial
+-- reassessment → healed or closed. Each assessment is also a .wound entry in the record.
+CREATE TABLE wound (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  site TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- IDENTIFIED | ASSESSED | PLANNED | HEALED | CLOSED
+  identified_by TEXT NOT NULL,
+  identified_at TEXT NOT NULL,
+  description TEXT,
+  plan TEXT,
+  review_days INTEGER,
+  plan_by TEXT,
+  plan_at TEXT,
+  next_review TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+
+CREATE TABLE wound_assessment (
+  id TEXT PRIMARY KEY,
+  wound_id TEXT NOT NULL REFERENCES wound(id),
+  event_id TEXT REFERENCES clinical_event(id),
+  assessed_by TEXT NOT NULL,
+  assessed_at TEXT NOT NULL,
+  length_mm INTEGER,
+  width_mm INTEGER,
+  depth_mm INTEGER,
+  stage TEXT,
+  bed TEXT,
+  exudate TEXT,
+  surrounding TEXT,
+  pain INTEGER,
+  trend TEXT,                           -- FIRST | IMPROVING | STATIC | DETERIORATING
+  complication TEXT,
+  dressing TEXT,
+  note TEXT
+);
+`,
+  },
 ];

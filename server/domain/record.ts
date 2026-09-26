@@ -7,6 +7,7 @@ import { forPerson as transfersFor } from './transfers.ts';
 import { forPerson as dischargesFor } from './discharges.ts';
 import { forPerson as escalationsFor } from './escalations.ts';
 import { forPerson as consultationsFor } from './consultations.ts';
+import { forPerson as woundsFor } from './wounds.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
@@ -289,6 +290,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'consults':
       body = consultationsFor(store, ctx, personId);
+      break;
+    case 'wounds':
+      body = woundsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

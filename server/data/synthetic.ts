@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 6;
+const SET = 7;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -326,6 +326,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 4) set4(store);
     if (at < 5) set5(store);
     if (at < 6) set6(store);
+    if (at < 7) set7(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -634,5 +635,42 @@ function set6(store: Store): void {
     step(id, null, 'REQUESTED', hannah, 180, 'To Physiotherapist, Physiotherapy');
     step(id, 'REQUESTED', 'RECEIVED', lena, 120);
     step(id, 'RECEIVED', 'ACCEPTED', lena, 119, 'Will see him this afternoon');
+  }
+}
+
+// Set 7: wounds in Residential Care. Rua's skin tear is being reviewed every two days and is
+// due today; Tama has reported a blister on Frank's left heel that no RN has assessed yet.
+function set7(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'wound', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const nicki = who('nicki');
+  const tama = who('tama');
+  const kate = who('kate');
+  const rua = person('ZZZ0059');
+  const frank = person('ZZZ0075');
+  if (nicki && tama && kate && rua) {
+    const id = newId();
+    store.insert('wound', {
+      id, person_id: rua, service_id: 'svc-arc', site: 'Left forearm', kind: 'Skin tear', state: 'PLANNED', identified_by: tama, identified_at: minsAgo(60 * 24 * 5),
+      description: 'Caught arm on wheelchair brake during transfer', plan: 'Clean with saline, silicone contact layer and light retention bandage. Pad wheelchair brakes. Long sleeves.',
+      review_days: 2, plan_by: nicki, plan_at: minsAgo(60 * 24 * 5 - 60), next_review: today,
+    });
+    step(id, null, 'IDENTIFIED', tama, 60 * 24 * 5, 'Caught arm on wheelchair brake during transfer');
+    step(id, 'IDENTIFIED', 'ASSESSED', nicki, 60 * 24 * 5 - 50, 'Initial assessment');
+    step(id, 'ASSESSED', 'PLANNED', nicki, 60 * 24 * 5 - 45, 'Silicone contact layer, review every 2 days');
+    const a = (by: string, mins: number, l: number, w: number, bed: string, ex: string, trend: string, note: string) =>
+      store.insert('wound_assessment', { id: newId(), wound_id: id, assessed_by: by, assessed_at: minsAgo(mins), length_mm: l, width_mm: w, depth_mm: null, stage: 'Not applicable', bed, exudate: ex, surrounding: 'Healthy', pain: 2, trend, complication: 'None', dressing: 'Silicone contact layer', note });
+    a(nicki, 60 * 24 * 5 - 50, 40, 25, 'Granulating', 'Low', 'FIRST', 'Flap approximated, category 2 skin tear');
+    a(kate, 60 * 24 * 3, 36, 20, 'Granulating', 'Low', 'IMPROVING', 'Edges adherent');
+    a(nicki, 60 * 24 * 1, 30, 15, 'Epithelialising', 'Nil', 'IMPROVING', 'Healing well');
+  }
+  if (tama && frank) {
+    const id = newId();
+    store.insert('wound', { id, person_id: frank, service_id: 'svc-arc', site: 'Left heel', kind: 'Pressure injury', state: 'IDENTIFIED', identified_by: tama, identified_at: minsAgo(38), description: 'Blister about the size of a 50c coin, heel red and sore' });
+    step(id, null, 'IDENTIFIED', tama, 38, 'Blister about the size of a 50c coin, heel red and sore');
   }
 }

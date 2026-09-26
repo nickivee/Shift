@@ -189,7 +189,7 @@ a { color: var(--line); }
 .muted { color: var(--ink-soft); }
 .small { font-size: 14px; }
 label.field { display: grid; gap: 4px; font-weight: 600; }
-input[type=text], input[type=password], input[type=search], input[type=date], input[type=datetime-local], select, textarea {
+input[type=text], input[type=number], input[type=password], input[type=search], input[type=date], input[type=datetime-local], select, textarea {
   border: 2px solid #b8d6dd; border-radius: 12px; padding: 10px 12px; background: #fff; width: 100%;
 }
 textarea { min-height: 110px; resize: vertical; }

@@ -28,6 +28,7 @@ export type Operation =
   | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
   | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
   | { op: 'ESCALATE'; personId: string }
+  | { op: 'WOUND'; personId: string; cap: 'wound.identify' | 'wound.manage' }
   | { op: 'CONSULT_REQUEST'; personId: string }
   | { op: 'CONSULT_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
@@ -113,6 +114,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'transfer.request') ?? professional(ctx) ?? allow();
     case 'CONSULT_REQUEST':
       return need(ctx, 'consult.request') ?? professional(ctx) ?? (rel === 'CONSULTATION' ? block('A consulting service gives advice; it does not ask for further consultations') : allow([ORG, 'LAW-NZ-002']));
+    case 'WOUND':
+      return need(ctx, o.cap) ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':
       return need(ctx, 'escalation.raise') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'DISCHARGE':

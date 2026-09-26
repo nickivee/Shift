@@ -13,6 +13,7 @@ import * as transfers from '../domain/transfers.ts';
 import * as discharges from '../domain/discharges.ts';
 import * as escalations from '../domain/escalations.ts';
 import * as consultations from '../domain/consultations.ts';
+import * as wounds from '../domain/wounds.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
@@ -136,6 +137,10 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/transfers', (req) => transfers.request(store, work(req), req.params.id, { toServiceId: str(req.body.toServiceId), reason: str(req.body.reason), priority: str(req.body.priority) }));
   r.on('GET', '/api/work/transfers/:id/beds', (req) => transfers.bedsFor(store, work(req), req.params.id));
   r.on('POST', '/api/work/transfers/:id/:action', (req) => transfers.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), bedId: str(req.body.bedId) }));
+  r.on('GET', '/api/work/wounds', (req) => wounds.reviews(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/wounds', (req) => wounds.identify(store, work(req), req.params.id, { site: str(req.body.site), kind: str(req.body.kind), description: str(req.body.description) }));
+  r.on('POST', '/api/work/wounds/:id/assess', (req) => wounds.assess(store, work(req), req.params.id, req.body as Record<string, unknown>));
+  r.on('POST', '/api/work/wounds/:id/:action', (req) => wounds.act(store, work(req), req.params.id, req.params.action, { plan: str(req.body.plan), reviewDays: req.body.reviewDays, note: str(req.body.note) }));
   r.on('GET', '/api/work/consultations', (req) => consultations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/consultations', (req) => consultations.request(store, work(req), req.params.id, { target: str(req.body.target), question: str(req.body.question), urgency: str(req.body.urgency) }));
   r.on('POST', '/api/work/consultations/:id/:action', (req) => consultations.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));

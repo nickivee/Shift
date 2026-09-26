@@ -276,7 +276,7 @@ export const KEY_BY_CODE = new Map(KEYS.map((k) => [k.code, k]));
 export interface RetrieveView {
   code: string;
   label: string;
-  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults';
+  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds';
   categories?: string[];
   key?: string;   // the .key a worker would use to add to this view
 }
@@ -288,7 +288,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'bgl', label: 'Blood glucose', kind: 'events', categories: ['BGL'], key: '.bgl' },
   { code: 'weight', label: 'Weight', kind: 'events', categories: ['WEIGHT'], key: '.weight' },
   { code: 'pain', label: 'Pain', kind: 'events', categories: ['PAIN'], key: '.pain' },
-  { code: 'wounds', label: 'Wounds', kind: 'events', categories: ['WOUND'], key: '.wound' },
+  { code: 'wounds', label: 'Wounds', kind: 'wounds', categories: ['WOUND'] },
   { code: 'skin', label: 'Skin', kind: 'events', categories: ['SKIN', 'WOUND'], key: '.skin' },
   { code: 'falls', label: 'Falls', kind: 'events', categories: ['FALL'], key: '.fall' },
   { code: 'intake', label: 'Intake/Output', kind: 'events', categories: ['INTAKE'], key: '.intake' },

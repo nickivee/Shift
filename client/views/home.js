@@ -17,13 +17,14 @@ const DESCRIPTIONS = {
   transfers: () => 'Admissions and transfers coming in and going out, one step at a time.',
   flow: () => 'Beds across the hospital and who is waiting for one.',
   discharges: () => 'Discharges being planned and what is still outstanding.',
+  wounds: () => 'Wounds reported but not yet assessed, and reviews due today.',
   consults: () => 'Advice asked of your team, and advice your team has asked for.',
   escalations: () => 'Concerns raised to you, and the ones you raised, until reassessed.',
 };
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds',
 };
 
 export function openTab(tabId) {
@@ -48,6 +49,7 @@ export async function homeView() {
     if (want.includes('discharges')) jobs.push(get('/api/work/discharges').then((rows) => (counts.discharges = rows.filter((d) => d.actions.length || d.requirements.some((r) => r.canRecord)).length)));
     if (want.includes('escalations')) jobs.push(get('/api/work/escalations').then((rows) => (counts.escalations = rows.filter((x) => x.actions.some((a) => ['receive', 'acknowledge', 'respond'].includes(a))).length)));
     if (want.includes('consults')) jobs.push(get('/api/work/consultations').then((rows) => (counts.consults = rows.filter((c) => c.actions.some((a) => a !== 'withdraw')).length)));
+    if (want.includes('wounds')) jobs.push(get('/api/work/wounds').then((rows) => (counts.wounds = rows.filter((w) => w.state === 'IDENTIFIED' || w.due).length)));
     if (want.includes('flow')) jobs.push(get('/api/work/beds').then((rows) => (counts.flow = rows.filter((b) => b.state === 'AVAILABLE').length)));
     if (want.includes('handover')) jobs.push(get('/api/work/handover').then((g) => (counts.handover = g.reduce((a, p) => a + p.items.filter((i) => !i.myReceipt).length, 0))));
     await Promise.allSettled(jobs);

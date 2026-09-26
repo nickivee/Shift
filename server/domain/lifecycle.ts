@@ -67,6 +67,15 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ADVICE_RECEIVED: ['CLOSED'],
     },
   },
+  wound: {
+    table: 'wound',
+    initial: 'IDENTIFIED',
+    next: {
+      IDENTIFIED: ['ASSESSED', 'CLOSED'],
+      ASSESSED: ['PLANNED', 'HEALED', 'CLOSED'],
+      PLANNED: ['PLANNED', 'HEALED', 'CLOSED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',
