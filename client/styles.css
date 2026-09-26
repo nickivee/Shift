@@ -270,6 +270,14 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .patient-restriction svg { width: 26px; height: 26px; flex: none; }
 .patient-restriction b { display: block; font-size: 13px; letter-spacing: .6px; }
 .restriction-on { border-left: 6px solid #5a3fa0; }
+.patient-pref {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #b0417a;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-pref svg { width: 24px; height: 24px; flex: none; color: #b0417a; }
+.patient-pref b { display: block; font-size: 13px; letter-spacing: .6px; color: #b0417a; }
+.pref-quote { margin: 0; padding: 6px 12px; border-left: 4px solid #b0417a; font-size: 16px; }
 .patient-leave {
   display: flex; align-items: center; gap: 10px;
   background: linear-gradient(180deg, #2f6fb0, #1d4f86); color: #fff;

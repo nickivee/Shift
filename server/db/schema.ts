@@ -1300,5 +1300,52 @@ CREATE TABLE leave_event (
 );
 `,
   },
+  {
+    version: 19,
+    name: 'patient preference lifecycle',
+    sql: `
+-- Patient preference (Shared Lifecycle Object 249): preference expressed → context and source →
+-- current relevance → acknowledged → incorporated where possible → reviewed, changed or
+-- withdrawn. A preference is kept in the person's words. It is not consent and not an advance
+-- directive (RR-ADVDIR-001).
+CREATE TABLE preference (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  category TEXT NOT NULL,               -- NAME | ROUTINE | PERSONAL_CARE | FOOD | CULTURAL | SPIRITUAL | COMMUNICATION | PRIVACY | TREATMENT | OTHER
+  statement TEXT NOT NULL,              -- in the person's words
+  source TEXT NOT NULL,                 -- PERSON | WHANAU | SUPPORT_PERSON | OBSERVED | DOCUMENT
+  source_name TEXT,                     -- who said it, when not the person
+  context TEXT,                         -- when or where it applies
+  relevance TEXT NOT NULL,              -- ALWAYS | THIS_STAY | SOMETIMES
+  review_date TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | SUPERSEDED | WITHDRAWN
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  supersedes_id TEXT REFERENCES preference(id),
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX preference_person ON preference(person_id, state);
+
+CREATE TABLE preference_ack (
+  preference_id TEXT NOT NULL REFERENCES preference(id),
+  worker_id TEXT NOT NULL,
+  at TEXT NOT NULL,
+  PRIMARY KEY (preference_id, worker_id)
+);
+
+-- Whether it could be followed, each time it mattered.
+CREATE TABLE preference_outcome (
+  id TEXT PRIMARY KEY,
+  preference_id TEXT NOT NULL REFERENCES preference(id),
+  outcome TEXT NOT NULL,                -- MET | PARTLY | NOT_MET
+  note TEXT,
+  by_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+`,
+  },
 ];
 

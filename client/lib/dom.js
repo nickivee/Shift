@@ -95,6 +95,7 @@ const PATHS = {
   referrals: 'M4 6h9v12H4zM13 12h7m-3-3 3 3-3 3',
   appointments: 'M4 6h16v14H4zM4 10h16M8 3v5m8-5v5m-6 7 2 2 4-4',
   monitoring: 'M3 12h4l2-6 4 12 2-6h6',
+  preferences: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z',
   absences: 'M14 4a2 2 0 1 1 0 .01M10 21l2-6 3 3v3M9 11l3-3 4 3 3 1M12 8l-2 7-4 2',
   absence: 'M14 4a2 2 0 1 1 0 .01M10 21l2-6 3 3v3M9 11l3-3 4 3 3 1M12 8l-2 7-4 2',
   moves: 'M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 14h18M7 10V7h4v3M16 4l3 3-3 3',

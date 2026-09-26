@@ -177,6 +177,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-ADVDIR-001',
+    question: 'How advance directives and advance care plans (Code of Rights Right 7(5)) are recorded, checked for validity and applied in each setting, and who may rely on them.',
+    blocks: 'Recording a preference as an advance directive, or as a refusal of treatment that staff must follow. Preferences are recorded and respected, but they are not consent or refusal.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',
