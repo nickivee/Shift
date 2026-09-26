@@ -44,6 +44,7 @@ export type Operation =
   | { op: 'WHANAU'; personId: string }
   | { op: 'ACCESS'; personId: string }
   | { op: 'EXTERNAL'; personId: string }
+  | { op: 'INSTRUMENT'; personId: string }
   | { op: 'REPORT'; personId: string; cap: 'report.record' | 'report.review' }
   | { op: 'CODING'; organisationId: string }
   | { op: 'CODING_ANSWER'; serviceId: string }
@@ -215,6 +216,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record or review what they report`));
+    case 'INSTRUMENT':
+      return need(ctx, 'instrument.use') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can use questionnaires with them`));
     case 'EXTERNAL':
       return need(ctx, 'external.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])

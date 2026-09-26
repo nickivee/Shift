@@ -24,6 +24,7 @@ import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
 import { codingPanel } from './coding.js';
 import { reportsPanel } from './reports.js';
+import { questionnairesPanel } from './questionnaires.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -346,6 +347,7 @@ export async function workstationView(personId, initialView) {
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
+      case 'instruments': return questionnairesPanel(personId, d, () => go(`/work/patient/${personId}/instruments`));
       case 'coding': return codingPanel(personId, d, () => go(`/work/patient/${personId}/coding`));
       case 'external': return externalPanel(personId, d, () => go(`/work/patient/${personId}/external`));
       case 'access': return accessPanel(personId, d, () => go(`/work/patient/${personId}/access`));
@@ -414,6 +416,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.instruments?.length) {
+      block.append(h('button', { class: 'patient-instrument', onclick: () => openView('instruments') }, icon('instruments'),
+        h('span', {}, h('b', {}, 'QUESTIONNAIRE SAFETY FLAG: NOT YET FOLLOWED UP'), patient.instruments.map((x) => `${x.code}: ${x.flags.join(' ')}`).join(' · '))));
     }
     if (patient.external?.length) {
       block.append(h('button', { class: 'patient-external', onclick: () => openView('external') }, icon('external'),

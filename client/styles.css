@@ -511,3 +511,16 @@ dialog h2 { margin-top: 0; }
 .esc.closed { opacity: .85; border-left-color: #c9d3da; }
 .grow { flex: 1 1 160px; min-width: 0; }
 .alert-raised { border-left: 6px solid #d99a1c; }
+.patient-instrument {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #c0392b;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-instrument svg { width: 24px; height: 24px; flex: none; color: #c0392b; }
+.patient-instrument b { display: block; font-size: 13px; letter-spacing: .6px; color: #c0392b; }
+.instrument-flag { border-left: 6px solid #c0392b; }
+.score-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+.score { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+fieldset.item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; gap: 4px; margin: 0; }
+fieldset.item legend { font-weight: 600; padding: 0 4px; }
+dialog.wide { max-width: min(720px, 96vw); }

@@ -1628,4 +1628,42 @@ CREATE INDEX patient_report_person ON patient_report(person_id, state);
 CREATE INDEX patient_report_service ON patient_report(service_id, needs_review, state);
 `,
   },
+  {
+    version: 26,
+    name: 'questionnaire and assessment instrument lifecycle',
+    sql: `
+-- Questionnaire / assessment instrument (Shared Lifecycle Object 257): instrument required or
+-- offered → version identified → administered → responses → score/result → interpretation →
+-- clinical action where applicable → repeat assessment. Instruments are defined in
+-- server/config/instruments.ts; each use keeps the code and version that produced its score.
+CREATE TABLE instrument_use (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  instrument_code TEXT NOT NULL,
+  instrument_version TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- REQUESTED | COMPLETED | INTERPRETED | DECLINED | CANCELLED
+  reason TEXT NOT NULL,                 -- why it is being used
+  due_at TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  repeat_of TEXT REFERENCES instrument_use(id),
+  mode TEXT,                            -- STAFF_ASKED | SELF_COMPLETED | INTERPRETER | OBSERVED
+  administered_by TEXT,
+  administered_at TEXT,
+  responses_json TEXT,                  -- item id → chosen option index
+  score INTEGER,
+  band TEXT,
+  flags_json TEXT,                      -- safety flags raised by the responses
+  interpreted_by TEXT,
+  interpreted_at TEXT,
+  interpretation TEXT,
+  action TEXT,                          -- what was done because of it
+  next_id TEXT REFERENCES instrument_use(id),
+  closed_reason TEXT                    -- declined or cancelled, and why
+);
+CREATE INDEX instrument_use_person ON instrument_use(person_id, instrument_code, state);
+CREATE INDEX instrument_use_service ON instrument_use(service_id, state, due_at);
+`,
+  },
 ];
