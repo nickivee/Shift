@@ -708,4 +708,109 @@ CREATE TABLE escalation (
 );
 `,
   },
+  {
+    version: 6,
+    name: 'consultation',
+    sql: `
+-- Clinical consultation (Shared Lifecycle Object 240). Advice, not a transfer: the requesting
+-- team stays responsible. Received, accepted, advised and advice received are separate acts.
+CREATE TABLE consultation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  to_role_key TEXT NOT NULL,
+  question TEXT NOT NULL,
+  urgency TEXT NOT NULL,                -- URGENT | ROUTINE
+  state TEXT NOT NULL,                  -- REQUESTED | RECEIVED | ACCEPTED | DECLINED | ADVISED | ADVICE_RECEIVED | CLOSED | WITHDRAWN
+  received_by TEXT,
+  accepted_by TEXT,
+  decline_reason TEXT,
+  advice TEXT,
+  advised_by TEXT,
+  advised_at TEXT,
+  advice_received_by TEXT,
+  actions TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+`,
+  },
+  {
+    version: 7,
+    name: 'wounds',
+    sql: `
+-- Wound (Shared Lifecycle Object 213): identified → assessed → treatment plan → serial
+-- reassessment → healed or closed. Each assessment is also a .wound entry in the record.
+CREATE TABLE wound (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  site TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- IDENTIFIED | ASSESSED | PLANNED | HEALED | CLOSED
+  identified_by TEXT NOT NULL,
+  identified_at TEXT NOT NULL,
+  description TEXT,
+  plan TEXT,
+  review_days INTEGER,
+  plan_by TEXT,
+  plan_at TEXT,
+  next_review TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+
+CREATE TABLE wound_assessment (
+  id TEXT PRIMARY KEY,
+  wound_id TEXT NOT NULL REFERENCES wound(id),
+  event_id TEXT REFERENCES clinical_event(id),
+  assessed_by TEXT NOT NULL,
+  assessed_at TEXT NOT NULL,
+  length_mm INTEGER,
+  width_mm INTEGER,
+  depth_mm INTEGER,
+  stage TEXT,
+  bed TEXT,
+  exudate TEXT,
+  surrounding TEXT,
+  pain INTEGER,
+  trend TEXT,                           -- FIRST | IMPROVING | STATIC | DETERIORATING
+  complication TEXT,
+  dressing TEXT,
+  note TEXT
+);
+`,
+  },
+  {
+    version: 8,
+    name: 'care plan lifecycle',
+    sql: `
+-- Care plan (Shared Lifecycle Object 216): need → goal → interventions → responsible →
+-- review date → reassessment → modification (superseded, never overwritten) →
+-- achieved / ceased.
+ALTER TABLE care_plan_item ADD COLUMN service_id TEXT REFERENCES service(id);
+ALTER TABLE care_plan_item ADD COLUMN author_id TEXT;
+ALTER TABLE care_plan_item ADD COLUMN supersedes_id TEXT REFERENCES care_plan_item(id);
+ALTER TABLE care_plan_item ADD COLUMN closed_by TEXT;
+ALTER TABLE care_plan_item ADD COLUMN closed_at TEXT;
+ALTER TABLE care_plan_item ADD COLUMN close_reason TEXT;
+UPDATE care_plan_item SET service_id = (
+  SELECT e.service_id FROM encounter e WHERE e.person_id = care_plan_item.person_id AND e.state = 'ACTIVE' ORDER BY e.started_at DESC LIMIT 1
+) WHERE service_id IS NULL;
+
+CREATE TABLE care_plan_review (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES care_plan_item(id),
+  reviewed_by TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,                -- CONTINUE | MODIFIED | ACHIEVED | CEASED
+  evaluation TEXT NOT NULL,
+  next_review TEXT
+);
+`,
+  },
 ];

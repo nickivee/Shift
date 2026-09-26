@@ -28,6 +28,10 @@ export type Operation =
   | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
   | { op: 'BED_MANAGE'; serviceId: string; organisationId: string }
   | { op: 'ESCALATE'; personId: string }
+  | { op: 'CAREPLAN'; personId: string }
+  | { op: 'WOUND'; personId: string; cap: 'wound.identify' | 'wound.manage' }
+  | { op: 'CONSULT_REQUEST'; personId: string }
+  | { op: 'CONSULT_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
@@ -71,6 +75,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.serviceId !== ctx.serviceId) return block('This escalation is addressed to another service');
       if (o.roleKey !== ctx.role.roleKey) return block('This escalation is addressed to another role');
       return need(ctx, 'escalation.respond') ?? professional(ctx) ?? allow();
+    case 'CONSULT_RESPOND':
+      if (o.serviceId !== ctx.serviceId) return block('This consultation is addressed to another service');
+      if (o.roleKey !== ctx.role.roleKey) return block('This consultation is addressed to another role');
+      return need(ctx, 'consult.respond') ?? professional(ctx) ?? allow();
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -105,6 +113,12 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'handover.use') ?? allow();
     case 'TRANSFER_REQUEST':
       return need(ctx, 'transfer.request') ?? professional(ctx) ?? allow();
+    case 'CONSULT_REQUEST':
+      return need(ctx, 'consult.request') ?? professional(ctx) ?? (rel === 'CONSULTATION' ? block('A consulting service gives advice; it does not ask for further consultations') : allow([ORG, 'LAW-NZ-002']));
+    case 'WOUND':
+      return need(ctx, o.cap) ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
+    case 'CAREPLAN':
+      return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':
       return need(ctx, 'escalation.raise') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'DISCHARGE':
@@ -136,7 +150,7 @@ function professional(ctx: WorkContext): AuthorityResult | null {
   return null;
 }
 
-export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'EXCEPTIONAL';
+export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'EXCEPTIONAL';
 
 export function relationship(store: Store, ctx: WorkContext, personId: string): Relationship | null {
   const enc = store.get("SELECT 1 FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, ctx.serviceId);
@@ -148,6 +162,12 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
     "SELECT 1 FROM transfer WHERE person_id = ? AND to_service_id = ? AND state IN ('REQUESTED', 'ACCEPTED', 'BED_ALLOCATED', 'ARRIVED')", personId, ctx.serviceId,
   );
   if (tr) return 'TRANSFER';
+  // A consulted role may read the record while the consultation is open.
+  const cs = store.get(
+    "SELECT 1 FROM consultation WHERE person_id = ? AND to_service_id = ? AND to_role_key = ? AND state IN ('REQUESTED', 'RECEIVED', 'ACCEPTED')",
+    personId, ctx.serviceId, ctx.role.roleKey,
+  );
+  if (cs) return 'CONSULTATION';
   const ex = store.get(
     'SELECT 1 FROM exceptional_access WHERE work_context_id = ? AND person_id = ? AND expires_at > ?',
     ctx.id, personId, now(),

@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 5;
+const SET = 8;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -325,6 +325,9 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 3) set3(store, password);
     if (at < 4) set4(store);
     if (at < 5) set5(store);
+    if (at < 6) set6(store);
+    if (at < 7) set7(store);
+    if (at < 8) set8(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -599,4 +602,102 @@ function set5(store: Store): void {
     'Redness has spread about 3 cm past the marked border since 08:00. T 38.3, HR 108, more pain walking. Worried the cellulitis is not responding.', 25);
   raise(person('ZZZ0075'), who('tama'), 'svc-arc', 'svc-arc', 'arc-rn', 'URGENT', 'Wound or skin',
     'Both heels redder than yesterday and there is a blister on the left heel. Frank says it hurts when his feet touch the bed.', 40);
+}
+
+// Set 6: consultations. Ravi in ED wants General Medicine's advice about Kiri; Hannah has
+// asked Physiotherapy about James before he goes home, and Lena has accepted.
+function set6(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'consultation', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const ravi = who('ravi');
+  const hannah = who('hannah');
+  const lena = who('lena');
+  const kiri = person('ZZZ0105');
+  const james = person('ZZZ0040');
+  if (ravi && kiri) {
+    const id = newId();
+    store.insert('consultation', {
+      id, person_id: kiri, from_service_id: 'svc-ed', requested_by: ravi, requested_at: minsAgo(30), to_service_id: 'svc-genmed', to_role_key: 'genmed-physician',
+      question: 'Kiri Moana, 48, 2 h central chest pain, first troponin 9. If the 2-hour troponin is also normal, would General Medicine prefer to see her as an outpatient, or admit for observation given her strong family history?',
+      urgency: 'URGENT', state: 'REQUESTED',
+    });
+    step(id, null, 'REQUESTED', ravi, 30, 'To Physician, General Medicine');
+  }
+  if (hannah && lena && james) {
+    const id = newId();
+    store.insert('consultation', {
+      id, person_id: james, from_service_id: 'svc-genmed', requested_by: hannah, requested_at: minsAgo(180), to_service_id: 'svc-physio', to_role_key: 'physio',
+      question: 'James lives alone up a flight of stairs. Please assess mobility and stairs before discharge with his leg cellulitis.',
+      urgency: 'ROUTINE', state: 'ACCEPTED', received_by: lena, accepted_by: lena,
+    });
+    step(id, null, 'REQUESTED', hannah, 180, 'To Physiotherapist, Physiotherapy');
+    step(id, 'REQUESTED', 'RECEIVED', lena, 120);
+    step(id, 'RECEIVED', 'ACCEPTED', lena, 119, 'Will see him this afternoon');
+  }
+}
+
+// Set 7: wounds in Residential Care. Rua's skin tear is being reviewed every two days and is
+// due today; Tama has reported a blister on Frank's left heel that no RN has assessed yet.
+function set7(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'wound', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const nicki = who('nicki');
+  const tama = who('tama');
+  const kate = who('kate');
+  const rua = person('ZZZ0059');
+  const frank = person('ZZZ0075');
+  if (nicki && tama && kate && rua) {
+    const id = newId();
+    store.insert('wound', {
+      id, person_id: rua, service_id: 'svc-arc', site: 'Left forearm', kind: 'Skin tear', state: 'PLANNED', identified_by: tama, identified_at: minsAgo(60 * 24 * 5),
+      description: 'Caught arm on wheelchair brake during transfer', plan: 'Clean with saline, silicone contact layer and light retention bandage. Pad wheelchair brakes. Long sleeves.',
+      review_days: 2, plan_by: nicki, plan_at: minsAgo(60 * 24 * 5 - 60), next_review: today,
+    });
+    step(id, null, 'IDENTIFIED', tama, 60 * 24 * 5, 'Caught arm on wheelchair brake during transfer');
+    step(id, 'IDENTIFIED', 'ASSESSED', nicki, 60 * 24 * 5 - 50, 'Initial assessment');
+    step(id, 'ASSESSED', 'PLANNED', nicki, 60 * 24 * 5 - 45, 'Silicone contact layer, review every 2 days');
+    const a = (by: string, mins: number, l: number, w: number, bed: string, ex: string, trend: string, note: string) =>
+      store.insert('wound_assessment', { id: newId(), wound_id: id, assessed_by: by, assessed_at: minsAgo(mins), length_mm: l, width_mm: w, depth_mm: null, stage: 'Not applicable', bed, exudate: ex, surrounding: 'Healthy', pain: 2, trend, complication: 'None', dressing: 'Silicone contact layer', note });
+    a(nicki, 60 * 24 * 5 - 50, 40, 25, 'Granulating', 'Low', 'FIRST', 'Flap approximated, category 2 skin tear');
+    a(kate, 60 * 24 * 3, 36, 20, 'Granulating', 'Low', 'IMPROVING', 'Edges adherent');
+    a(nicki, 60 * 24 * 1, 30, 15, 'Epithelialising', 'Nil', 'IMPROVING', 'Healing well');
+  }
+  if (tama && frank) {
+    const id = newId();
+    store.insert('wound', { id, person_id: frank, service_id: 'svc-arc', site: 'Left heel', kind: 'Pressure injury', state: 'IDENTIFIED', identified_by: tama, identified_at: minsAgo(38), description: 'Blister about the size of a 50c coin, heel red and sore' });
+    step(id, null, 'IDENTIFIED', tama, 38, 'Blister about the size of a 50c coin, heel red and sore');
+  }
+}
+
+// Set 8: care plan reviews. Existing items gain their author and service; Elsie's distress
+// plan is overdue for review, Rua's mobility plan is due today, and Aroha has a ward plan.
+function set8(store: Store): void {
+  const today = todayLocal();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const nicki = who('nicki');
+  store.run("UPDATE care_plan_item SET author_id = ? WHERE author_id IS NULL AND data_source = 'SYNTHETIC'", nicki);
+  store.run(`UPDATE care_plan_item SET service_id = (SELECT e.service_id FROM encounter e WHERE e.person_id = care_plan_item.person_id AND e.state = 'ACTIVE' ORDER BY e.started_at DESC LIMIT 1) WHERE service_id IS NULL`);
+  const elsie = person('ZZZ0067');
+  const rua = person('ZZZ0059');
+  const aroha = person('ZZZ9999');
+  if (elsie) store.run("UPDATE care_plan_item SET review_date = ? WHERE person_id = ? AND need LIKE 'Distress%' AND state = 'ACTIVE'", addDays(today, -1), elsie);
+  if (rua) store.run("UPDATE care_plan_item SET review_date = ? WHERE person_id = ? AND need = 'Mobility' AND state = 'ACTIVE'", today, rua);
+  const created = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  if (aroha && nicki) {
+    for (const [need, goal, intervention, responsible, days] of [
+      ['Breathing', 'Off oxygen, SpO2 at least 94% on air', 'Wean oxygen by 1 L each shift when SpO2 at least 94%; breathing exercises with physio', 'Registered nurses', 1],
+      ['Blood glucose', 'Pre-meal glucose 6 to 10', 'Check before meals and at bedtime; tell the doctor if over 15 twice', 'Registered nurses', 2],
+    ] as const) {
+      const id = newId();
+      store.insert('care_plan_item', { id, person_id: aroha, need, goal, intervention, responsible, review_date: addDays(today, days), state: 'ACTIVE', created_at: created, data_source: 'SYNTHETIC', service_id: 'svc-genmed', author_id: nicki });
+    }
+  }
 }
