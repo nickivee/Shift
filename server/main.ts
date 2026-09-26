@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { Store } from './db/database.ts';
+import { openNodeStore } from './db/node.ts';
 import { buildApi } from './http/api.ts';
 import { startServer } from './http/server.ts';
 import { audit, verifyChain } from './domain/audit.ts';
@@ -9,7 +9,7 @@ const dbFile = process.env.SHIFT_DB ?? resolve(root, 'var/shift.db');
 const port = Number(process.env.PORT ?? 8080);
 const host = process.env.HOST ?? '127.0.0.1';
 
-const store = new Store(dbFile);
+const store = openNodeStore(dbFile);
 const chain = verifyChain(store);
 if (!chain.ok) {
   console.error(`Audit chain integrity failure at entry ${chain.brokenAt}. Refusing to start.`);

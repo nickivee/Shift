@@ -1,28 +1,16 @@
-import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Store } from '../db/database.ts';
 import { audit } from './audit.ts';
 import { newId, now, sha256, token, todayLocal, HttpError } from '../lib/util.ts';
+import { hashPassword, verifyPassword, randomSecret } from '../lib/platform.ts';
 import { ROLE_BY_KEY, type RoleConfig } from '../config/workstations.ts';
 
 const IDLE_MS = 30 * 60 * 1000;
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 });
-  return `scrypt$16384$${salt.toString('base64')}$${hash.toString('base64')}`;
-}
-
-function verifyPassword(password: string, stored: string): boolean {
-  const [scheme, n, salt, hash] = stored.split('$');
-  if (scheme !== 'scrypt' || !salt || !hash) return false;
-  const expected = Buffer.from(hash, 'base64');
-  const actual = scryptSync(password, Buffer.from(salt, 'base64'), expected.length, { N: Number(n), r: 8, p: 1 });
-  return timingSafeEqual(actual, expected);
-}
+export { hashPassword };
 
 // A dummy hash so unknown usernames cost the same time as wrong passwords.
-const DUMMY = hashPassword(randomBytes(12).toString('hex'));
+const DUMMY = hashPassword(randomSecret());
 
 export interface Session {
   id: string;

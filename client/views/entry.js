@@ -1,6 +1,6 @@
 import { h, icon } from '../lib/dom.js';
-import { get, post, del } from '../lib/api.js';
-import { showError, toast, pageTitle } from '../lib/ui.js';
+import { get, post, del, localInfo, resetDevice } from '../lib/api.js';
+import { showError, toast, pageTitle, confirmDialog } from '../lib/ui.js';
 import { state, go, refreshMe } from '../app.js';
 
 export async function entryView() {
@@ -51,12 +51,24 @@ export function signInView(next) {
     submit,
   );
   setTimeout(() => username.focus(), 0);
+  // On a device running SHIFT's synthetic data set, show who can sign in.
+  const accounts = localInfo ? h('div', { class: 'card stack' },
+    h('h3', {}, 'Synthetic workforce on this device'),
+    h('div', { class: 'list' }, localInfo.users.map((u) => h('button', { class: 'btn', type: 'button', onclick: () => { username.value = u.username; password.value = localInfo.password; password.focus(); } }, u.label))),
+    h('p', { class: 'small muted' }, `Password for these accounts: ${localInfo.password}. Everything you enter is kept on this device.`),
+    h('button', { class: 'link-btn small', type: 'button', onclick: async () => {
+      if (!(await confirmDialog('Start again with fresh synthetic data?', 'Everything recorded on this device will be replaced with the original synthetic data set.', 'Start again'))) return;
+      await resetDevice();
+      toast('Fresh synthetic data loaded.');
+    } }, 'Start again with fresh synthetic data'),
+  ) : null;
   return h('div', { class: 'signin' },
     h('div', { class: 'header-card card' },
       h('div', { class: 'logo small' }, 'S'),
       h('div', { class: 'grow' }, h('h1', {}, 'Sign in'), h('div', { class: 'sub' }, next === 'personal' ? 'to PERSONAL' : 'to WORK')),
     ),
     form,
+    accounts,
     h('button', { class: 'link-btn', onclick: () => go('/') }, 'Back'),
   );
 }

@@ -1,5 +1,5 @@
 import type { Store } from '../db/database.ts';
-import { Router, Reply, type Request } from './server.ts';
+import { Router, Reply, type Request } from './router.ts';
 import { HttpError } from '../lib/util.ts';
 import * as identity from '../domain/identity.ts';
 import * as record from '../domain/record.ts';

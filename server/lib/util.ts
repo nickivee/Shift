@@ -1,9 +1,6 @@
-import { randomUUID, randomBytes, createHash } from 'node:crypto';
+export { newId, token, sha256 } from './platform.ts';
 
-export const newId = (): string => randomUUID();
 export const now = (): string => new Date().toISOString();
-export const token = (): string => randomBytes(32).toString('base64url');
-export const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
 
 export function todayLocal(d = new Date()): string {
   const z = (n: number) => String(n).padStart(2, '0');

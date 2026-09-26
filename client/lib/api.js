@@ -1,3 +1,6 @@
+import { send } from './transport.js';
+export { localInfo, resetDevice } from './transport.js';
+
 // All calls are same-origin JSON. Mutations carry the X-SHIFT-Request header the server
 // requires, so a cross-site page cannot trigger them.
 export class ApiError extends Error {
@@ -13,26 +16,17 @@ let onSignedOut = () => {};
 export function setSignedOutHandler(fn) { onSignedOut = fn; }
 
 export async function api(method, path, body) {
-  const opts = { method, headers: { Accept: 'application/json' }, credentials: 'same-origin' };
-  if (method !== 'GET') {
-    opts.headers['X-SHIFT-Request'] = '1';
-    if (body !== undefined) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(body);
-    }
-  }
   let res;
   try {
-    res = await fetch(path, opts);
+    res = await send(method, path, body);
   } catch {
-    throw new ApiError(0, { error: 'OFFLINE', message: 'SHIFT cannot reach the server. Nothing was saved.' });
+    throw new ApiError(0, { error: 'OFFLINE', message: 'SHIFT could not be reached. Nothing was saved.' });
   }
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
+  if (res.status >= 400) {
     if (res.status === 401 && path !== '/api/auth/login') onSignedOut();
-    throw new ApiError(res.status, data);
+    throw new ApiError(res.status, res.body);
   }
-  return data;
+  return res.body;
 }
 
 export const get = (p) => api('GET', p);

@@ -4,3 +4,4 @@ var/
 *.db-journal
 *.db-wal
 *.db-shm
+dist/

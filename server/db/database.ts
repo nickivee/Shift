@@ -1,18 +1,23 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
 import { MIGRATIONS } from './schema.ts';
 
 export type Row = Record<string, unknown>;
 
+// The SQLite engine underneath: node:sqlite on the server (node.ts), sql.js in the
+// browser (sqljs.ts). Everything above this interface is the same code on both.
+export interface Driver {
+  exec(sql: string): void;
+  get(sql: string, params: unknown[]): Row | undefined;
+  all(sql: string, params: unknown[]): Row[];
+  run(sql: string, params: unknown[]): number;
+}
+
 export class Store {
-  readonly db: DatabaseSync;
+  private readonly driver: Driver;
   private depth = 0;
 
-  constructor(file: string) {
-    if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
-    this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+  constructor(driver: Driver) {
+    this.driver = driver;
+    this.driver.exec('PRAGMA foreign_keys = ON;');
     this.migrate();
   }
 
@@ -28,7 +33,7 @@ export class Store {
     for (const m of MIGRATIONS) {
       if (m.version <= current) continue;
       this.tx(() => {
-        this.db.exec(m.sql);
+        this.driver.exec(m.sql);
         this.run(
           "INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
           String(m.version),
@@ -38,16 +43,15 @@ export class Store {
   }
 
   get<T = Row>(sql: string, ...params: unknown[]): T | undefined {
-    return this.db.prepare(sql).get(...(params as never[])) as T | undefined;
+    return this.driver.get(sql, params) as T | undefined;
   }
 
   all<T = Row>(sql: string, ...params: unknown[]): T[] {
-    return this.db.prepare(sql).all(...(params as never[])) as T[];
+    return this.driver.all(sql, params) as T[];
   }
 
   run(sql: string, ...params: unknown[]): { changes: number } {
-    const r = this.db.prepare(sql).run(...(params as never[]));
-    return { changes: Number(r.changes) };
+    return { changes: this.driver.run(sql, params) };
   }
 
   insert(table: string, row: Record<string, unknown>): void {
@@ -66,14 +70,14 @@ export class Store {
         this.depth--;
       }
     }
-    this.db.exec('BEGIN IMMEDIATE');
+    this.driver.exec('BEGIN IMMEDIATE');
     this.depth = 1;
     try {
       const out = fn();
-      this.db.exec('COMMIT');
+      this.driver.exec('COMMIT');
       return out;
     } catch (err) {
-      this.db.exec('ROLLBACK');
+      this.driver.exec('ROLLBACK');
       throw err;
     } finally {
       this.depth = 0;

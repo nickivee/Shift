@@ -2,58 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { HttpError } from '../lib/util.ts';
-
-export interface Request {
-  method: string;
-  path: string;
-  params: Record<string, string>;
-  query: URLSearchParams;
-  body: Record<string, unknown>;
-  cookies: Record<string, string>;
-  secure: boolean;
-}
-
-// Handlers return plain data. A handler that needs to set cookies or a status returns a Reply.
-export class Reply {
-  readonly body: unknown;
-  readonly status: number;
-  readonly cookies: string[];
-  constructor(body: unknown, opts: { status?: number; cookies?: string[] } = {}) {
-    this.body = body;
-    this.status = opts.status ?? 200;
-    this.cookies = opts.cookies ?? [];
-  }
-}
-
-export type Handler = (req: Request) => unknown;
-
-interface Route { method: string; pattern: RegExp; keys: string[]; handler: Handler }
-
-export class Router {
-  private routes: Route[] = [];
-
-  on(method: string, path: string, handler: Handler): void {
-    const keys: string[] = [];
-    const pattern = new RegExp(
-      '^' + path.replace(/:([a-zA-Z]+)/g, (_m, k: string) => { keys.push(k); return '([^/]+)'; }) + '$',
-    );
-    this.routes.push({ method, pattern, keys, handler });
-  }
-
-  match(method: string, path: string): { handler: Handler; params: Record<string, string> } | null | 'METHOD' {
-    let pathMatched = false;
-    for (const r of this.routes) {
-      const m = r.pattern.exec(path);
-      if (!m) continue;
-      pathMatched = true;
-      if (r.method !== method) continue;
-      const params: Record<string, string> = {};
-      r.keys.forEach((k, i) => (params[k] = decodeURIComponent(m[i + 1])));
-      return { handler: r.handler, params };
-    }
-    return pathMatched ? 'METHOD' : null;
-  }
-}
+import { dispatch, type Router } from './router.ts';
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -136,20 +85,15 @@ export function startServer(opts: { router: Router; clientDir: string; port: num
         await serveStatic(url.pathname, res);
         return;
       }
-      const found = opts.router.match(method, url.pathname);
-      if (found === null) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
-      if (found === 'METHOD') throw new HttpError(405, 'METHOD', 'Method not allowed.');
       // Cross-site request protection: every state-changing call must carry this header,
       // which a browser will not attach cross-origin without a CORS preflight we never grant.
       if (method !== 'GET' && req.headers['x-shift-request'] !== '1') throw new HttpError(403, 'CSRF', 'Request refused.');
       const secure = opts.trustProxy ? req.headers['x-forwarded-proto'] === 'https' : false;
-      const request: Request = {
-        method, path: url.pathname, params: found.params, query: url.searchParams,
+      const out = await dispatch(opts.router, {
+        method, path: url.pathname, query: url.searchParams,
         body: method === 'GET' ? {} : await readBody(req), cookies: parseCookies(req.headers.cookie), secure,
-      };
-      const out = await found.handler(request);
-      const reply = out instanceof Reply ? out : new Reply(out);
-      send(res, reply.status, reply.body === undefined ? { ok: true } : reply.body, reply.cookies.length ? { 'Set-Cookie': reply.cookies } : {});
+      });
+      send(res, out.status, out.body, out.cookies.length ? { 'Set-Cookie': out.cookies } : {});
     } catch (err) {
       if (err instanceof HttpError) {
         send(res, err.status, { error: err.code, message: err.message, detail: err.detail ?? null });
