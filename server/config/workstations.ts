@@ -49,7 +49,9 @@ export type Capability =
   | 'capacity.assess'
   | 'whanau.manage'
   | 'access.manage'
-  | 'external.manage';
+  | 'external.manage'
+  | 'coding.assign'
+  | 'coding.answer';
 
 export interface HomeCard {
   id: string;
@@ -111,6 +113,8 @@ const CARD = {
   whanau: { id: 'whanau', label: 'Whānau and support', required: true },
   interpreters: { id: 'interpreters', label: 'Interpreters', required: true },
   external: { id: 'external', label: 'From other providers', required: true },
+  coding: { id: 'coding', label: 'Clinical coding', required: true },
+  codingqueries: { id: 'codingqueries', label: 'Coding questions', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -196,9 +200,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - physician',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage', 'appointment.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use', 'bed.request', 'leave.manage', 'leave.approve', 'preference.record', 'capacity.concern', 'capacity.assess', 'whanau.manage', 'access.manage', 'external.manage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage', 'appointment.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use', 'bed.request', 'leave.manage', 'leave.approve', 'preference.record', 'capacity.concern', 'capacity.assess', 'whanau.manage', 'access.manage', 'external.manage', 'coding.answer'],
     keys: ['.review', '.problem', '.assess', '.progress', '.family', '.task'],
-    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'location', 'absence', 'preferences', 'capacity', 'support', 'access', 'external'],
+    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'location', 'absence', 'preferences', 'capacity', 'support', 'access', 'external', 'coding'],
     tabs: [
       { id: 'list', label: 'Patient List' },
       { id: 'overview', label: 'Overview' },
@@ -211,7 +215,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'discharge', label: 'Discharge' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.absences, CARD.capacity, CARD.external],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.absences, CARD.capacity, CARD.external, CARD.codingqueries],
     consultsTo: ['physio'],
     refersTo: ['svc-physio'],
   },
@@ -247,9 +251,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Emergency Department - doctor',
     evidenceStatus: 'Workflow-derived; specialist medical/ED specification',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'referral.request', 'referral.authorise', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use', 'preference.record', 'capacity.concern', 'capacity.assess', 'whanau.manage', 'access.manage', 'external.manage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'referral.request', 'referral.authorise', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use', 'preference.record', 'capacity.concern', 'capacity.assess', 'whanau.manage', 'access.manage', 'external.manage', 'coding.answer'],
     keys: ['.medical', '.problem', '.procedure', '.review', '.progress', '.disposition', '.family', '.task'],
-    views: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'routes', 'family', 'review', 'transfers', 'discharge', 'escalations', 'consults', 'referrals', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'preferences', 'capacity', 'support', 'access', 'external'],
+    views: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'routes', 'family', 'review', 'transfers', 'discharge', 'escalations', 'consults', 'referrals', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'preferences', 'capacity', 'support', 'access', 'external', 'coding'],
     tabs: [
       { id: 'list', label: 'ED Board' },
       { id: 'medical', label: 'Medical Assessment' },
@@ -261,7 +265,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'tasks', label: 'Tasks' },
       { id: 'disposition', label: 'Disposition' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.capacity, CARD.external],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.capacity, CARD.external, CARD.codingqueries],
     consultsTo: ['genmed-physician'],
     refersTo: ['svc-genmed', 'svc-physio'],
     board: true,
@@ -299,6 +303,18 @@ export const ROLES: RoleConfig[] = [
     views: [],
     tabs: [],
     homeCards: [CARD.flow, CARD.transfers, CARD.discharges, CARD.moves],
+  },
+  {
+    roleKey: 'clinical-coder',
+    label: 'Clinical Coding',
+    matrixRow: 'Clinical coding / classification',
+    evidenceStatus: 'Workflow-derived; classification and reporting requirements to be researched (RR-CODE-001)',
+    profession: null,
+    capabilities: ['coding.assign'],
+    keys: [],
+    views: [],
+    tabs: [],
+    homeCards: [CARD.coding],
   },
   {
     roleKey: 'arc-rostering',

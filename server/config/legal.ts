@@ -195,6 +195,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-CODE-001',
+    question: 'Which classifications and editions must be used to code hospital events in New Zealand (for example ICD-10-AM, ACHI and the SNOMED CT NZ Edition), where the licensed code tables come from, and what must be reported to national collections and by when.',
+    blocks: 'Checking codes against the official code tables and sending coded events to national collections. SHIFT checks the form of each code only.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-IMPORT-001',
     question: 'What must be done with clinical information received for someone who is not a patient of the service, or whose identity cannot be confirmed: return, forward, destroy or keep, and how that is recorded (HIPC 2020 rules 5 and 11).',
     blocks: 'Returning, forwarding or destroying misdirected information. SHIFT marks it "not ours", keeps it out of every record, and holds it.',

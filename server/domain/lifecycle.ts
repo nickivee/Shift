@@ -149,6 +149,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['SUPERSEDED', 'CEASED'] },
   },
+  coding: {
+    table: 'coding_case',
+    initial: 'REQUIRED',
+    next: { REQUIRED: ['IN_PROGRESS'], IN_PROGRESS: ['FINALISED'], FINALISED: ['IN_PROGRESS'] },
+  },
+  codingquery: {
+    table: 'coding_query',
+    initial: 'OPEN',
+    next: { OPEN: ['ANSWERED', 'WITHDRAWN'] },
+  },
   external: {
     table: 'external_info',
     initial: 'RECEIVED',
