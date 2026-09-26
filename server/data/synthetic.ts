@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 10;
+const SET = 11;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -330,6 +330,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 8) set8(store);
     if (at < 9) set9(store);
     if (at < 10) set10(store);
+    if (at < 11) set11(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -841,4 +842,34 @@ function set10(store: Store): void {
     });
     step(visit, null, 'REQUESTED', lena, 60 * 3);
   }
+}
+
+// Set 11: alerts staff have raised. Frank needs two staff for cares, Losa's daughter
+// interprets for important conversations, and Tom is on a blood thinner after a head
+// injury. Alerts generated from the record (flagged results, overdue reviews) follow
+// from the data already here.
+function set11(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string | null, mins: number, reason: string | null = null) =>
+    store.insert('state_transition', { id: newId(), object_type: 'alert', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+  const raised = (pid: string | null, service: string, by: string | null, category: string, title: string, detail: string, mins: number, ackBy: string | null = null) => {
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('alert', {
+      id, person_id: pid, service_id: service, capability: 'record.view', rule: 'RAISED', category, title, detail,
+      state: ackBy ? 'ACKNOWLEDGED' : 'VISIBLE', generated_at: minsAgo(mins), raised_by: by, visible_at: minsAgo(mins), visible_to: by,
+      acknowledged_by: ackBy, acknowledged_at: ackBy ? minsAgo(mins - 60) : null,
+    });
+    step(id, null, 'GENERATED', by, mins, title);
+    step(id, 'GENERATED', 'VISIBLE', by, mins, 'Raised');
+    if (ackBy) step(id, 'VISIBLE', 'ACKNOWLEDGED', ackBy, mins - 60);
+  };
+  raised(person('ZZZ0075'), 'svc-arc', who('kate'), 'SAFETY', 'Two staff for personal cares',
+    'Frank has hit out during showering and dressing when rushed. Explain each step before you do it and use two staff.', 60 * 24 * 10, who('tama'));
+  raised(person('ZZZ0083'), 'svc-arc', who('nicki'), 'COMMUNICATION', 'Tongan first language',
+    'Losa understands everyday English. For consent and care planning, her daughter Mele interprets or book an interpreter.', 60 * 24 * 30);
+  raised(person('ZZZ0148'), 'svc-ed', who('mere'), 'CLINICAL', 'On apixaban with a head injury',
+    'Takes apixaban for atrial fibrillation. Fell and hit his head at home.', 45);
 }

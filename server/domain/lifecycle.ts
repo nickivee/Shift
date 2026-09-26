@@ -109,6 +109,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       COMMENCED: ['COMPLETED', 'UNABLE_TO_COMPLETE'],
     },
   },
+  alert: {
+    table: 'alert',
+    initial: 'GENERATED',
+    next: {
+      GENERATED: ['VISIBLE', 'EXPIRED', 'RESOLVED'],
+      VISIBLE: ['ACKNOWLEDGED', 'EXPIRED', 'RESOLVED'],
+      ACKNOWLEDGED: ['ACTIONED', 'RESOLVED', 'EXPIRED'],
+      ACTIONED: ['ACTIONED', 'RESOLVED', 'EXPIRED'],
+    },
+  },
   result: {
     table: 'result',
     initial: 'AVAILABLE',

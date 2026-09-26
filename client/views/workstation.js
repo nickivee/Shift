@@ -9,6 +9,7 @@ import { woundsPanel } from './wounds.js';
 import { carePlanPanel } from './careplans.js';
 import { referralsPanel } from './referrals.js';
 import { appointmentsPanel } from './appointments.js';
+import { alertsPanel } from './alerts.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -326,6 +327,8 @@ export async function workstationView(personId, initialView) {
       case 'careplan': return carePlanPanel(personId, d, () => openView('careplan'));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
+      // Raising or resolving an alert changes the record banner, so the whole record redraws.
+      case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
         h('div', { class: 'spread' }, h('b', {}, t.description), stateTag(t.state)),
         h('div', { class: 'small muted' }, [t.dueAt ? `Due ${t.dueAt}` : null, `Assigned: ${t.assignedTo}`, `Created by ${t.createdBy}`].filter(Boolean).join(' · ')),
@@ -376,6 +379,17 @@ export async function workstationView(personId, initialView) {
     return h('div', { class: 'allergy' }, h('div', { class: 'allergy-none' }, 'Allergies not recorded'));
   };
 
+  // Alerts staff have raised stay in view with the allergies, on every page of the record.
+  const flags = () => {
+    const block = allergyBlock();
+    if (patient.alerts?.length) {
+      block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
+        h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
+          patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    return block;
+  };
+
   const header = h('div', { class: 'card patient-header' },
     h('div', { class: 'who' },
       h('div', { class: 'logo' }, 'S'),
@@ -398,7 +412,7 @@ export async function workstationView(personId, initialView) {
         ),
       ),
     ),
-    allergyBlock(),
+    flags(),
   );
 
   input.addEventListener('input', onInput);

@@ -32,6 +32,8 @@ export type Operation =
   | { op: 'REFERRAL_REQUEST'; personId: string; cap: 'referral.request' | 'referral.authorise' }
   | { op: 'REFERRAL_TRIAGE'; serviceId: string }
   | { op: 'APPOINTMENT_REQUEST'; personId: string }
+  | { op: 'ALERT_RAISE'; personId: string }
+  | { op: 'ALERT_RECEIVE'; serviceId: string; capability: string }
   | { op: 'APPOINTMENT_MANAGE'; serviceId: string; clinical: boolean }
   | { op: 'WOUND'; personId: string; cap: 'wound.identify' | 'wound.manage' }
   | { op: 'CONSULT_REQUEST'; personId: string }
@@ -92,6 +94,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.serviceId !== ctx.serviceId) return block('This appointment belongs to another service');
       return need(ctx, 'appointment.manage') ?? (o.clinical ? professional(ctx) : null) ?? allow();
     }
+    case 'ALERT_RECEIVE':
+      // An alert is for the recipients it names: its service, and roles holding the
+      // capability that can act on it.
+      if (o.serviceId !== ctx.serviceId) return block('This alert is for another service');
+      return ctx.role.capabilities.includes(o.capability as Capability) ? allow() : block('This alert is for another role');
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':
@@ -140,6 +147,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'appointment.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'REFERRAL'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Your service needs a care relationship or a referral for this ${ctx.subjectLabel.toLowerCase()} to book them`));
+    case 'ALERT_RAISE':
+      return need(ctx, 'alert.raise') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can raise an alert about them`));
     case 'CAREPLAN':
       return need(ctx, 'careplan.manage') ?? professional(ctx) ?? allow([ORG, 'LAW-NZ-002']);
     case 'ESCALATE':

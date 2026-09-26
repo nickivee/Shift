@@ -905,4 +905,44 @@ CREATE INDEX appointment_service ON appointment(service_id, state);
 CREATE INDEX appointment_person ON appointment(person_id);
 `,
   },
+  {
+    version: 11,
+    name: 'alert lifecycle',
+    sql: `
+-- Alert (Shared Lifecycle Object 218): trigger condition → alert generated → visible to an
+-- authorised recipient → acknowledged → action where required → resolved or expired.
+-- Generated alerts come from recorded facts (a laboratory's own abnormal flag, a review
+-- date that has passed); SHIFT sets no clinical thresholds of its own. Raised alerts are
+-- safety or communication alerts a worker records about a person.
+CREATE TABLE alert (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),  -- recipient service
+  capability TEXT NOT NULL,                          -- recipients: roles in the service with this capability
+  rule TEXT NOT NULL,                                -- RESULT_ABNORMAL | WOUND_REVIEW_OVERDUE | CAREPLAN_REVIEW_OVERDUE | RAISED
+  object_type TEXT,
+  object_id TEXT,
+  category TEXT,                                     -- raised alerts: SAFETY | CLINICAL | COMMUNICATION
+  title TEXT NOT NULL,
+  detail TEXT,
+  state TEXT NOT NULL,
+  generated_at TEXT NOT NULL,
+  raised_by TEXT,
+  visible_at TEXT,
+  visible_to TEXT,
+  acknowledged_by TEXT,
+  acknowledged_at TEXT,
+  action_note TEXT,
+  actioned_by TEXT,
+  actioned_at TEXT,
+  resolved_by TEXT,
+  resolved_at TEXT,
+  resolution TEXT,
+  expires_on TEXT
+);
+CREATE INDEX alert_service ON alert(service_id, state);
+CREATE INDEX alert_person ON alert(person_id, state);
+CREATE INDEX alert_object ON alert(rule, object_id);
+`,
+  },
 ];

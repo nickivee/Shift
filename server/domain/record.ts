@@ -9,6 +9,7 @@ import { forPerson as escalationsFor } from './escalations.ts';
 import { forPerson as consultationsFor } from './consultations.ts';
 import { forPerson as referralsFor } from './referrals.ts';
 import { forPerson as appointmentsFor } from './appointments.ts';
+import { forPerson as alertsFor, activeRaised } from './alerts.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -167,6 +168,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     synthetic: p.data_source === 'SYNTHETIC',
     allergyStatus,
     allergies: reactions.map((a) => ({ kind: a.kind, substance: a.substance, reaction: a.reaction, severity: a.severity, certainty: a.certainty })),
+    alerts: activeRaised(store, personId),
   };
 }
 
@@ -296,6 +298,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'appointments':
       body = appointmentsFor(store, ctx, personId);
+      break;
+    case 'alerts':
+      body = alertsFor(store, ctx, personId);
       break;
     case 'routes':
       body = {

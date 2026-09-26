@@ -15,6 +15,7 @@ import * as escalations from '../domain/escalations.ts';
 import * as consultations from '../domain/consultations.ts';
 import * as referrals from '../domain/referrals.ts';
 import * as appointments from '../domain/appointments.ts';
+import * as alerts from '../domain/alerts.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
 import { KEYS, VIEWS } from '../config/keys.ts';
@@ -149,6 +150,10 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/wounds/:id/:action', (req) => wounds.act(store, work(req), req.params.id, req.params.action, { plan: str(req.body.plan), reviewDays: req.body.reviewDays, note: str(req.body.note) }));
   r.on('GET', '/api/work/consultations', (req) => consultations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/consultations', (req) => consultations.request(store, work(req), req.params.id, { target: str(req.body.target), question: str(req.body.question), urgency: str(req.body.urgency) }));
+  r.on('GET', '/api/work/alerts', (req) => alerts.list(store, work(req)));
+  r.on('GET', '/api/work/alerts/count', (req) => alerts.count(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/alerts', (req) => alerts.raise(store, work(req), req.params.id, { category: str(req.body.category), title: str(req.body.title), detail: str(req.body.detail), expiresOn: str(req.body.expiresOn) }));
+  r.on('POST', '/api/work/alerts/:id/:action', (req) => alerts.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('GET', '/api/work/appointments', (req) => appointments.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/appointments', (req) => appointments.request(store, work(req), req.params.id, { reason: str(req.body.reason), priority: str(req.body.priority), mode: str(req.body.mode) }));
   r.on('POST', '/api/work/appointments/:id/:action', (req) => appointments.act(store, work(req), req.params.id, req.params.action, {
