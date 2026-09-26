@@ -40,7 +40,8 @@ export type Capability =
   | 'diet.order'
   | 'meal.record'
   | 'equipment.use'
-  | 'equipment.manage';
+  | 'equipment.manage'
+  | 'bed.request';
 
 export interface HomeCard {
   id: string;
@@ -95,6 +96,7 @@ const CARD = {
   restrictions: { id: 'restrictions', label: 'Restrictions', required: true },
   meals: { id: 'meals', label: 'Diets and meals', required: true },
   equipment: { id: 'equipment', label: 'Equipment', required: true },
+  moves: { id: 'moves', label: 'Bed moves', required: true },
 } satisfies Record<string, HomeCard>;
 
 export const ROLES: RoleConfig[] = [
@@ -152,9 +154,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - RN',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Registered Nurse',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage', 'discharge.plan', 'discharge.complete', 'escalation.raise', 'wound.identify', 'wound.manage', 'careplan.manage', 'referral.request', 'alert.raise', 'communication.manage', 'monitoring.plan', 'monitoring.record', 'restriction.check', 'restriction.manage', 'diet.order', 'meal.record', 'equipment.use', 'equipment.manage'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'transfer.arrive', 'bed.manage', 'discharge.plan', 'discharge.complete', 'escalation.raise', 'wound.identify', 'wound.manage', 'careplan.manage', 'referral.request', 'alert.raise', 'communication.manage', 'monitoring.plan', 'monitoring.record', 'restriction.check', 'restriction.manage', 'diet.order', 'meal.record', 'equipment.use', 'equipment.manage', 'bed.request'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.assess', '.change', '.family', '.progress', '.task'],
-    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers', 'discharge', 'escalations', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment'],
+    views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'transfers', 'discharge', 'escalations', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'location'],
     tabs: [
       { id: 'list', label: 'Allocation' },
       { id: 'overview', label: 'Overview' },
@@ -170,7 +172,7 @@ export const ROLES: RoleConfig[] = [
       { id: 'handover', label: 'Handover' },
       { id: 'discharge', label: 'Discharge' },
     ],
-    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.wounds, CARD.careplans, CARD.referrals, CARD.alerts, CARD.communications, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment],
+    homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.wounds, CARD.careplans, CARD.referrals, CARD.alerts, CARD.communications, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment, CARD.moves],
     escalatesTo: ['genmed-physician'],
     refersTo: ['svc-physio'],
   },
@@ -180,9 +182,9 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'General Medicine - physician',
     evidenceStatus: 'Workflow-derived; specialty verification required',
     profession: 'Medical Practitioner',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage', 'appointment.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'result.review', 'knowledge.use', 'transfer.request', 'transfer.accept', 'discharge.plan', 'discharge.decide', 'escalation.raise', 'escalation.respond', 'consult.request', 'consult.respond', 'referral.request', 'referral.authorise', 'referral.triage', 'appointment.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'restriction.check', 'restriction.manage', 'diet.order', 'equipment.use', 'bed.request'],
     keys: ['.review', '.problem', '.assess', '.progress', '.family', '.task'],
-    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment'],
+    views: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'family', 'transfers', 'discharge', 'escalations', 'consults', 'wounds', 'referrals', 'appointments', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'location'],
     tabs: [
       { id: 'list', label: 'Patient List' },
       { id: 'overview', label: 'Overview' },
@@ -282,7 +284,7 @@ export const ROLES: RoleConfig[] = [
     keys: [],
     views: [],
     tabs: [],
-    homeCards: [CARD.flow, CARD.transfers, CARD.discharges],
+    homeCards: [CARD.flow, CARD.transfers, CARD.discharges, CARD.moves],
   },
   {
     roleKey: 'arc-rostering',

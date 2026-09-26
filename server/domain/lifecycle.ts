@@ -129,6 +129,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       FOLLOW_UP: ['COMPLETED'],
     },
   },
+  bedmove: {
+    table: 'bed_move',
+    initial: 'REQUESTED',
+    next: { REQUESTED: ['ALLOCATED', 'CANCELLED'], ALLOCATED: ['MOVED', 'REQUESTED', 'CANCELLED'] },
+  },
   equipment: {
     table: 'equipment',
     initial: 'AVAILABLE',

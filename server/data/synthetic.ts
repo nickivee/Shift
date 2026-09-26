@@ -22,7 +22,7 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
 ];
 
-const SET = 16;
+const SET = 17;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -336,6 +336,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 14) set14(store);
     if (at < 15) set15(store);
     if (at < 16) set16(store);
+    if (at < 17) set17(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1145,6 +1146,50 @@ function set16(store: Store): void {
     const om5 = item('svc-ed', 'OM-0105', 'OBS_MONITOR', 'Bedside monitor', 60);
     use(om5, person('ZZZ0148'), 'svc-ed', 'mere', 50, 'Hourly neuro observations', 'Blood pressure every 30 minutes', 'Alarms on, leads checked');
     item('svc-ed', 'IP-0501', 'INFUSION_PUMP', 'Volumetric infusion pump', 80);
+  });
+}
+
+// Set 17: bed features and history for Ward K. Every occupied bed gets its stay from when the
+// patient arrived. Peggy needs a low bed near the nurses' station after her fall; Sione has
+// been given the single room while his cough is looked into.
+function set17(store: Store): void {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const bed = (label: string) => store.get<{ id: string; state: string; person_id: string | null }>("SELECT id, state, person_id FROM bed WHERE service_id = 'svc-genmed' AND label = ?", label);
+  const features: Record<number, string> = {
+    1: 'SINGLE_ROOM,ENSUITE', 2: 'SINGLE_ROOM', 3: 'NEAR_STATION,OXYGEN,SUCTION', 4: 'OXYGEN,SUCTION', 5: 'OXYGEN', 6: 'OXYGEN',
+    7: 'OXYGEN', 8: 'BARIATRIC,OXYGEN', 9: 'OXYGEN', 10: 'OXYGEN', 11: 'NEAR_STATION,LOW_BED', 12: 'OXYGEN',
+  };
+  store.tx(() => {
+    for (const [n, f] of Object.entries(features)) store.run("UPDATE bed SET features = ? WHERE service_id = 'svc-genmed' AND label = ?", f, `Ward K Bed ${n}`);
+    for (const b of store.all<{ id: string; person_id: string; service_id: string }>(
+      "SELECT b.id, b.person_id, b.service_id FROM bed b WHERE b.state = 'OCCUPIED' AND b.person_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM bed_occupancy o WHERE o.bed_id = b.id AND o.until_at IS NULL)",
+    )) {
+      const since = store.get<{ at: string }>("SELECT started_at AS at FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", b.person_id, b.service_id)?.at ?? minsAgo(60 * 24);
+      store.insert('bed_occupancy', { id: newId(), bed_id: b.id, person_id: b.person_id, service_id: b.service_id, from_at: since, reason_in: 'Admitted' });
+    }
+    const move = (nhi: string, needs: string, reason: string, urgency: string, by: string, mins: number, to?: { label: string; by: string; mins: number; note?: string }) => {
+      const pid = person(nhi);
+      const requester = who(by);
+      const from = store.get<{ id: string }>("SELECT id FROM bed WHERE person_id = ? AND state = 'OCCUPIED'", pid ?? '');
+      if (!pid || !requester || !from) return;
+      const id = newId();
+      const target = to ? bed(to.label) : null;
+      const allocated = !!(to && target && target.state === 'AVAILABLE');
+      store.insert('bed_move', {
+        id, person_id: pid, service_id: 'svc-genmed', needs, reason, urgency, state: allocated ? 'ALLOCATED' : 'REQUESTED', from_bed_id: from.id,
+        bed_id: allocated ? target!.id : null, requested_by: requester, requested_at: minsAgo(mins),
+        allocated_by: allocated ? who(to!.by) : null, allocated_at: allocated ? minsAgo(to!.mins) : null, allocation_note: allocated ? to!.note ?? null : null,
+      });
+      store.insert('state_transition', { id: newId(), object_type: 'bedmove', object_id: id, from_state: null, to_state: 'REQUESTED', actor_id: requester, work_context_id: null, at: minsAgo(mins), reason, transaction_id: null });
+      if (allocated) {
+        store.run("UPDATE bed SET state = 'RESERVED', person_id = ?, updated_at = ? WHERE id = ?", pid, minsAgo(to!.mins), target!.id);
+        store.insert('state_transition', { id: newId(), object_type: 'bedmove', object_id: id, from_state: 'REQUESTED', to_state: 'ALLOCATED', actor_id: who(to!.by), work_context_id: null, at: minsAgo(to!.mins), reason: to!.label, transaction_id: null });
+      }
+    };
+    move('ZZZ0032', 'NEAR_STATION,LOW_BED', 'Fell last night getting up alone; needs to be seen easily', 'TODAY', 'nicki', 90);
+    move('ZZZ0024', 'SINGLE_ROOM', 'New cough and fever; sputum sent, keep apart until results', 'NOW', 'hannah', 40, { label: 'Ward K Bed 1', by: 'pita', mins: 25 });
   });
 }
 

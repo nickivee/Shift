@@ -38,6 +38,7 @@ export type Operation =
   | { op: 'RESTRICTION'; personId: string }
   | { op: 'DIET_ORDER'; personId: string }
   | { op: 'EQUIPMENT_USE'; personId: string }
+  | { op: 'BED_MOVE_REQUEST'; personId: string }
   | { op: 'MEAL_RECORD'; personId: string }
   | { op: 'RESTRICTION_CHECK'; personId: string }
   | { op: 'COMMUNICATION_ACT'; serviceId: string }
@@ -181,6 +182,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'diet.order') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can order their diet`));
+    case 'BED_MOVE_REQUEST':
+      return need(ctx, 'bed.request') ?? (rel === 'ENCOUNTER'
+        ? allow([ORG])
+        : block(`Only the service where this ${ctx.subjectLabel.toLowerCase()} is staying can ask to move them`));
     case 'EQUIPMENT_USE':
       return need(ctx, 'equipment.use') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])

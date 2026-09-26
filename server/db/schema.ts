@@ -1199,5 +1199,54 @@ CREATE TABLE equipment_event (
 );
 `,
   },
+  {
+    version: 17,
+    name: 'location and bed lifecycle',
+    sql: `
+-- Location / bed / care space (Shared Lifecycle Object 247): location requirement → placement
+-- request → bed allocated → patient movement → arrival → occupied → movement → vacated.
+-- Features describe the space; placement needs are matched against them and shown, never
+-- enforced, because the person allocating may know more than the record.
+ALTER TABLE bed ADD COLUMN features TEXT;
+
+CREATE TABLE bed_occupancy (
+  id TEXT PRIMARY KEY,
+  bed_id TEXT NOT NULL REFERENCES bed(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL,
+  from_at TEXT NOT NULL,
+  until_at TEXT,
+  reason_in TEXT,
+  reason_out TEXT
+);
+CREATE INDEX bed_occupancy_person ON bed_occupancy(person_id, from_at);
+CREATE INDEX bed_occupancy_bed ON bed_occupancy(bed_id, from_at);
+INSERT INTO bed_occupancy (id, bed_id, person_id, service_id, from_at, reason_in)
+  SELECT lower(hex(randomblob(16))), id, person_id, service_id, updated_at, 'Occupied when bed history began' FROM bed WHERE state = 'OCCUPIED' AND person_id IS NOT NULL;
+
+CREATE TABLE bed_move (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  needs TEXT,                           -- comma-separated bed features the patient needs
+  reason TEXT NOT NULL,
+  urgency TEXT NOT NULL,                -- ROUTINE | TODAY | NOW
+  state TEXT NOT NULL,                  -- REQUESTED | ALLOCATED | MOVED | CANCELLED
+  from_bed_id TEXT,
+  bed_id TEXT,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  allocated_by TEXT,
+  allocated_at TEXT,
+  allocation_note TEXT,
+  moved_by TEXT,
+  moved_at TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  close_reason TEXT
+);
+CREATE INDEX bed_move_service ON bed_move(service_id, state);
+`,
+  },
 ];
 
