@@ -1531,4 +1531,63 @@ CREATE INDEX external_info_person ON external_info(person_id, received_at);
 CREATE INDEX external_info_service ON external_info(service_id, state);
 `,
   },
+  {
+    version: 24,
+    name: 'clinical coding lifecycle',
+    sql: `
+-- Clinical coding / classification (Shared Lifecycle Object 255): source clinical information →
+-- coding requirement → code assignment → validation → finalised coding → amendment where
+-- appropriate. Codes are checked for form only until the official code tables are sourced
+-- (RR-CODE-001).
+CREATE TABLE coding_case (
+  id TEXT PRIMARY KEY,
+  encounter_id TEXT NOT NULL UNIQUE REFERENCES encounter(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),   -- the service whose episode is coded
+  organisation_id TEXT NOT NULL REFERENCES organisation(id),
+  state TEXT NOT NULL,                  -- REQUIRED | IN_PROGRESS | FINALISED
+  required_at TEXT NOT NULL,
+  required_reason TEXT NOT NULL,
+  coder_id TEXT,                        -- who is coding it
+  started_at TEXT,
+  finalised_by TEXT,
+  finalised_at TEXT,
+  amendments INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX coding_case_org ON coding_case(organisation_id, state);
+CREATE INDEX coding_case_person ON coding_case(person_id);
+
+CREATE TABLE coding_entry (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES coding_case(id),
+  system TEXT NOT NULL,                 -- ICD10AM | ACHI | SNOMEDCT
+  code TEXT NOT NULL,
+  term TEXT NOT NULL,
+  role TEXT NOT NULL,                   -- PRINCIPAL | ADDITIONAL | PROCEDURE
+  source_event_id TEXT REFERENCES clinical_event(id),
+  source_note TEXT,                     -- where in the record it comes from, when not one event
+  state TEXT NOT NULL,                  -- ACTIVE | REMOVED
+  added_by TEXT NOT NULL,
+  added_at TEXT NOT NULL,
+  removed_by TEXT,
+  removed_at TEXT,
+  removed_reason TEXT
+);
+CREATE INDEX coding_entry_case ON coding_entry(case_id, state);
+
+CREATE TABLE coding_query (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES coding_case(id),
+  service_id TEXT NOT NULL REFERENCES service(id),   -- the clinical service asked
+  question TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- OPEN | ANSWERED | WITHDRAWN
+  asked_by TEXT NOT NULL,
+  asked_at TEXT NOT NULL,
+  answer TEXT,
+  answered_by TEXT,
+  answered_at TEXT
+);
+CREATE INDEX coding_query_service ON coding_query(service_id, state);
+`,
+  },
 ];

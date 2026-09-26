@@ -30,6 +30,7 @@ import { capacityView } from './views/capacity.js';
 import { whanauView } from './views/whanau.js';
 import { interpretersView } from './views/access.js';
 import { externalView } from './views/external.js';
+import { codingView, codingCaseView, codingQueriesView } from './views/coding.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -100,6 +101,9 @@ const routes = [
   [/^\/work\/whanau$/, () => whanauView(), { work: true }],
   [/^\/work\/interpreters$/, () => interpretersView(), { work: true }],
   [/^\/work\/external$/, () => externalView(), { work: true }],
+  [/^\/work\/coding$/, () => codingView(), { work: true }],
+  [/^\/work\/coding-questions$/, () => codingQueriesView(), { work: true }],
+  [/^\/work\/coding\/([^/]+)$/, (m) => codingCaseView(m[1]), { work: true }],
   [/^\/notes$/, () => notesView()],
   [/^\/personal$/, () => personalView()],
   [/^\/personal\/([a-z-]+)$/, (m) => personalFunctionView(m[1])],

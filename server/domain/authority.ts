@@ -44,6 +44,8 @@ export type Operation =
   | { op: 'WHANAU'; personId: string }
   | { op: 'ACCESS'; personId: string }
   | { op: 'EXTERNAL'; personId: string }
+  | { op: 'CODING'; organisationId: string }
+  | { op: 'CODING_ANSWER'; serviceId: string }
   | { op: 'CAPACITY'; personId: string; cap: 'capacity.concern' | 'capacity.assess' }
   | { op: 'MEAL_RECORD'; personId: string }
   | { op: 'RESTRICTION_CHECK'; personId: string }
@@ -125,6 +127,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.destinationServiceId !== ctx.serviceId) return block('Destination is not your active service');
       if (o.destinationRoleKey && o.destinationRoleKey !== ctx.role.roleKey) return block('Destination is addressed to another role');
       return need(ctx, 'route.receive') ?? allow();
+    case 'CODING':
+      return need(ctx, 'coding.assign') ?? (o.organisationId === ctx.organisationId
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block('Only coders in the organisation that provided the care can code it'));
+    case 'CODING_ANSWER':
+      return need(ctx, 'coding.answer') ?? professional(ctx) ?? (o.serviceId === ctx.serviceId
+        ? allow([ORG, 'LAW-NZ-002'])
+        : block('Only the service that provided the care can answer a coding question about it'));
     default:
       break;
   }
@@ -262,7 +272,7 @@ function professional(ctx: WorkContext): AuthorityResult | null {
   return null;
 }
 
-export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'REFERRAL' | 'EXCEPTIONAL';
+export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'REFERRAL' | 'EXCEPTIONAL' | 'CODING_QUERY';
 
 export function relationship(store: Store, ctx: WorkContext, personId: string): Relationship | null {
   const enc = store.get("SELECT 1 FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, ctx.serviceId);
@@ -280,6 +290,13 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
     personId, ctx.serviceId, ctx.role.roleKey,
   );
   if (cs) return 'CONSULTATION';
+  // The treating service may read the record while a coder's question about its episode is open.
+  if (ctx.role.capabilities.includes('coding.answer')) {
+    const cq = store.get(
+      "SELECT 1 FROM coding_query q JOIN coding_case c ON c.id = q.case_id WHERE c.person_id = ? AND q.service_id = ? AND q.state = 'OPEN'", personId, ctx.serviceId,
+    );
+    if (cq) return 'CODING_QUERY';
+  }
   // A service that has been sent a referral may read the record: its triaging clinicians
   // from the moment it arrives, the rest of the service once the referral is accepted.
   const triage = ctx.role.capabilities.includes('referral.triage');

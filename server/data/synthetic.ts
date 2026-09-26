@@ -20,9 +20,10 @@ export const SYNTHETIC_USERS = [
   { username: 'ravi', label: 'Dr Ravi Singh, Emergency Physician (Emergency Department)' },
   { username: 'lena', label: 'Lena Fox, Physiotherapist (General Medicine caseload)' },
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
+  { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 23;
+const SET = 24;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -343,6 +344,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 21) set21(store);
     if (at < 22) set22(store);
     if (at < 23) set23(store);
+    if (at < 24) set24(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1532,5 +1534,105 @@ function set23(store: Store): void {
       title: 'Blister pack medicines list', name: 'Elsie Morgan', dob: '1933-07-12', u: 'kate', mins: 120,
       content: 'ELSIE MORGAN  12/07/1933\nDonepezil 5 mg at night\nParacetamol 1 g four times daily\nCholecalciferol 1.25 mg monthly',
     });
+  });
+}
+
+// Clinical coding (Object 255): a clinical coder, and hospital episodes at each stage.
+function set24(store: Store, password: string): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const DAY = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  store.insert('service', { id: 'svc-coding', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Clinical Coding', sector: 'Hospital operations', subject_label: 'Patient' });
+  const lee = newWorker(store, hashPassword(password), 'lee', 'Lee', 'Wong', 'Lee Wong');
+  const eid = newId();
+  store.insert('employment', { id: eid, workforce_person_id: lee, organisation_id: 'org-hosp', employment_type: 'PERMANENT', start_date: '2021-02-01' });
+  const pos = newId();
+  store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-coding', title: 'Clinical Coder', role_key: 'clinical-coder', start_date: '2021-02-01' });
+  const today = todayLocal();
+  for (let d = -7; d < 28; d++) {
+    const date = addDays(today, d);
+    const dow = new Date(`${date}T00:00:00`).getDay();
+    if (dow === 0 || dow === 6) continue;
+    store.insert('roster_shift', { id: newId(), workforce_person_id: lee, position_id: pos, service_id: 'svc-coding', shift_date: date, start_time: '08:00', end_time: '16:30', state: 'PLANNED', data_source: 'SYNTHETIC' });
+  }
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Episode {
+    nhi: string; service: string; location: string; kind: string; from: number; to: number; reason: string;
+    events: [string, string, string, string, number][];   // category, text, author username, role label, minutes ago
+  }
+  const episode = (x: Episode) => {
+    const pid = person(x.nhi);
+    if (!pid) return null;
+    const enc = newId();
+    store.insert('encounter', { id: enc, person_id: pid, service_id: x.service, location: x.location, kind: x.kind, started_at: ago(x.from), ended_at: ago(x.to), state: 'ENDED' });
+    const ids: string[] = [];
+    for (const [category, text, u, role, m] of x.events) {
+      const id = newId();
+      store.insert('clinical_event', {
+        id, lineage_id: id, version: 1, person_id: pid, encounter_id: enc, category, key_code: null, key_version: null, fields_json: '{}', rendered_text: text,
+        author_id: who(u), author_position_id: null, author_role_label: role, service_id: x.service, recorded_at: ago(m - 5), effective_at: ago(m), state: 'CURRENT',
+        urgent: 0, collection: 'DIRECT', data_source: 'SYNTHETIC',
+      });
+      ids.push(id);
+    }
+    const cid = newId();
+    store.insert('coding_case', { id: cid, encounter_id: enc, person_id: pid, service_id: x.service, organisation_id: 'org-hosp', state: 'REQUIRED', required_at: ago(x.to), required_reason: x.reason });
+    step('coding', cid, null, 'REQUIRED', lee, ago(x.to), x.reason);
+    return { cid, ids, pid };
+  };
+  const entry = (cid: string, system: string, code: string, term: string, role: string, source: string, mins: number) =>
+    store.insert('coding_entry', { id: newId(), case_id: cid, system, code, term, role, source_event_id: source, source_note: null, state: 'ACTIVE', added_by: lee, added_at: ago(mins) });
+  const DR = 'Physician, General Medicine';
+  const ED_DR = 'Emergency Physician, Emergency Department';
+  const ED_RN = 'Registered Nurse, Emergency Department';
+  store.tx(() => {
+    // Sione: his Emergency Department episode ended when General Medicine took over. Not coded yet.
+    episode({
+      nhi: 'ZZZ0024', service: 'svc-ed', location: 'Resus 1', kind: 'EMERGENCY', from: 27 * 60, to: 24 * 60, reason: 'Transferred to General Medicine',
+      events: [
+        ['TRIAGE', 'Triage: chest tightness at work for 45 minutes, pain 6/10, sweaty. Aspirin given by ambulance.', 'mere', ED_RN, 27 * 60 - 5],
+        ['MEDICAL', 'ECG: no ST elevation. High-sensitivity troponin 45 then 112 ng/L at 2 hours. Impression: NSTEMI. Plan: admit General Medicine, cardiology review.', 'ravi', ED_DR, 25 * 60],
+        ['DISPOSITION', 'Admitted to General Medicine, Ward K Bed 6.', 'ravi', ED_DR, 24 * 60 + 10],
+      ],
+    });
+    // Frank: a General Medicine stay for pneumonia, being coded, with a question to the ward.
+    const frank = episode({
+      nhi: 'ZZZ0075', service: 'svc-genmed', location: 'Ward K Bed 3', kind: 'INPATIENT', from: 25 * DAY, to: 19 * DAY, reason: 'Discharged: Residential care',
+      events: [
+        ['PROBLEM', 'Problem: Community-acquired pneumonia, right lower lobe (Active)', 'hannah', DR, 25 * DAY - 120],
+        ['REVIEW', 'Ward round. Impression: right lower lobe pneumonia. Plan: IV amoxicillin, then oral when afebrile.', 'hannah', DR, 24 * DAY],
+        ['PROGRESS', 'More confused overnight and pulling at his IV line. Settled with reorientation and his hearing aid in.', 'nicki', 'Registered Nurse, General Medicine', 23 * DAY],
+        ['REVIEW', 'Ward round. Afebrile 48 hours, eating well, back to his usual self. Oral amoxicillin to finish 7 days. Back to his rest home tomorrow.', 'hannah', DR, 20 * DAY],
+      ],
+    });
+    if (frank) {
+      store.run("UPDATE coding_case SET state = 'IN_PROGRESS', coder_id = ?, started_at = ? WHERE id = ?", lee, ago(DAY), frank.cid);
+      step('coding', frank.cid, 'REQUIRED', 'IN_PROGRESS', lee, ago(DAY), 'Coding started');
+      entry(frank.cid, 'ICD10AM', 'J18.9', 'Pneumonia, unspecified', 'PRINCIPAL', frank.ids[0], DAY - 20);
+      const qid = newId();
+      store.insert('coding_query', {
+        id: qid, case_id: frank.cid, service_id: 'svc-genmed', state: 'OPEN', asked_by: lee, asked_at: ago(DAY - 30),
+        question: 'The nursing note on day 2 says Frank was more confused overnight and pulling at his IV line. Was this delirium? If so, was it caused by the pneumonia?',
+      });
+      step('codingquery', qid, null, 'OPEN', lee, ago(DAY - 30), 'Question about confusion on day 2');
+    }
+    // Elsie: an Emergency Department visit after a fall, coded and finalised.
+    const elsie = episode({
+      nhi: 'ZZZ0067', service: 'svc-ed', location: 'Minors 2', kind: 'EMERGENCY', from: 12 * DAY, to: 12 * DAY - 180, reason: 'Discharged: Residential care',
+      events: [
+        ['TRIAGE', 'Triage: fall at her rest home, 4 cm skin tear to the left forearm. No head strike. Pain 3/10.', 'mere', ED_RN, 12 * DAY - 10],
+        ['PROCEDURE', 'Skin tear cleaned, flap laid back and closed with adhesive strips. Dressing on.', 'mere', ED_RN, 12 * DAY - 90],
+        ['DISPOSITION', 'Back to her rest home. Dressing check in 3 days by rest home nurse.', 'ravi', ED_DR, 12 * DAY - 170],
+      ],
+    });
+    if (elsie) {
+      store.run("UPDATE coding_case SET state = 'FINALISED', coder_id = ?, started_at = ?, finalised_by = ?, finalised_at = ? WHERE id = ?", lee, ago(11 * DAY), lee, ago(10 * DAY), elsie.cid);
+      step('coding', elsie.cid, 'REQUIRED', 'IN_PROGRESS', lee, ago(11 * DAY), 'Coding started');
+      step('coding', elsie.cid, 'IN_PROGRESS', 'FINALISED', lee, ago(10 * DAY), 'Coding finalised');
+      entry(elsie.cid, 'ICD10AM', 'S51.8', 'Open wound of other parts of forearm', 'PRINCIPAL', elsie.ids[0], 11 * DAY);
+      entry(elsie.cid, 'ICD10AM', 'W19', 'Unspecified fall', 'ADDITIONAL', elsie.ids[0], 11 * DAY);
+    }
   });
 }

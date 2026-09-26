@@ -6,6 +6,7 @@ import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 import { vacate } from './locations.ts';
+import { requireCoding } from './coding.ts';
 
 // Discharge (Shared Lifecycle Object 222):
 //   considered → readiness → decision → outstanding requirements → discharge.
@@ -174,6 +175,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         const at = now();
         store.run('UPDATE discharge SET discharged_by = ?, discharged_at = ? WHERE id = ?', ctx.workerId, at, id);
         store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = (SELECT encounter_id FROM discharge WHERE id = ?) AND state = 'ACTIVE'", at, id);
+        requireCoding(store, String(store.get<{ e: string }>('SELECT encounter_id AS e FROM discharge WHERE id = ?', id)?.e), `Discharged: ${d.destination}`, who);
         vacate(store, personId, ctx.serviceId, 'Discharged', at);
         store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", at, personId, ctx.serviceId);
         // Hospital services sharing this person's care (e.g. physiotherapy) end with the stay.

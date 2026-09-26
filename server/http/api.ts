@@ -25,6 +25,7 @@ import * as capacity from '../domain/capacity.ts';
 import * as whanau from '../domain/whanau.ts';
 import * as access from '../domain/access.ts';
 import * as external from '../domain/external.ts';
+import * as coding from '../domain/coding.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -203,6 +204,14 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/external/:id/:action', (req) => external.act(store, work(req), req.params.id, req.params.action, {
     ...receivedFields(req.body), personId: str(req.body.personId), summary: str(req.body.summary), outcome: str(req.body.outcome),
     outcomeNote: str(req.body.outcomeNote), note: str(req.body.note),
+  }));
+  r.on('GET', '/api/work/coding', (req) => coding.list(store, work(req)));
+  r.on('GET', '/api/work/coding/queries', (req) => coding.queries(store, work(req)));
+  r.on('POST', '/api/work/coding/queries/:id/answer', (req) => coding.answer(store, work(req), req.params.id, { answer: str(req.body.answer) }));
+  r.on('GET', '/api/work/coding/:id', (req) => coding.getCase(store, work(req), req.params.id));
+  r.on('POST', '/api/work/coding/:id/:action', (req) => coding.act(store, work(req), req.params.id, req.params.action, {
+    system: str(req.body.system), code: str(req.body.code), term: str(req.body.term), role: str(req.body.role), sourceEventId: str(req.body.sourceEventId),
+    sourceNote: str(req.body.sourceNote), entryId: str(req.body.entryId), queryId: str(req.body.queryId), question: str(req.body.question), note: str(req.body.note),
   }));
   r.on('GET', '/api/work/capacity', (req) => capacity.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/capacity', (req) => capacity.raise(store, work(req), req.params.id, { decision: str(req.body.decision), kind: str(req.body.kind), concern: str(req.body.concern) }));
