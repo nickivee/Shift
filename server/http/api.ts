@@ -24,6 +24,7 @@ import * as preferences from '../domain/preferences.ts';
 import * as capacity from '../domain/capacity.ts';
 import * as whanau from '../domain/whanau.ts';
 import * as access from '../domain/access.ts';
+import * as external from '../domain/external.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -191,6 +192,17 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/interpreters/:id/:action', (req) => access.actBooking(store, work(req), req.params.id, req.params.action, {
     provider: str(req.body.provider), reference: str(req.body.reference), interpreter: str(req.body.interpreter), outcome: str(req.body.outcome),
     familyInterpreted: req.body.familyInterpreted === true || req.body.familyInterpreted === 'true', note: str(req.body.note),
+  }));
+  const receivedFields = (b: Record<string, unknown>) => ({
+    sourceOrg: str(b.sourceOrg), sourceAuthor: str(b.sourceAuthor), kind: str(b.kind), channel: str(b.channel), writtenAt: str(b.writtenAt),
+    title: str(b.title), content: str(b.content), statedName: str(b.statedName), statedNhi: str(b.statedNhi), statedDob: str(b.statedDob),
+  });
+  r.on('GET', '/api/work/external', (req) => external.list(store, work(req)));
+  r.on('POST', '/api/work/external', (req) => external.receive(store, work(req), receivedFields(req.body)));
+  r.on('POST', '/api/work/patients/:id/external', (req) => external.receiveFor(store, work(req), req.params.id, receivedFields(req.body)));
+  r.on('POST', '/api/work/external/:id/:action', (req) => external.act(store, work(req), req.params.id, req.params.action, {
+    ...receivedFields(req.body), personId: str(req.body.personId), summary: str(req.body.summary), outcome: str(req.body.outcome),
+    outcomeNote: str(req.body.outcomeNote), note: str(req.body.note),
   }));
   r.on('GET', '/api/work/capacity', (req) => capacity.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/capacity', (req) => capacity.raise(store, work(req), req.params.id, { decision: str(req.body.decision), kind: str(req.body.kind), concern: str(req.body.concern) }));

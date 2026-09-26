@@ -277,6 +277,16 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 }
 .patient-whanau svg { width: 24px; height: 24px; flex: none; color: #2d6a4f; }
 .patient-whanau b { display: block; font-size: 13px; letter-spacing: .6px; color: #2d6a4f; }
+.patient-external {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #5b4a8b;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-external svg { width: 24px; height: 24px; flex: none; color: #5b4a8b; }
+.patient-external b { display: block; font-size: 13px; letter-spacing: .6px; color: #5b4a8b; }
+.external-unmatched { border-left: 6px solid #c0392b; }
+.candidate { border-top: 1px solid var(--tint); padding-top: 6px; gap: 8px; flex-wrap: wrap; }
+.candidate .tag { margin-right: 6px; }
 .patient-access {
   display: flex; align-items: center; gap: 10px;
   background: #fff; color: var(--ink); border: 2px solid #1f5f8b;

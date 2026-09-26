@@ -195,6 +195,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-IMPORT-001',
+    question: 'What must be done with clinical information received for someone who is not a patient of the service, or whose identity cannot be confirmed: return, forward, destroy or keep, and how that is recorded (HIPC 2020 rules 5 and 11).',
+    blocks: 'Returning, forwarding or destroying misdirected information. SHIFT marks it "not ours", keeps it out of every record, and holds it.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-RET-001',
     question: 'Retention and disposal basis for Personal Notes and other non-clinical working information.',
     blocks: 'Permanent deletion of Personal Notes (dismiss hides instead).',

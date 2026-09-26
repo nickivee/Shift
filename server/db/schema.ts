@@ -1488,5 +1488,47 @@ CREATE INDEX interpreter_booking_service ON interpreter_booking(service_id, stat
 CREATE INDEX interpreter_booking_person ON interpreter_booking(person_id, needed_at);
 `,
   },
+  {
+    version: 23,
+    name: 'external and imported clinical information lifecycle',
+    sql: `
+-- External / imported clinical information (Shared Lifecycle Object 254): external information
+-- received → patient matching → source identified → integrity/provenance retained → authorised
+-- availability → clinical review → incorporated or referenced → amendment/update from source.
+-- The content is never edited after receipt; its SHA-256 is kept to show it is unchanged.
+CREATE TABLE external_info (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),   -- the service it was sent to
+  person_id TEXT REFERENCES person(id),              -- set only once matched
+  source_org TEXT NOT NULL,                          -- who sent it
+  source_author TEXT,                                -- who wrote it at the source
+  source_kind TEXT NOT NULL,                         -- DISCHARGE_SUMMARY | GP_LETTER | SPECIALIST_LETTER | RESULT | MEDICINES | AMBULANCE | CARE_PLAN | OTHER
+  channel TEXT NOT NULL,                             -- ELECTRONIC | EMAIL | FAX | POST | HAND
+  written_at TEXT,                                   -- date written at the source
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  stated_name TEXT NOT NULL,                         -- identity as the sender gave it
+  stated_nhi TEXT,
+  stated_dob TEXT,
+  state TEXT NOT NULL,                               -- RECEIVED | MATCHED | INCORPORATED | REFERENCED | NOT_OURS | SUPERSEDED
+  received_by TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  matched_by TEXT,
+  matched_at TEXT,
+  match_checks TEXT,                                 -- which identifiers agreed, e.g. NHI,DOB,NAME
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_summary TEXT,                               -- what matters in it, in the reviewer's words
+  outcome_note TEXT,                                 -- what was done with it
+  not_ours_by TEXT,
+  not_ours_at TEXT,
+  not_ours_reason TEXT,
+  supersedes TEXT REFERENCES external_info(id),      -- the earlier version this updates
+  superseded_by TEXT REFERENCES external_info(id)
+);
+CREATE INDEX external_info_person ON external_info(person_id, received_at);
+CREATE INDEX external_info_service ON external_info(service_id, state);
+`,
+  },
 ];
-

@@ -27,6 +27,7 @@ const DESCRIPTIONS = {
   monitoring: () => 'Monitoring that is overdue or due soon for your patients.',
   whanau: () => 'Who each person wants involved, what may be shared, and people still to ask.',
   interpreters: () => 'Interpreters to book and coming up, and communication needs.',
+  external: () => 'Letters, summaries and results from other providers to match and review.',
   capacity: () => 'Capacity concerns waiting for you to assess, and reassessments due.',
   preferences: () => 'What matters to the people you are caring for, in their words, and any new to you.',
   absences: () => `Who is away on leave and when they are due back, and leave waiting to be approved.`,
@@ -39,7 +40,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external',
 };
 
 export function openTab(tabId) {
@@ -69,6 +70,7 @@ export async function homeView() {
     if (want.includes('alerts')) jobs.push(get('/api/work/alerts/count').then((d) => (counts.alerts = d.open)));
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
+    if (want.includes('external')) jobs.push(get('/api/work/external').then((d) => (counts.external = d.inbox.length + d.toReview.length)));
     if (want.includes('interpreters')) jobs.push(get('/api/work/interpreters').then((d) => (counts.interpreters = d.bookings.filter((b) => b.state === 'REQUESTED').length)));
     if (want.includes('whanau')) jobs.push(get('/api/work/whanau').then((d) => (counts.whanau = d.patients.filter((p) => p.toAsk).length)));
     if (want.includes('capacity')) jobs.push(get('/api/work/capacity').then((d) => (counts.capacity = d.assessments.filter((c) => c.state === 'RAISED' || c.reassessDue).length)));
