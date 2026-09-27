@@ -1864,4 +1864,40 @@ CREATE TABLE acuity_assessment (
 CREATE INDEX acuity_person ON acuity_assessment(person_id, state);
 `,
   },
+  {
+    version: 32,
+    name: 'deterioration event lifecycle',
+    sql: `
+-- Deterioration event (Shared Lifecycle Object 268): change detected → evidence → concern/trigger
+-- → escalation → clinical response → intervention → reassessment → outcome → further
+-- escalation/closure. The steps are kept in order; escalations and reassessments are linked
+-- records of their own (escalation, acuity_assessment).
+CREATE TABLE deterioration_event (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  change_text TEXT NOT NULL,
+  evidence_json TEXT,                   -- what SHIFT held when it was noticed
+  state TEXT NOT NULL,                  -- DETECTED | ESCALATED | RESPONDING | REASSESSED | CLOSED
+  detected_by TEXT NOT NULL REFERENCES workforce_person(id),
+  detected_at TEXT NOT NULL,
+  outcome TEXT,                         -- IMPROVED | STABLE_PLAN | HIGHER_CARE | DIED | OTHER
+  outcome_note TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+CREATE INDEX deterioration_person ON deterioration_event(person_id, state);
+CREATE INDEX deterioration_service ON deterioration_event(service_id, state);
+CREATE TABLE deterioration_step (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES deterioration_event(id),
+  kind TEXT NOT NULL,                   -- DETECTED | ESCALATED | RESPONSE | INTERVENTION | REASSESSMENT | OUTCOME
+  body TEXT NOT NULL,
+  link_id TEXT,                         -- the escalation or acuity assessment
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX deterioration_step_event ON deterioration_step(event_id, at);
+`,
+  },
 ];

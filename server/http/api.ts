@@ -33,6 +33,7 @@ import * as usual from '../domain/usual.ts';
 import * as assignments from '../domain/assignments.ts';
 import * as allocations from '../domain/allocations.ts';
 import * as acuity from '../domain/acuity.ts';
+import * as deterioration from '../domain/deterioration.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -217,6 +218,12 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/deterioration', (req) => deterioration.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/deterioration', (req) => deterioration.open(store, work(req), req.params.id, { change: str(req.body.change) }));
+  r.on('POST', '/api/work/deterioration/:id/:action', (req) => deterioration.act(store, work(req), req.params.id, req.params.action, {
+    roleKey: str(req.body.roleKey), urgency: str(req.body.urgency), trigger: str(req.body.trigger), note: str(req.body.note),
+    level: str(req.body.level), basis: str(req.body.basis), outcome: str(req.body.outcome),
+  }));
   r.on('GET', '/api/work/acuity', (req) => acuity.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/acuity', (req) => acuity.assess(store, work(req), req.params.id, { level: str(req.body.level), basis: str(req.body.basis) }));
   r.on('POST', '/api/work/acuity/:id/error', (req) => acuity.markError(store, work(req), req.params.id, { reason: str(req.body.reason) }));

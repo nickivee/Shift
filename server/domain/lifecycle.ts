@@ -189,6 +189,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'CURRENT',
     next: { CURRENT: ['SUPERSEDED', 'ENTERED_IN_ERROR'] },
   },
+  deterioration: {
+    table: 'deterioration_event',
+    initial: 'DETECTED',
+    next: {
+      DETECTED: ['ESCALATED', 'REASSESSED'], ESCALATED: ['RESPONDING', 'REASSESSED'], RESPONDING: ['ESCALATED', 'REASSESSED'],
+      REASSESSED: ['ESCALATED', 'RESPONDING', 'CLOSED'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
