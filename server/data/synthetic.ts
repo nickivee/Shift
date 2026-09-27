@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 44;
+const SET = 45;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -371,6 +371,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 42) set42(store);
     if (at < 43) set43(store);
     if (at < 44) set44(store);
+    if (at < 45) set45(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3118,4 +3119,61 @@ function set44(store: Store): void {
     dna: { days: 6, note: 'She was at the hairdresser when the optometrist came; not told about the booking.' } });
   rec({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'hannah', kind: 'HF_REVIEW', what: 'Heart failure nurse review', every: null, due: 16, setDays: 1,
     detail: 'Two weeks after he goes home: weight, swelling, furosemide dose.' });
+}
+
+// Follow-ups (Shared Lifecycle Object 284). From Ward K: a potassium recheck for James by his GP,
+// not yet confirmed; an outpatient falls review for Peggy, waiting for Physiotherapy to take it
+// on; cardiology for Wiremu, referred; the diabetes clinic for Sione, booked. From Kōwhai: Losa's
+// geriatrician review has happened and needs its outcome.
+function set45(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface F { nhi: string; u: string; from: [string, string]; what: string; reason?: string; due: number; madeDays: number; to?: [string, string]; external?: string;
+    accepted?: { days: number; told?: string; note: string }; arranged?: { days: number; link: string; ref: string }; scheduled?: { inDays: number; where: string; days: number };
+    completed?: { days: number; note: string } }
+  const fu = (x: F) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.completed ? 'COMPLETED' : x.scheduled ? 'SCHEDULED' : x.arranged ? 'ARRANGED' : x.accepted ? 'ACCEPTED' : 'REQUIRED';
+    store.insert('followup', {
+      id, person_id: pid, what: x.what, reason: x.reason ?? null, due_by: addDays(todayLocal(), x.due), state, previous_id: null, further_id: null,
+      from_service_id: x.from[0], from_role_key: x.from[1], made_by: by, made_at: ago(x.madeDays * day),
+      resp_kind: x.external ? 'EXTERNAL' : 'INTERNAL', to_service_id: x.to?.[0] ?? null, to_role_key: x.to?.[1] ?? null, external_name: x.external ?? null,
+      accepted_by: x.accepted ? by : null, accepted_at: x.accepted ? ago(x.accepted.days * day) : null, told: x.accepted?.told ?? null, accept_note: x.accepted?.note ?? null,
+      link_kind: x.arranged?.link ?? null, link_ref: x.arranged?.ref ?? null, arranged_by: x.arranged ? by : null, arranged_at: x.arranged ? ago(x.arranged.days * day) : null,
+      scheduled_for: x.scheduled ? new Date(Date.now() + x.scheduled.inDays * day * 60_000).toISOString() : null, scheduled_where: x.scheduled?.where ?? null,
+      completed_by: x.completed ? by : null, completed_at: x.completed ? ago(x.completed.days * day) : null, completed_note: x.completed?.note ?? null,
+      outcome: null, outcome_note: null, closed_by: null, closed_at: null, ended_note: null,
+    });
+    const steps: [string, string, string | null, string, number][] = [['REQUIRED', `${x.what}. By ${addDays(todayLocal(), x.due)}. Responsible: ${x.external ?? 'Physiotherapist, Physiotherapy'}.`, null, 'REQUIRED', x.madeDays]];
+    if (x.accepted) steps.push(['ACCEPTED', x.accepted.note, 'REQUIRED', 'ACCEPTED', x.accepted.days]);
+    if (x.arranged) steps.push(['ARRANGED', x.arranged.ref, 'ACCEPTED', 'ARRANGED', x.arranged.days]);
+    if (x.scheduled) steps.push(['SCHEDULED', `${x.scheduled.where}.`, 'ARRANGED', 'SCHEDULED', x.scheduled.days]);
+    if (x.completed) steps.push(['COMPLETED', x.completed.note, x.scheduled ? 'SCHEDULED' : 'ARRANGED', 'COMPLETED', x.completed.days]);
+    for (const [kind, body, from, to, days] of steps) {
+      store.insert('followup_log', { id: newId(), followup_id: id, kind, body, by_id: by, at: ago(days * day) });
+      store.insert('state_transition', { id: newId(), object_type: 'followup', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(days * day), reason: null, transaction_id: null });
+    }
+  };
+  const GM: [string, string] = ['svc-genmed', 'genmed-physician'];
+  fu({ nhi: 'ZZZ0040', u: 'hannah', from: GM, what: 'GP to recheck potassium within a week of going home', reason: 'Potassium 3.1; on oral replacement.', due: 7, madeDays: 0.1,
+    external: 'Dr Priya Nair, Onehunga Health (GP)' });
+  fu({ nhi: 'ZZZ0032', u: 'hannah', from: GM, what: 'Outpatient falls and balance review', reason: 'Two falls this year; walking with a frame.', due: 42, madeDays: 0.5,
+    to: ['svc-physio', 'physio'] });
+  fu({ nhi: 'ZZZ0016', u: 'hannah', from: GM, what: 'Cardiology review of his heart failure', due: 40, madeDays: 2, external: 'Cardiology outpatients, Auckland City Hospital',
+    accepted: { days: 2, told: 'EREFERRAL', note: 'Registrar accepted the referral.' },
+    arranged: { days: 2, link: 'REFERRAL', ref: 'eReferral to Cardiology' } });
+  fu({ nhi: 'ZZZ0024', u: 'hannah', from: GM, what: 'Diabetes clinic review of his insulin', due: 30, madeDays: 1, external: 'Diabetes Service, Greenlane',
+    accepted: { days: 1, told: 'PHONE', note: 'Clinic nurse Mei booked him in.' },
+    arranged: { days: 1, link: 'APPOINTMENT', ref: 'Clinic booking by phone' },
+    scheduled: { inDays: 20, where: 'Greenlane Clinical Centre, Clinic 3', days: 1 } });
+  fu({ nhi: 'ZZZ0083', u: 'nicki', from: ['svc-arc', 'arc-rn'], what: 'Geriatrician review of her memory and falls', due: 5, madeDays: 40, external: 'Dr Mark Tipene, geriatrician',
+    accepted: { days: 40, told: 'OTHER', note: 'GP referral accepted by the clinic.' },
+    arranged: { days: 39, link: 'REFERRAL', ref: 'GP referral to the older adults clinic' },
+    scheduled: { inDays: -3, where: 'Older adults clinic, Greenlane', days: 30 },
+    completed: { days: 2, note: 'Seen with Mele on Wednesday; clinic letter received.' } });
 }

@@ -292,6 +292,15 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       BOOKED: ['DONE', 'DID_NOT_ATTEND', 'EXITED', 'ENTERED_IN_ERROR'], DID_NOT_ATTEND: ['INVITED', 'EXITED', 'ENTERED_IN_ERROR'],
     },
   },
+  followup: {
+    table: 'followup',
+    initial: 'REQUIRED',
+    next: {
+      REQUIRED: ['ACCEPTED', 'DECLINED', 'CANCELLED', 'ENTERED_IN_ERROR'], DECLINED: ['CANCELLED', 'ENTERED_IN_ERROR'],
+      ACCEPTED: ['ARRANGED', 'CANCELLED', 'ENTERED_IN_ERROR'], ARRANGED: ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      SCHEDULED: ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'ENTERED_IN_ERROR'], COMPLETED: ['CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
