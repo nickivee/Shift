@@ -301,6 +301,19 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       SCHEDULED: ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'ENTERED_IN_ERROR'], COMPLETED: ['CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  survplan: {
+    table: 'surveillance_plan',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ACTIVE', 'CEASED', 'ENTERED_IN_ERROR'] },
+  },
+  survcheck: {
+    table: 'surveillance_check',
+    initial: 'DUE',
+    next: {
+      DUE: ['PERFORMED', 'NOT_DONE', 'CANCELLED', 'ENTERED_IN_ERROR'], PERFORMED: ['RESULTED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      RESULTED: ['REVIEWED', 'ENTERED_IN_ERROR'], NOT_DONE: ['REVIEWED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

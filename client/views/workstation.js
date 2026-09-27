@@ -42,6 +42,7 @@ import { requirementsPanel } from './requirements.js';
 import { careDuePanel } from './caredue.js';
 import { recallsPanel } from './recalls.js';
 import { followupsPanel } from './followups.js';
+import { surveillancePanel } from './surveillance.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -376,6 +377,7 @@ export async function workstationView(personId, initialView) {
       case 'caredue': return careDuePanel(personId, d, () => go(`/work/patient/${personId}/caredue`));
       case 'recalls': return recallsPanel(personId, d, () => go(`/work/patient/${personId}/recalls`));
       case 'followups': return followupsPanel(personId, d, () => go(`/work/patient/${personId}/followups`));
+      case 'surveillance': return surveillancePanel(personId, d, () => go(`/work/patient/${personId}/surveillance`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));

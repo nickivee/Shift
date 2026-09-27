@@ -2609,4 +2609,65 @@ CREATE TABLE followup_log (
 CREATE INDEX followup_log_f ON followup_log(followup_id, at);
 `,
   },
+  {
+    version: 46,
+    name: 'surveillance plan lifecycle',
+    sql: `
+-- Surveillance plan: need → interval/trigger → required check → due → performed → result →
+-- review → continue/change/stop. One open check at a time.
+CREATE TABLE surveillance_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  need TEXT NOT NULL,
+  investigation TEXT NOT NULL,
+  every_days INTEGER,                   -- null: only when triggered
+  trigger_text TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | CEASED | ENTERED_IN_ERROR
+  set_by TEXT NOT NULL REFERENCES workforce_person(id),
+  set_at TEXT NOT NULL,
+  cease_reason TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX surveillance_plan_person ON surveillance_plan(person_id, state);
+CREATE INDEX surveillance_plan_service ON surveillance_plan(service_id, state);
+CREATE TABLE surveillance_check (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES surveillance_plan(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  due_date TEXT NOT NULL,
+  why TEXT,
+  state TEXT NOT NULL,                  -- DUE | PERFORMED | RESULTED | NOT_DONE | REVIEWED | CANCELLED | ENTERED_IN_ERROR
+  created_by TEXT NOT NULL REFERENCES workforce_person(id),
+  created_at TEXT NOT NULL,
+  performed_by TEXT,
+  performed_at TEXT,
+  performed_note TEXT,
+  result_by TEXT,
+  result_at TEXT,
+  result TEXT,
+  finding TEXT,
+  not_done_reason TEXT,
+  not_done_note TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  decision TEXT,
+  review_note TEXT
+);
+CREATE INDEX surveillance_check_plan ON surveillance_check(plan_id, state);
+CREATE TABLE surveillance_log (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES surveillance_plan(id),
+  check_id TEXT,
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX surveillance_log_plan ON surveillance_log(plan_id, at);
+`,
+  },
 ];

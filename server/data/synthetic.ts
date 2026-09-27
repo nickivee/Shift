@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 45;
+const SET = 46;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -372,6 +372,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 43) set43(store);
     if (at < 44) set44(store);
     if (at < 45) set45(store);
+    if (at < 46) set46(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3176,4 +3177,76 @@ function set45(store: Store): void {
     arranged: { days: 39, link: 'REFERRAL', ref: 'GP referral to the older adults clinic' },
     scheduled: { inDays: -3, where: 'Older adults clinic, Greenlane', days: 30 },
     completed: { days: 2, note: 'Seen with Mele on Wednesday; clinic letter received.' } });
+}
+
+// Surveillance plans (Shared Lifecycle Object 285). On Ward K: Wiremu's kidney function and
+// potassium after starting spironolactone, bloods taken this morning with a result for Hannah to
+// review; James's INR, overdue; Peggy's neuro checks after a fall on apixaban, only when triggered.
+// At Kōwhai: Elsie's skin lesion on her nose, photographed monthly, due in five days; Bill's daily
+// weight for heart failure, due today.
+function set46(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface C { due: number; created: number; state: string; performed?: [string, number, string?]; result?: [string, number, string, string];
+    notDone?: [string, string]; reviewed?: [string, number, string, string] }
+  interface P { nhi: string; svc: string; u: string; kind: string; need: string; check: string; every: number | null; trigger?: string; setDays: number; checks: C[] }
+  const plan = (x: P) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('surveillance_plan', {
+      id, person_id: pid, service_id: x.svc, kind: x.kind, need: x.need, investigation: x.check, every_days: x.every, trigger_text: x.trigger ?? null,
+      state: 'ACTIVE', set_by: by, set_at: ago(x.setDays * day),
+    });
+    const log = (checkId: string | null, kind: string, body: string, u: string, mins: number) =>
+      store.insert('surveillance_log', { id: newId(), plan_id: id, check_id: checkId, kind, body, by_id: who(u) ?? by, at: ago(mins) });
+    const move = (type: string, oid: string, from: string | null, to: string, u: string, mins: number) =>
+      store.insert('state_transition', { id: newId(), object_type: type, object_id: oid, from_state: from, to_state: to, actor_id: who(u) ?? by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    move('survplan', id, null, 'ACTIVE', x.u, x.setDays * day);
+    log(null, 'SET_UP', `${x.need} Check: ${x.check}. ${x.every ? (x.every === 1 ? 'Every day' : x.every === 7 ? 'Every week' : `Every ${x.every} days`) : 'Only when triggered'}.${x.trigger ? ` Also when: ${x.trigger}.` : ''}`, x.u, x.setDays * day);
+    for (const c of x.checks) {
+      const cid = newId();
+      const due = addDays(todayLocal(), c.due);
+      store.insert('surveillance_check', {
+        id: cid, plan_id: id, person_id: pid, due_date: due, why: 'Scheduled', state: c.state, created_by: by, created_at: ago(c.created * day),
+        performed_by: c.performed ? who(c.performed[0]) : c.notDone ? who(x.u) : null, performed_at: c.performed ? ago(c.performed[1] * day) : c.notDone ? ago(c.created * day - 60) : null,
+        performed_note: c.performed?.[2] ?? null,
+        result_by: c.result ? who(c.result[0]) : null, result_at: c.result ? ago(c.result[1] * day) : null, result: c.result?.[2] ?? null, finding: c.result?.[3] ?? null,
+        not_done_reason: c.notDone?.[0] ?? null, not_done_note: c.notDone?.[1] ?? null,
+        reviewed_by: c.reviewed ? who(c.reviewed[0]) : null, reviewed_at: c.reviewed ? ago(c.reviewed[1] * day) : null, decision: c.reviewed?.[2] ?? null, review_note: c.reviewed?.[3] ?? null,
+      });
+      move('survcheck', cid, null, 'DUE', x.u, c.created * day);
+      log(cid, 'DUE', `Check due ${due}.`, x.u, c.created * day);
+      let last = 'DUE';
+      if (c.performed) { move('survcheck', cid, last, 'PERFORMED', c.performed[0], c.performed[1] * day); log(cid, 'PERFORMED', c.performed[2] ?? 'Done. Result to follow.', c.performed[0], c.performed[1] * day); last = 'PERFORMED'; }
+      if (c.notDone) { move('survcheck', cid, last, 'NOT_DONE', x.u, c.created * day - 60); log(cid, 'NOT_DONE', c.notDone[1], x.u, c.created * day - 60); last = 'NOT_DONE'; }
+      if (c.result) { move('survcheck', cid, last, 'RESULTED', c.result[0], c.result[1] * day); log(cid, 'RESULT', c.result[2], c.result[0], c.result[1] * day); last = 'RESULTED'; }
+      if (c.reviewed) { move('survcheck', cid, last, 'REVIEWED', c.reviewed[0], c.reviewed[1] * day); log(cid, 'REVIEWED', `Continue as planned. ${c.reviewed[3]}`, c.reviewed[0], c.reviewed[1] * day); }
+    }
+  };
+  plan({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'hannah', kind: 'KIDNEY_POTASSIUM', need: 'Started spironolactone for heart failure; risk of high potassium and worse kidney function.',
+    check: 'Creatinine, eGFR and potassium', every: 2, setDays: 3,
+    checks: [{ due: -1, created: 3, state: 'RESULTED', performed: ['nicki', 0.25, 'Bloods taken at 0600, sent to the lab.'],
+      result: ['nicki', 0.1, 'Potassium 5.4 (was 4.6), creatinine 128 (was 110)', 'CHANGED'] }] });
+  plan({ nhi: 'ZZZ0040', svc: 'svc-genmed', u: 'hannah', kind: 'INR', need: 'On warfarin for atrial fibrillation; interacting antibiotic started.', check: 'INR', every: 2, setDays: 4,
+    checks: [
+      { due: -4, created: 4, state: 'REVIEWED', performed: ['nicki', 3.9], result: ['nicki', 3.8, 'INR 2.6', 'EXPECTED'], reviewed: ['hannah', 3.7, 'CONTINUE', 'In range; same dose.'] },
+      { due: -2, created: 3.7, state: 'DUE' }] });
+  plan({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'hannah', kind: 'NEURO_FALL', need: 'Fell on the ward while on apixaban; CT head clear.', check: 'Conscious level, pupils and limb power', every: null,
+    trigger: 'If she falls again, hits her head, or becomes drowsy or confused', setDays: 2,
+    checks: [{ due: -2, created: 2, state: 'REVIEWED', performed: ['nicki', 1.9], result: ['nicki', 1.9, 'GCS 15, pupils equal and reacting, power normal in all limbs', 'EXPECTED'],
+      reviewed: ['hannah', 1.5, 'CONTINUE', 'Normal; only recheck if something happens.'] }] });
+  plan({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', kind: 'SKIN_LESION', need: 'Scaly lesion on the left side of her nose; GP and Elsie chose to watch it rather than biopsy.',
+    check: 'Photograph and measure the lesion', every: 28, setDays: 30,
+    checks: [
+      { due: -23, created: 30, state: 'REVIEWED', performed: ['nicki', 23, 'Photo in the chart.'], result: ['nicki', 23, '6 mm by 5 mm, no bleeding', 'EXPECTED'], reviewed: ['nicki', 23, 'CONTINUE', 'Same size as the GP measured.'] },
+      { due: 5, created: 23, state: 'DUE' }] });
+  plan({ nhi: 'ZZZ0091', svc: 'svc-arc', u: 'nicki', kind: 'WEIGHT_HF', need: 'Heart failure; furosemide dose depends on his weight. Tell the RN if up 1 kg in a day or 2 kg in a week.',
+    check: 'Weigh at the same time each day, same scales', every: 1, setDays: 20,
+    checks: [
+      { due: -1, created: 2, state: 'REVIEWED', performed: ['tama', 1], result: ['tama', 1, '78.2 kg', 'EXPECTED'], reviewed: ['nicki', 0.9, 'CONTINUE', 'Steady.'] },
+      { due: 0, created: 0.9, state: 'DUE' }] });
 }
