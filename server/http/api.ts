@@ -41,6 +41,7 @@ import * as symptoms from '../domain/symptoms.ts';
 import * as interventions from '../domain/interventions.ts';
 import * as treatmentplans from '../domain/treatmentplans.ts';
 import * as pathways from '../domain/pathways.ts';
+import * as checklists from '../domain/checklists.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -225,6 +226,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/checklists', (req) => checklists.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/checklists', (req) => checklists.requireChecklist(store, work(req), req.params.id, {
+    templateId: str(req.body.templateId), reason: str(req.body.reason),
+  }));
+  r.on('POST', '/api/work/checklists/:id/:action', (req) => checklists.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), itemId: str(req.body.itemId), result: str(req.body.result), evidence: str(req.body.evidence),
+    roleKey: str(req.body.roleKey), urgency: str(req.body.urgency),
+  }));
   r.on('GET', '/api/work/pathways', (req) => pathways.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/pathways', (req) => pathways.start(store, work(req), req.params.id, {
     pathwayId: str(req.body.pathwayId), answers: req.body.answers, note: str(req.body.note),

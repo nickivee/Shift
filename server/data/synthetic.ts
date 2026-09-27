@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 39;
+const SET = 40;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -366,6 +366,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 37) set37(store);
     if (at < 38) set38(store);
     if (at < 39) set39(store);
+    if (at < 40) set40(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2815,4 +2816,84 @@ function set39(store: Store): void {
       monitor: { state: 'DONE', u: 'grace', mins: 4 * 24 * 60 - 55 }, review: { state: 'DONE', u: 'hannah', mins: 4 * 24 * 60 - 6 * 60, note: 'Fever settling.' },
     },
     ended: { u: 'hannah', mins: 4 * 24 * 60 - 6 * 60 } });
+}
+
+// Checklists (the checklist lifecycle under Shared Lifecycle Object 278): Peggy's bedside
+// safety check with an open exception (a bed brake that will not lock); Aroha's admission
+// checklist completed with one exception fixed; Tom's before-transfer checklist in the ED,
+// overdue; Rua's bedside safety check not started.
+function set40(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const defs: Record<string, { label: string; dueMins: number; items: [string, string, string | null][] }> = {
+    SAFETY_ROUND: { label: 'Bedside safety check', dueMins: 120, items: [
+      ['bell', 'Call bell within reach and working', null], ['bed', 'Bed at its lowest height with the brakes on', null], ['aid', 'Walking aid within reach', null],
+      ['floor', 'Floor clear and dry', null], ['drink', 'Drink within reach', null], ['band', 'Identity band on and correct', null]] },
+    ADMISSION: { label: 'Admission checklist', dueMins: 24 * 60, items: [
+      ['identity', 'Identity checked with the person and band on', null], ['allergies', 'Allergies checked with the person', 'What they said'],
+      ['medicines', 'Medicines list taken', 'Where from, e.g. GP list, own supply'], ['contact', 'Whānau or contact person recorded', null],
+      ['falls', 'Falls risk assessed', null], ['skin', 'Skin and pressure injury risk assessed', null], ['belongings', 'Belongings and valuables listed', null]] },
+    TRANSFER_OUT: { label: 'Before transfer', dueMins: 60, items: [
+      ['handover', 'Handover given to the receiving team', 'Who took the handover'], ['meds', 'Medicines chart and own medicines go with them', null],
+      ['belongings', 'Belongings packed', null], ['whanau', 'Whānau told where they are going', null], ['escort', 'Escort and transport arranged', null]] },
+  };
+  interface I { state: string; u: string; mins: number; evidence?: string; note?: string; resolution?: { u: string; mins: number; note: string } }
+  interface C { nhi: string; service: string; template: string; state: string; u: string; mins: number; reason?: string; items?: Record<string, I>; ended?: { u: string; mins: number } }
+  const LOG: Record<string, string> = { DONE: 'DONE', NOT_APPLICABLE: 'NOT_APPLICABLE', EXCEPTION: 'EXCEPTION', RESOLVED: 'EXCEPTION' };
+  const checklist = (x: C) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const def = defs[x.template];
+    const id = newId();
+    store.insert('checklist', {
+      id, person_id: pid, service_id: x.service, template_id: x.template, state: x.state, due_at: ago(x.mins - def.dueMins), reason: x.reason ?? null,
+      required_by: by, required_at: ago(x.mins), ended_by: x.ended ? who(x.ended.u) : null, ended_at: x.ended ? ago(x.ended.mins) : null, end_note: null,
+    });
+    const logs: [string, string, string, number][] = [['REQUIRED', `${def.label}.${x.reason ? ` ${x.reason}` : ''}`, by, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, 'REQUIRED', by, x.mins]];
+    let first = Infinity;
+    def.items.forEach(([key, label, evidenceLabel], i) => {
+      const it = x.items?.[key];
+      store.insert('checklist_item', {
+        id: newId(), checklist_id: id, item_key: key, label, seq: i, evidence_label: evidenceLabel, state: it?.state ?? 'DUE', evidence: it?.evidence ?? null, note: it?.note ?? null,
+        by_id: it ? who(it.u) : null, at: it ? ago(it.mins) : null, resolution: it?.resolution?.note ?? null, resolved_by: it?.resolution ? who(it.resolution.u) : null,
+        resolved_at: it?.resolution ? ago(it.resolution.mins) : null, escalation_id: null,
+      });
+      if (it) {
+        first = first === Infinity ? it.mins : Math.max(first, it.mins);
+        logs.push([LOG[it.state], `${label}.${it.evidence ? ` ${evidenceLabel}: ${it.evidence}.` : ''}${it.note ? ` ${it.note}` : ''}`, who(it.u)!, it.mins]);
+        if (it.resolution) logs.push(['RESOLVED', `${label}. ${it.resolution.note}`, who(it.resolution.u)!, it.resolution.mins]);
+      }
+    });
+    if (first !== Infinity) trans.push(['REQUIRED', 'IN_PROGRESS', by, first]);
+    if (x.ended) { logs.push(['COMPLETED', 'Every item checked.', who(x.ended.u)!, x.ended.mins]); trans.push(['IN_PROGRESS', 'COMPLETED', who(x.ended.u)!, x.ended.mins]); }
+    for (const [kind, body, b, mins] of logs.sort((a, c) => c[3] - a[3])) store.insert('checklist_log', { id: newId(), checklist_id: id, kind, body, by_id: b, at: ago(mins) });
+    for (const [from, to, b, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'checklist', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  checklist({ nhi: 'ZZZ0032', service: 'svc-genmed', template: 'SAFETY_ROUND', state: 'IN_PROGRESS', u: 'grace', mins: 100, reason: 'After her fall.',
+    items: {
+      bell: { state: 'DONE', u: 'grace', mins: 90 },
+      bed: { state: 'EXCEPTION', u: 'grace', mins: 88, note: 'Brake on the left side will not lock; bed moves when she sits on the edge.' },
+      aid: { state: 'DONE', u: 'grace', mins: 87 },
+      floor: { state: 'DONE', u: 'grace', mins: 86 },
+    } });
+  checklist({ nhi: 'ZZZ9999', service: 'svc-genmed', template: 'ADMISSION', state: 'COMPLETED', u: 'nicki', mins: 2 * 24 * 60,
+    items: {
+      identity: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 10 },
+      allergies: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 12, evidence: 'Penicillin: rash as a child' },
+      medicines: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 30, evidence: 'GP list and her own supply' },
+      contact: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 35 },
+      falls: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 60 },
+      skin: { state: 'RESOLVED', u: 'nicki', mins: 2 * 24 * 60 - 62, note: 'No pressure-relieving mattress on the bed.', resolution: { u: 'grace', mins: 2 * 24 * 60 - 180, note: 'Air mattress fitted.' } },
+      belongings: { state: 'DONE', u: 'nicki', mins: 2 * 24 * 60 - 70 },
+    },
+    ended: { u: 'grace', mins: 2 * 24 * 60 - 181 } });
+  checklist({ nhi: 'ZZZ0148', service: 'svc-ed', template: 'TRANSFER_OUT', state: 'IN_PROGRESS', u: 'mere', mins: 80, reason: 'Going to Ward K.',
+    items: {
+      meds: { state: 'DONE', u: 'mere', mins: 70 },
+      belongings: { state: 'DONE', u: 'mere', mins: 69 },
+    } });
+  checklist({ nhi: 'ZZZ0059', service: 'svc-arc', template: 'SAFETY_ROUND', state: 'REQUIRED', u: 'kate', mins: 30, reason: 'New confusion; check her room.' });
 }

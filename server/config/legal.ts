@@ -243,6 +243,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-CHK-001',
+    question: 'Which checklists New Zealand law, regulators or national programmes require in each setting (for example the surgical safety checklist, admission and transfer checks, and environmental safety checks under Ngā paerewa), their required items, and how completion must be evidenced.',
+    blocks: 'Using mandated checklists. SHIFT\'s three checklists are the synthetic organisation\'s own and only record what was checked.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

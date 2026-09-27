@@ -706,13 +706,13 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.treatment-completed, .tile.treatment-stopped, .tile.treatment-entered_in_error { border-left: 6px solid var(--ink-soft); }
 
 /* Pathways */
-.patient-pathways {
+.patient-pathways, .patient-checks {
   display: flex; align-items: center; gap: 10px;
   background: #fff; color: var(--ink); border: 2px solid var(--danger);
   border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
 }
-.patient-pathways svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
-.patient-pathways b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.patient-pathways svg, .patient-checks svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-pathways b, .patient-checks b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
 .pathway h3 { margin: 0; font-size: 17px; }
 .pathway-steps, .pathway-deviations { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .pathway-steps li, .pathway-deviations li { background: var(--tint); border: 2px solid transparent; border-radius: 10px; padding: 6px 10px; }
@@ -723,3 +723,14 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.pathway-suggested { border-left: 6px solid var(--warn); }
 .tile.pathway-overdue { border-left: 6px solid var(--danger); }
 .tile.pathway-completed, .tile.pathway-exited, .tile.pathway-declined, .tile.pathway-entered_in_error { border-left: 6px solid var(--ink-soft); }
+
+/* Checklists */
+.checklist h3 { margin: 0; font-size: 17px; }
+.checklist-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.checklist-items li { background: var(--tint); border: 2px solid transparent; border-radius: 10px; padding: 6px 10px; }
+.checklist-items li.exception { border-color: var(--danger); background: var(--danger-bg); }
+.checklist-items .row { gap: 6px; flex-wrap: nowrap; }
+.tile.checklist-in_progress { border-left: 6px solid var(--ok); }
+.tile.checklist-required { border-left: 6px solid var(--warn); }
+.tile.checklist-overdue, .tile.checklist-exception { border-left: 6px solid var(--danger); }
+.tile.checklist-completed, .tile.checklist-cancelled, .tile.checklist-entered_in_error { border-left: 6px solid var(--ink-soft); }

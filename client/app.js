@@ -46,6 +46,7 @@ import { symptomsView } from './views/symptoms.js';
 import { interventionsView } from './views/interventions.js';
 import { treatmentPlansView } from './views/treatmentplans.js';
 import { pathwaysView } from './views/pathways.js';
+import { checklistsView } from './views/checklists.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -129,6 +130,7 @@ const routes = [
   [/^\/work\/interventions$/, () => interventionsView(), { work: true }],
   [/^\/work\/treatment-plans$/, () => treatmentPlansView(), { work: true }],
   [/^\/work\/pathways$/, () => pathwaysView(), { work: true }],
+  [/^\/work\/checklists$/, () => checklistsView(), { work: true }],
   [/^\/work\/deterioration$/, () => deteriorationView(), { work: true }],
   [/^\/work\/acuity$/, () => acuityView(), { work: true }],
   [/^\/work\/allocation$/, () => allocationView(), { work: true }],
