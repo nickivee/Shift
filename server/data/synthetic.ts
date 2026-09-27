@@ -24,7 +24,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 27;
+const SET = 28;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -349,6 +349,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 25) set25(store);
     if (at < 26) set26(store);
     if (at < 27) set27(store);
+    if (at < 28) set28(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1839,5 +1840,68 @@ function set27(store: Store): void {
       nhi: 'ZZZ0075', service: 'svc-arc', activity: 'TRANSFERS', what: 'Trial of the standing hoist instead of the full hoist', u: 'kate', mins: 60 * 24 * 40, started: 60 * 24 * 38,
       stopped: { mins: 60 * 24 * 30, outcome: 'Could not take his weight through his knees. Back to the full hoist.' },
     });
+  });
+}
+
+function set28(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  const usual = (x: { nhi: string; service: string; domain: string; statement?: string; low?: number; high?: number; source: string; sourceName?: string; u: string; mins: number; state?: string; supersedes?: string }) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return null;
+    const id = newId();
+    store.insert('usual_state', {
+      id, person_id: pid, service_id: x.service, domain: x.domain, statement: x.statement ?? null, low: x.low ?? null, high: x.high ?? null,
+      source: x.source, source_name: x.sourceName ?? null, recorded_by: by, recorded_at: ago(x.mins), state: x.state ?? 'CURRENT', supersedes: x.supersedes ?? null,
+    });
+    step('usual', id, null, 'CURRENT', by, ago(x.mins), 'Usual recorded');
+    return id;
+  };
+  const diff = (x: { nhi: string; service: string; domain: string; usualId: string | null; usualText: string | null; now: string; u: string; mins: number;
+    acted?: { u: string; mins: number; action: string }; closed?: { u: string; mins: number; outcome: string; note: string; newUsual?: string } }) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const ab = x.acted ? who(x.acted.u) : null;
+    const cb = x.closed ? who(x.closed.u) : null;
+    store.insert('usual_difference', {
+      id, person_id: pid, service_id: x.service, domain: x.domain, usual_id: x.usualId, usual_text: x.usualText, now_text: x.now, noticed_by: by, noticed_at: ago(x.mins),
+      state: x.closed ? 'CLOSED' : x.acted ? 'ACTING' : 'NOTICED', action: x.acted?.action ?? null, acted_by: ab, acted_at: x.acted ? ago(x.acted.mins) : null,
+      outcome: x.closed?.outcome ?? null, outcome_note: x.closed?.note ?? null, closed_by: cb, closed_at: x.closed ? ago(x.closed.mins) : null, new_usual_id: x.closed?.newUsual ?? null,
+    });
+    step('difference', id, null, 'NOTICED', by, ago(x.mins), x.now.slice(0, 200));
+    if (x.acted && ab) step('difference', id, 'NOTICED', 'ACTING', ab, ago(x.acted.mins), x.acted.action);
+    if (x.closed && cb) step('difference', id, x.acted ? 'ACTING' : 'NOTICED', 'CLOSED', cb, ago(x.closed.mins), x.closed.note);
+  };
+  store.tx(() => {
+    const G = 'svc-genmed';
+    const A = 'svc-arc';
+    const wThink = 'Sharp; does the crossword every day and knows all his mokopuna\'s names';
+    const w = usual({ nhi: 'ZZZ0016', service: G, domain: 'THINKING', statement: wThink, source: 'WHANAU', sourceName: 'Rawiri, son, by phone', u: 'nicki', mins: 60 * 70 });
+    diff({ nhi: 'ZZZ0016', service: G, domain: 'THINKING', usualId: w, usualText: wThink, now: 'Confused at night, thinks he is at home, pulling at his drip', u: 'nicki', mins: 60 * 30,
+      acted: { u: 'hannah', mins: 60 * 25, action: 'Delirium care plan started; 4AT daily; urine infection being treated' } });
+    usual({ nhi: 'ZZZ0016', service: G, domain: 'COMMUNICATION', statement: 'Clear speech; prefers te reo Māori with whānau; hearing aid in the left ear', source: 'WHANAU', sourceName: 'Rawiri, son, by phone', u: 'nicki', mins: 60 * 70 });
+    const pEat = 'Good appetite; eats everything and loves a cup of tea with two sugars';
+    const p = usual({ nhi: 'ZZZ0032', service: G, domain: 'EATING', statement: pEat, source: 'WHANAU', sourceName: 'Anne, daughter', u: 'nicki', mins: 60 * 120 });
+    diff({ nhi: 'ZZZ0032', service: G, domain: 'EATING', usualId: p, usualText: pEat, now: 'Eating about a quarter of each meal for three days; says she is not hungry', u: 'nicki', mins: 60 * 5 });
+    usual({ nhi: 'ZZZ9999', service: G, domain: 'HR', low: 60, high: 80, statement: 'Resting heart rate in her GP records', source: 'PRIOR_RECORD', sourceName: 'GP summary, August 2026', u: 'hannah', mins: 60 * 40 });
+    const fMood = 'Cheerful; jokes with staff and loves talking about his dog Bess';
+    const f = usual({ nhi: 'ZZZ0075', service: A, domain: 'MOOD', statement: fMood, source: 'STAFF', sourceName: 'Care team, Room 8', u: 'kate', mins: 60 * 24 * 100 });
+    diff({ nhi: 'ZZZ0075', service: A, domain: 'MOOD', usualId: f, usualText: fMood, now: 'Quiet, staying in his room, not joking with staff', u: 'tama', mins: 60 * 48,
+      acted: { u: 'kate', mins: 60 * 24, action: 'PHQ-9 asked for; GP to review; visit from Bess being arranged' } });
+    usual({ nhi: 'ZZZ0091', service: A, domain: 'SPO2', low: 88, high: 92, statement: 'COPD; lives in this range on room air', source: 'PRIOR_RECORD', sourceName: 'Respiratory clinic letter, June 2026', u: 'kate', mins: 60 * 24 * 90 });
+    const old = usual({ nhi: 'ZZZ0091', service: A, domain: 'CONTINENCE', statement: 'Continent day and night', source: 'STAFF', sourceName: 'Admission assessment', u: 'kate', mins: 60 * 24 * 400, state: 'SUPERSEDED' });
+    const now = usual({ nhi: 'ZZZ0091', service: A, domain: 'CONTINENCE', statement: 'Continent by day; needs a pad at night since March', source: 'STAFF', sourceName: 'After a change noticed in February', u: 'kate', mins: 60 * 24 * 200, supersedes: old ?? undefined });
+    if (old && now) {
+      step('usual', old, 'CURRENT', 'SUPERSEDED', who('kate')!, ago(60 * 24 * 200), 'New usual after a change');
+      diff({ nhi: 'ZZZ0091', service: A, domain: 'CONTINENCE', usualId: old, usualText: 'Continent day and night', now: 'Wet most nights for a week', u: 'tama', mins: 60 * 24 * 230,
+        acted: { u: 'kate', mins: 60 * 24 * 229, action: 'Urine tested (clear); bladder chart for 3 days; GP review' },
+        closed: { u: 'kate', mins: 60 * 24 * 200, outcome: 'NEW_USUAL', note: 'No infection. Night-time pads suit him; he is comfortable with this.', newUsual: now } });
+    }
   });
 }

@@ -26,6 +26,7 @@ import { codingPanel } from './coding.js';
 import { reportsPanel } from './reports.js';
 import { questionnairesPanel } from './questionnaires.js';
 import { functionPanel } from './function.js';
+import { usualPanel } from './usual.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -348,6 +349,7 @@ export async function workstationView(personId, initialView) {
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
+      case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
       case 'function': return functionPanel(personId, d, () => go(`/work/patient/${personId}/function`));
       case 'instruments': return questionnairesPanel(personId, d, () => go(`/work/patient/${personId}/instruments`));
       case 'coding': return codingPanel(personId, d, () => go(`/work/patient/${personId}/coding`));
@@ -418,6 +420,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.usual?.length) {
+      block.append(h('button', { class: 'patient-usual', onclick: () => openView('usual') }, icon('usual'),
+        h('span', {}, h('b', {}, 'DIFFERENT FROM USUAL'), patient.usual.join(' · '))));
     }
     if (patient.function) {
       block.append(h('button', { class: 'patient-function', onclick: () => openView('function') }, icon('function'),

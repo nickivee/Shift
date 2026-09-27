@@ -536,3 +536,16 @@ dialog.wide { max-width: min(720px, 96vw); }
 .function-worse { border-left: 6px solid #c0392b; }
 .function-plan.open { border-left: 6px solid #2d6a4f; }
 fieldset.function-item .row { flex-wrap: wrap; }
+.patient-usual {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #b35c00;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-usual svg { width: 24px; height: 24px; flex: none; color: #b35c00; }
+.patient-usual b { display: block; font-size: 13px; letter-spacing: .6px; color: #b35c00; }
+.usual-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 16px; }
+.difference-noticed, .usual-outside { border-left: 6px solid #c0392b; }
+.difference-acting { border-left: 6px solid #b35c00; }
+.usual-area { display: grid; gap: 4px; }
+.usual-different { border-left: 6px solid #b35c00; }
+.usual-range input[type=number] { width: 6.5em; }

@@ -26,6 +26,7 @@ import { forPerson as codingFor } from './coding.ts';
 import { forPerson as reportsFor } from './reports.ts';
 import { forPerson as instrumentsFor, current as instrumentsNow } from './questionnaires.ts';
 import { forPerson as functionFor, current as functionNow } from './functional.ts';
+import { forPerson as usualFor, current as usualNow } from './usual.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -197,6 +198,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     external: externalNow(store, personId),
     instruments: instrumentsNow(store, personId),
     function: functionNow(store, personId),
+    usual: usualNow(store, personId),
   };
 }
 
@@ -377,6 +379,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'function':
       body = functionFor(store, ctx, personId);
+      break;
+    case 'usual':
+      body = usualFor(store, ctx, personId);
       break;
     case 'routes':
       body = {
