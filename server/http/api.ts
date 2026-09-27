@@ -32,6 +32,7 @@ import * as functional from '../domain/functional.ts';
 import * as usual from '../domain/usual.ts';
 import * as assignments from '../domain/assignments.ts';
 import * as allocations from '../domain/allocations.ts';
+import * as acuity from '../domain/acuity.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -216,6 +217,9 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/acuity', (req) => acuity.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/acuity', (req) => acuity.assess(store, work(req), req.params.id, { level: str(req.body.level), basis: str(req.body.basis) }));
+  r.on('POST', '/api/work/acuity/:id/error', (req) => acuity.markError(store, work(req), req.params.id, { reason: str(req.body.reason) }));
   r.on('GET', '/api/work/allocation', (req) => allocations.overview(store, work(req)));
   r.on('POST', '/api/work/allocation', (req) => allocations.create(store, work(req), { date: str(req.body.date), period: str(req.body.period) }));
   r.on('GET', '/api/work/allocation/:id', (req) => allocations.get(store, work(req), req.params.id));

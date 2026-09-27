@@ -184,6 +184,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'DRAFT',
     next: { DRAFT: ['SUBMITTED', 'CANCELLED'], SUBMITTED: ['CONFIRMED', 'DRAFT'], CONFIRMED: ['ACTIVE', 'CANCELLED'], ACTIVE: ['ENDED'] },
   },
+  acuity: {
+    table: 'acuity_assessment',
+    initial: 'CURRENT',
+    next: { CURRENT: ['SUPERSEDED', 'ENTERED_IN_ERROR'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
