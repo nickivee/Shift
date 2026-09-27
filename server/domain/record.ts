@@ -28,6 +28,7 @@ import { forPerson as instrumentsFor, current as instrumentsNow } from './questi
 import { forPerson as functionFor, current as functionNow } from './functional.ts';
 import { forPerson as usualFor, current as usualNow } from './usual.ts';
 import { forPerson as acuityFor, current as acuityNow } from './acuity.ts';
+import { forPerson as deteriorationFor, current as deteriorationNow } from './deterioration.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -202,6 +203,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     function: functionNow(store, personId),
     usual: usualNow(store, personId),
     acuity: ctx.role.views.includes('acuity') ? acuityNow(store, personId) : null,
+    deterioration: ctx.role.views.includes('deterioration') ? deteriorationNow(store, personId) : null,
     team: teamNow(store, personId),
   };
 }
@@ -386,6 +388,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'usual':
       body = usualFor(store, ctx, personId);
+      break;
+    case 'deterioration':
+      body = deteriorationFor(store, ctx, personId);
       break;
     case 'acuity':
       body = acuityFor(store, ctx, personId);

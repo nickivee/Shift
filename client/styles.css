@@ -591,3 +591,22 @@ fieldset.function-item .row { flex-wrap: wrap; }
 .acuity-choice.acuity-unwell:has(input:checked), .acuity-choice.acuity-critical:has(input:checked) { border-color: var(--danger); background: var(--danger-bg); }
 fieldset { border: 0; padding: 0; margin: 0; }
 legend { font-weight: 700; margin-bottom: 6px; }
+
+/* Deterioration */
+.patient-deterioration {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--danger); color: #fff; border: 2px solid var(--danger);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-deterioration svg { width: 24px; height: 24px; flex: none; }
+.patient-deterioration b { display: block; font-size: 13px; letter-spacing: .6px; }
+.patient-deterioration.det-responding, .patient-deterioration.det-reassessed { background: var(--danger-bg); color: var(--ink); }
+.patient-deterioration.det-responding b, .patient-deterioration.det-reassessed b, .patient-deterioration.det-responding svg, .patient-deterioration.det-reassessed svg { color: var(--danger); }
+.tile.det-detected, .tile.det-escalated { border-left: 6px solid var(--danger); }
+.tile.det-responding, .tile.det-reassessed { border-left: 6px solid var(--warn); }
+.det-episode h3 { margin: 0; font-size: 17px; }
+.det-steps { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 3px solid #b8d6dd; display: flex; flex-direction: column; gap: 10px; }
+.det-step { position: relative; font-size: 14px; }
+.det-step::before { content: ''; position: absolute; left: -21px; top: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
+.det-step.det-detected::before, .det-step.det-escalated::before { background: var(--danger); }
+.det-step.det-outcome::before { background: var(--ok); }

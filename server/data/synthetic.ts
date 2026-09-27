@@ -10,6 +10,7 @@ import { render } from '../domain/commands.ts';
 import { currentPeriod, nextPeriod } from '../config/allocation.ts';
 import { LEVEL_BY_ID } from '../config/acuity.ts';
 import { evidence as acuityEvidence } from '../domain/acuity.ts';
+import { OUTCOMES as DETERIORATION_OUTCOMES } from '../domain/deterioration.ts';
 import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
 export const SYNTHETIC_USERS = [
@@ -28,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 31;
+const SET = 32;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -357,6 +358,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 29) set29(store);
     if (at < 30) set30(store, password);
     if (at < 31) set31(store);
+    if (at < 32) set32(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2098,4 +2100,84 @@ function set31(store: Store): void {
   ]);
   history('ZZZ0091', A, [{ u: 'kate', level: 'STABLE', mins: 10 * 60, basis: 'No change from his usual' }]);
   history('ZZZ0105', E, [{ u: 'ravi', level: 'UNWELL', mins: 40, basis: 'Short of breath at rest, resp rate 26; waiting for a medical bed' }]);
+}
+
+// Set 32: deterioration. Wiremu being responded to on the ward, Frank noticed by his caregiver
+// and not yet escalated, Kiri escalated in ED and waiting, and Peggy's from admission, closed.
+function set32(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Step { kind: 'ESCALATED' | 'RESPONSE' | 'INTERVENTION' | 'REASSESSMENT' | 'OUTCOME'; u: string; mins: number; body: string; to?: string; urgency?: string; responded?: { u: string; mins: number; text: string } }
+  const episode = (x: { nhi: string; service: string; u: string; mins: number; change: string; state: string; steps: Step[]; outcome?: string; note?: string }) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const closing = x.steps.find((s) => s.kind === 'OUTCOME');
+    store.insert('deterioration_event', {
+      id, person_id: pid, service_id: x.service, change_text: x.change, evidence_json: JSON.stringify(acuityEvidence(store, pid)), state: x.state,
+      detected_by: by, detected_at: ago(x.mins), outcome: x.outcome ?? null, outcome_note: x.note ?? null,
+      closed_by: closing ? who(closing.u) : null, closed_at: closing ? ago(closing.mins) : null,
+    });
+    step('deterioration', id, null, 'DETECTED', by, ago(x.mins), x.change);
+    store.insert('deterioration_step', { id: newId(), event_id: id, kind: 'DETECTED', body: x.change, link_id: null, by_id: by, at: ago(x.mins) });
+    let state = 'DETECTED';
+    const move = (to: string, u: string, mins: number, reason: string) => { if (state !== to) { step('deterioration', id, state, to, u, ago(mins), reason); state = to; } };
+    for (const s of x.steps) {
+      const sb = who(s.u);
+      if (!sb) continue;
+      let link: string | null = null;
+      if (s.kind === 'ESCALATED') {
+        link = newId();
+        const r = s.responded;
+        const rb = r ? who(r.u) : null;
+        store.insert('escalation', {
+          id: link, person_id: pid, service_id: x.service, recipient_role_key: s.to, urgency: s.urgency, concern: 'Deterioration', trigger_text: s.body,
+          state: r ? 'RESPONDED' : 'RAISED', raised_by: sb, raised_service_id: x.service, raised_at: ago(s.mins), level: 1,
+          received_by: rb, acknowledged_by: rb, response: r?.text ?? null, responded_by: rb,
+        });
+        step('escalation', link, null, 'RAISED', sb, ago(s.mins), `${String(s.urgency).toLowerCase()} · Deterioration`);
+        if (r && rb) {
+          step('escalation', link, 'RAISED', 'RECEIVED', rb, ago(r.mins + 2), 'Received');
+          step('escalation', link, 'RECEIVED', 'ACKNOWLEDGED', rb, ago(r.mins + 1), 'Acknowledged');
+          step('escalation', link, 'ACKNOWLEDGED', 'RESPONDED', rb, ago(r.mins), r.text);
+        }
+        move('ESCALATED', s.u, s.mins, 'Escalated');
+      }
+      if (s.kind === 'RESPONSE' || s.kind === 'INTERVENTION') move('RESPONDING', s.u, s.mins, 'Response recorded');
+      if (s.kind === 'REASSESSMENT') move('REASSESSED', s.u, s.mins, 'Reassessed');
+      if (s.kind === 'OUTCOME') move('CLOSED', s.u, s.mins, s.body);
+      store.insert('deterioration_step', { id: newId(), event_id: id, kind: s.kind, body: s.body, link_id: link, by_id: sb, at: ago(s.mins) });
+    }
+  };
+  episode({ nhi: 'ZZZ0016', service: 'svc-genmed', u: 'nicki', mins: 240, state: 'RESPONDING',
+    change: 'More confused than this morning, pulling at his drip, resp rate up to 22, not drinking',
+    steps: [
+      { kind: 'ESCALATED', u: 'nicki', mins: 235, to: 'genmed-physician', urgency: 'URGENT', body: 'Acutely more confused, RR 22, T 38.1, not drinking. Please review',
+        responded: { u: 'sam', mins: 180, text: 'Reviewed. Possible sepsis, likely urinary. Bloods, cultures and urine sent; see plan' } },
+      { kind: 'RESPONSE', u: 'sam', mins: 175, body: 'Dr Sam Patel reviewed at bedside: possible urosepsis. Bloods, cultures, urine. Review again after fluids' },
+      { kind: 'INTERVENTION', u: 'nicki', mins: 160, body: 'IV fluids 1 L over 4 hours started; first dose IV antibiotics given; obs hourly' },
+    ] });
+  episode({ nhi: 'ZZZ0075', service: 'svc-arc', u: 'tama', mins: 100, state: 'ESCALATED',
+    change: 'Drowsy and hard to wake for lunch, breathing sounds rattly',
+    steps: [{ kind: 'ESCALATED', u: 'tama', mins: 98, to: 'arc-rn', urgency: 'URGENT', body: 'Frank is drowsy and hard to wake, breathing rattly. Not his usual' }] });
+  episode({ nhi: 'ZZZ0067', service: 'svc-arc', u: 'kate', mins: 25, state: 'DETECTED',
+    change: 'Coughing more, temp now 38.0, off her lunch', steps: [] });
+  episode({ nhi: 'ZZZ0105', service: 'svc-ed', u: 'mere', mins: 35, state: 'ESCALATED',
+    change: 'Short of breath at rest, resp rate 26, sats 90% on 4 L',
+    steps: [{ kind: 'ESCALATED', u: 'mere', mins: 33, to: 'ed-doctor', urgency: 'IMMEDIATE', body: 'Worse since triage: RR 26, sats 90% on 4 L, speaking in short sentences' }] });
+  episode({ nhi: 'ZZZ0032', service: 'svc-genmed', u: 'nicki', mins: 3 * 24 * 60 + 60, state: 'CLOSED', outcome: 'IMPROVED',
+    change: 'In a lot of pain after her fall, grimacing and calling out, HR 110',
+    note: 'Pain controlled with regular analgesia; obs back to her usual',
+    steps: [
+      { kind: 'ESCALATED', u: 'nicki', mins: 3 * 24 * 60 + 55, to: 'genmed-physician', urgency: 'URGENT', body: 'Severe hip pain after fall, HR 110, not settling with paracetamol',
+        responded: { u: 'hannah', mins: 3 * 24 * 60 + 30, text: 'Reviewed. No new fracture on x-ray; IV analgesia charted' } },
+      { kind: 'RESPONSE', u: 'hannah', mins: 3 * 24 * 60 + 30, body: 'Dr Hannah Li reviewed: no new fracture, pain from bruising. IV analgesia charted' },
+      { kind: 'INTERVENTION', u: 'nicki', mins: 3 * 24 * 60 + 20, body: 'IV analgesia given, repositioned with pillows' },
+      { kind: 'REASSESSMENT', u: 'nicki', mins: 3 * 24 * 60 - 60, body: 'Needs closer watching (better): pain 3/10, HR 88' },
+      { kind: 'OUTCOME', u: 'nicki', mins: 2 * 24 * 60, body: `${DETERIORATION_OUTCOMES.IMPROVED}: Pain controlled with regular analgesia; obs back to her usual` },
+    ] });
 }

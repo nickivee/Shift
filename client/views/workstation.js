@@ -28,6 +28,7 @@ import { questionnairesPanel } from './questionnaires.js';
 import { functionPanel } from './function.js';
 import { usualPanel } from './usual.js';
 import { acuityPanel } from './acuity.js';
+import { deteriorationPanel } from './deterioration.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -352,6 +353,7 @@ export async function workstationView(personId, initialView) {
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
+      case 'deterioration': return deteriorationPanel(personId, d, () => go(`/work/patient/${personId}/deterioration`));
       case 'acuity': return acuityPanel(personId, d, () => go(`/work/patient/${personId}/acuity`));
       case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
       case 'function': return functionPanel(personId, d, () => go(`/work/patient/${personId}/function`));
@@ -420,6 +422,11 @@ export async function workstationView(personId, initialView) {
   // Alerts staff have raised stay in view with the allergies, on every page of the record.
   const flags = () => {
     const block = allergyBlock();
+    if (patient.deterioration) {
+      const x = patient.deterioration;
+      block.append(h('button', { class: `patient-deterioration det-${x.state.toLowerCase()}`, onclick: () => openView('deterioration') }, icon('deterioration'),
+        h('span', {}, h('b', {}, `GETTING WORSE: ${x.stateLabel.toUpperCase()}`), x.change)));
+    }
     if (patient.acuity) {
       const a = patient.acuity;
       block.append(h('button', { class: `patient-acuity acuity-${a.level.toLowerCase()}`, onclick: () => openView('acuity') }, icon('acuity'),
