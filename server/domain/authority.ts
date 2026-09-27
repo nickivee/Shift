@@ -66,6 +66,7 @@ export type Operation =
   | { op: 'ACUITY'; personId: string }
   | { op: 'RECOMMENDATION'; personId: string; cap: 'recommendation.make' | 'recommendation.respond' | 'recommendation.record' }
   | { op: 'REQUIREMENT'; personId: string; cap: 'requirement.record' | 'requirement.manage' }
+  | { op: 'CARE_DUE'; personId: string; cap: 'due.record' | 'due.manage' }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -288,6 +289,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'TRANSFER'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-REQ-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or act on their requirements`));
+    case 'CARE_DUE':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-DUE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record care due for them`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])
