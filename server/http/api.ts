@@ -45,6 +45,7 @@ import * as checklists from '../domain/checklists.ts';
 import * as recommendations from '../domain/recommendations.ts';
 import * as requirements from '../domain/requirements.ts';
 import * as careDue from '../domain/caredue.ts';
+import * as recalls from '../domain/recalls.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -229,6 +230,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/recalls', (req) => recalls.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/recalls', (req) => recalls.setUp(store, work(req), req.params.id, {
+    kind: str(req.body.kind), what: str(req.body.what), detail: str(req.body.detail), every: str(req.body.every), dueDate: str(req.body.dueDate),
+  }));
+  r.on('POST', '/api/work/recalls/:id/:action', (req) => recalls.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), eligible: str(req.body.eligible), channel: str(req.body.channel), when: str(req.body.when), where: str(req.body.where),
+    next: str(req.body.next), nextDue: str(req.body.nextDue), reason: str(req.body.reason),
+  }));
   r.on('GET', '/api/work/care-due', (req) => careDue.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/care-due', (req) => careDue.setUp(store, work(req), req.params.id, {
     kind: str(req.body.kind), what: str(req.body.what), detail: str(req.body.detail), every: str(req.body.every), firstDue: str(req.body.firstDue),

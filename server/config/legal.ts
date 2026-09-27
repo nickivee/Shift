@@ -267,6 +267,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-RECALL-001',
+    question: 'How a service\'s own recall (for example an annual influenza vaccine in aged residential care) relates to national immunisation and screening programme recall in New Zealand, and what consent or authority is needed to contact a person, or their whānau or representative, about a recall.',
+    blocks: 'Linking SHIFT recalls to national programme registers, and contacting anyone other than the person without a recorded reason. SHIFT records who was contacted, how, and the outcome.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

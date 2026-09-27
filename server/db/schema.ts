@@ -2499,4 +2499,58 @@ CREATE TABLE due_log (
 CREATE INDEX due_log_item ON due_log(item_id, at);
 `,
   },
+  {
+    version: 44,
+    name: 'recall lifecycle',
+    sql: `
+-- Recall: recall requirement → due date → eligibility → invitation → booking → attendance →
+-- outcome → next recall OR completion/exit.
+CREATE TABLE recall (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  what TEXT NOT NULL,
+  detail TEXT,
+  every_days INTEGER,                   -- NULL means once
+  due_date TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- SCHEDULED | INVITED | BOOKED | DID_NOT_ATTEND | DONE | EXITED | ENTERED_IN_ERROR
+  previous_id TEXT,
+  next_id TEXT,
+  set_by TEXT NOT NULL REFERENCES workforce_person(id),
+  set_at TEXT NOT NULL,
+  checked_by TEXT,
+  checked_at TEXT,
+  eligibility_note TEXT,
+  invited_by TEXT,
+  invited_at TEXT,
+  channel TEXT,
+  invite_note TEXT,
+  booked_by TEXT,
+  booked_at TEXT,
+  booked_for TEXT,
+  booked_where TEXT,
+  dna_at TEXT,
+  dna_note TEXT,
+  done_by TEXT,
+  done_at TEXT,
+  outcome TEXT,
+  exit_reason TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX recall_person ON recall(person_id, state);
+CREATE INDEX recall_service ON recall(service_id, state, due_date);
+CREATE TABLE recall_log (
+  id TEXT PRIMARY KEY,
+  recall_id TEXT NOT NULL REFERENCES recall(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX recall_log_recall ON recall_log(recall_id, at);
+`,
+  },
 ];
