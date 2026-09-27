@@ -174,6 +174,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'NOTICED',
     next: { NOTICED: ['ACTING', 'CLOSED'], ACTING: ['CLOSED'] },
   },
+  assignment: {
+    table: 'assignment',
+    initial: 'PROPOSED',
+    next: { PROPOSED: ['CONFIRMED', 'DECLINED'], CONFIRMED: ['ACTIVE', 'ENDED'], ACTIVE: ['ENDED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

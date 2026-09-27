@@ -24,7 +24,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 28;
+const SET = 29;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -350,6 +350,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 26) set26(store);
     if (at < 27) set27(store);
     if (at < 28) set28(store);
+    if (at < 29) set29(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1903,5 +1904,65 @@ function set28(store: Store): void {
         acted: { u: 'kate', mins: 60 * 24 * 229, action: 'Urine tested (clear); bladder chart for 3 days; GP review' },
         closed: { u: 'kate', mins: 60 * 24 * 200, outcome: 'NEW_USUAL', note: 'No infection. Night-time pads suit him; he is comfortable with this.', newUsual: now } });
     }
+  });
+}
+
+function set29(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string | null, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'assignment', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Named {
+    nhi: string; service: string; kind: string; u?: string; ext?: string; org?: string; team?: string; by: string; mins: number; reason?: string;
+    state?: 'PROPOSED' | 'ACTIVE' | 'ENDED'; endsIn?: number; coverFor?: string | null; ended?: { mins: number; reason: string }; replaces?: string | null;
+  }
+  const named = (x: Named) => {
+    const pid = person(x.nhi);
+    const by = who(x.by);
+    const assignee = x.u ? who(x.u) : null;
+    if (!pid || !by || (x.u && !assignee)) return null;
+    const id = newId();
+    const state = x.ended ? 'ENDED' : x.state ?? 'ACTIVE';
+    const confirmed = state !== 'PROPOSED';
+    store.insert('assignment', {
+      id, person_id: pid, service_id: x.service, kind: x.kind, assignee_id: assignee, external_name: x.ext ?? null, external_org: x.org ?? null, team_name: x.team ?? null,
+      state, proposed_by: by, proposed_at: ago(x.mins), reason: x.reason ?? null, starts_at: ago(x.mins), ends_at: x.endsIn ? ago(-x.endsIn) : null,
+      confirmed_by: confirmed ? by : null, confirmed_at: confirmed ? ago(x.mins) : null, confirm_note: confirmed ? (x.u === x.by ? 'Named themselves' : 'Agreed at the board round') : null,
+      activated_at: confirmed ? ago(x.mins) : null, ended_by: x.ended ? by : null, ended_at: x.ended ? ago(x.ended.mins) : null, end_reason: x.ended?.reason ?? null,
+      replaces: x.replaces ?? null, cover_for: x.coverFor ?? null,
+    });
+    step(id, null, 'PROPOSED', by, ago(x.mins), x.reason ?? 'Proposed');
+    if (confirmed) {
+      step(id, 'PROPOSED', 'CONFIRMED', by, ago(x.mins), 'Confirmed');
+      step(id, 'CONFIRMED', 'ACTIVE', by, ago(x.mins), 'Starts now');
+    }
+    if (x.ended) step(id, 'ACTIVE', 'ENDED', by, ago(x.ended.mins), x.ended.reason);
+    return id;
+  };
+  const G = 'svc-genmed';
+  const A = 'svc-arc';
+  const E = 'svc-ed';
+  const day = 60 * 24;
+  store.tx(() => {
+    // General Medicine: Dr Li is responsible for everyone on Ward K; Nicki is named nurse for most.
+    for (const nhi of ['ZZZ9999', 'ZZZ0016', 'ZZZ0024', 'ZZZ0032']) named({ nhi, service: G, kind: 'RESPONSIBLE_DOCTOR', u: 'hannah', by: 'hannah', mins: 3 * day });
+    named({ nhi: 'ZZZ9999', service: G, kind: 'NAMED_NURSE', u: 'nicki', by: 'nicki', mins: 2 * day });
+    named({ nhi: 'ZZZ9999', service: G, kind: 'TEAM', team: 'General Medicine Team B', by: 'hannah', mins: 2 * day });
+    const wDoc = store.get<{ id: string }>("SELECT a.id FROM assignment a JOIN external_identifier x ON x.person_id = a.person_id AND x.system = 'NHI' AND x.value = 'ZZZ0016' WHERE a.kind = 'RESPONSIBLE_DOCTOR'")?.id ?? null;
+    if (wDoc) named({ nhi: 'ZZZ0016', service: G, kind: 'RESPONSIBLE_DOCTOR', u: 'sam', by: 'hannah', mins: 60 * 6, endsIn: 2 * day, coverFor: wDoc, reason: 'Dr Li at a conference' });
+    named({ nhi: 'ZZZ0016', service: G, kind: 'NAMED_NURSE', u: 'nicki', by: 'nicki', mins: 3 * day });
+    named({ nhi: 'ZZZ0032', service: G, kind: 'NAMED_NURSE', u: 'nicki', by: 'hannah', mins: 60 * 2, state: 'PROPOSED', reason: 'Nicki knows her well from last admission' });
+    named({ nhi: 'ZZZ0032', service: G, kind: 'PHYSIO', u: 'lena', by: 'lena', mins: 4 * day });
+    // Emergency Department.
+    named({ nhi: 'ZZZ0105', service: E, kind: 'RESPONSIBLE_DOCTOR', u: 'ravi', by: 'ravi', mins: 90 });
+    named({ nhi: 'ZZZ0148', service: E, kind: 'RESPONSIBLE_DOCTOR', u: 'ravi', by: 'ravi', mins: 50 });
+    // Residential care: Kate is named nurse; their GP is outside SHIFT.
+    for (const nhi of ['ZZZ0059', 'ZZZ0067', 'ZZZ0075', 'ZZZ0083', 'ZZZ0091']) named({ nhi, service: A, kind: 'NAMED_NURSE', u: 'kate', by: 'kate', mins: 60 * day });
+    for (const nhi of ['ZZZ0059', 'ZZZ0067', 'ZZZ0075']) named({ nhi, service: A, kind: 'GP', ext: 'Dr Anna Whyte', org: 'Cornwall Medical Centre', by: 'kate', mins: 90 * day });
+    named({ nhi: 'ZZZ0075', service: A, kind: 'KEY_WORKER', u: 'tama', by: 'kate', mins: 30 * day });
+    named({ nhi: 'ZZZ0083', service: A, kind: 'GP', ext: 'Dr Sione Vaifale', org: 'Onehunga Pacific Health', by: 'kate', mins: 60 * 3, state: 'PROPOSED', reason: 'Losa and her family want a Tongan-speaking GP' });
+    const oldGp = named({ nhi: 'ZZZ0091', service: A, kind: 'GP', ext: 'Dr Mark Tane', org: 'Epsom Medical', by: 'kate', mins: 400 * day, ended: { mins: 120 * day, reason: 'His practice closed; handed over to Dr Whyte' } });
+    named({ nhi: 'ZZZ0091', service: A, kind: 'GP', ext: 'Dr Anna Whyte', org: 'Cornwall Medical Centre', by: 'kate', mins: 120 * day, replaces: oldGp });
   });
 }

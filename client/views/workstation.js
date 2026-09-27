@@ -27,6 +27,7 @@ import { reportsPanel } from './reports.js';
 import { questionnairesPanel } from './questionnaires.js';
 import { functionPanel } from './function.js';
 import { usualPanel } from './usual.js';
+import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
@@ -349,6 +350,7 @@ export async function workstationView(personId, initialView) {
       case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
+      case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
       case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
       case 'function': return functionPanel(personId, d, () => go(`/work/patient/${personId}/function`));
       case 'instruments': return questionnairesPanel(personId, d, () => go(`/work/patient/${personId}/instruments`));
@@ -488,6 +490,10 @@ export async function workstationView(personId, initialView) {
           patient.ethnicity ? h('span', {}, patient.iwi ? `${patient.ethnicity} (${patient.iwi})` : patient.ethnicity) : null,
           patient.location ? h('span', {}, patient.location) : null,
         ),
+        patient.team ? h('button', { class: 'team-line', onclick: () => openView('team') },
+          patient.team.named.map((n) => h('span', {}, h('span', { class: 'muted' }, `${n.label} `), n.name,
+            n.cover ? h('span', { class: 'muted' }, ` (covered by ${n.cover}${n.until ? ` until ${fmtDate(n.until)}` : ''})`) : null)),
+          patient.team.missing.map((m) => h('span', { class: 'team-gap' }, `${m}: not named`))) : null,
         h('div', { class: 'row small' },
           patient.synthetic ? h('span', { class: 'synthetic' }, 'Synthetic record') : null,
           patient.relationship === 'EXCEPTIONAL' ? h('span', { class: 'tag danger' }, 'Exceptional access (audited)') : null,
