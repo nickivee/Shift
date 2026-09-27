@@ -524,3 +524,15 @@ dialog h2 { margin-top: 0; }
 fieldset.item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; gap: 4px; margin: 0; }
 fieldset.item legend { font-weight: 600; padding: 0 4px; }
 dialog.wide { max-width: min(720px, 96vw); }
+.patient-function {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid #2d6a4f;
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-function svg { width: 24px; height: 24px; flex: none; color: #2d6a4f; }
+.patient-function b { display: block; font-size: 13px; letter-spacing: .6px; color: #2d6a4f; }
+.function-row { display: grid; gap: 4px; }
+.function-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 16px; }
+.function-worse { border-left: 6px solid #c0392b; }
+.function-plan.open { border-left: 6px solid #2d6a4f; }
+fieldset.function-item .row { flex-wrap: wrap; }

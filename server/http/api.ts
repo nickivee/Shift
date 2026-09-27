@@ -28,6 +28,7 @@ import * as external from '../domain/external.ts';
 import * as coding from '../domain/coding.ts';
 import * as reports from '../domain/reports.ts';
 import * as questionnaires from '../domain/questionnaires.ts';
+import * as functional from '../domain/functional.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -212,6 +213,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/function', (req) => functional.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/function', (req) => functional.assess(store, work(req), req.params.id, {
+    kind: str(req.body.kind), source: str(req.body.source), sourceName: str(req.body.sourceName), summary: str(req.body.summary),
+    entries: typeof req.body.entries === 'object' && req.body.entries ? req.body.entries as Record<string, unknown> : {},
+    reviewDays: typeof req.body.reviewDays === 'number' ? req.body.reviewDays : str(req.body.reviewDays),
+  }));
+  r.on('POST', '/api/work/function/:id/error', (req) => functional.markError(store, work(req), req.params.id, { reason: str(req.body.reason) }));
+  r.on('POST', '/api/work/patients/:id/function-plans', (req) => functional.plan(store, work(req), req.params.id, { activity: str(req.body.activity), what: str(req.body.what) }));
+  r.on('POST', '/api/work/function-plans/:id/:action', (req) => functional.actPlan(store, work(req), req.params.id, req.params.action, { outcome: str(req.body.outcome) }));
   r.on('GET', '/api/work/questionnaires', (req) => questionnaires.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/questionnaires', (req) => questionnaires.request(store, work(req), req.params.id, {
     code: str(req.body.code), reason: str(req.body.reason), dueAt: str(req.body.dueAt),

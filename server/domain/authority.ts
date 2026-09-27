@@ -45,6 +45,7 @@ export type Operation =
   | { op: 'ACCESS'; personId: string }
   | { op: 'EXTERNAL'; personId: string }
   | { op: 'INSTRUMENT'; personId: string }
+  | { op: 'FUNCTION'; personId: string }
   | { op: 'REPORT'; personId: string; cap: 'report.record' | 'report.review' }
   | { op: 'CODING'; organisationId: string }
   | { op: 'CODING_ANSWER'; serviceId: string }
@@ -220,6 +221,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'instrument.use') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can use questionnaires with them`));
+    case 'FUNCTION':
+      return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
     case 'EXTERNAL':
       return need(ctx, 'external.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])

@@ -1666,4 +1666,48 @@ CREATE INDEX instrument_use_person ON instrument_use(person_id, instrument_code,
 CREATE INDEX instrument_use_service ON instrument_use(service_id, state, due_at);
 `,
   },
+  {
+    version: 27,
+    name: 'functional status lifecycle',
+    sql: `
+-- Functional status (Shared Lifecycle Object 261): baseline → current assessment → assistance
+-- requirement → intervention → reassessment → changed/current state. An assessment records the
+-- level of help for each everyday activity (server/config/function.ts). The newest BASELINE
+-- (their usual function) and the newest CURRENT one are in force; earlier ones are SUPERSEDED.
+CREATE TABLE function_assessment (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- BASELINE | CURRENT
+  state TEXT NOT NULL,                  -- CURRENT | SUPERSEDED | ENTERED_IN_ERROR
+  source TEXT,                          -- for a baseline: who it came from
+  source_name TEXT,
+  entries_json TEXT NOT NULL,           -- activity → { level, aid, note }
+  summary TEXT,
+  assessed_by TEXT NOT NULL,
+  assessed_at TEXT NOT NULL,
+  review_due TEXT,                      -- when to reassess (CURRENT only)
+  supersedes TEXT REFERENCES function_assessment(id),
+  error_reason TEXT
+);
+CREATE INDEX function_assessment_person ON function_assessment(person_id, kind, state);
+-- What is being done to keep or improve an activity, and how it went.
+CREATE TABLE function_intervention (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  activity TEXT NOT NULL,
+  what TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- PLANNED | IN_PLACE | STOPPED
+  planned_by TEXT NOT NULL,
+  planned_at TEXT NOT NULL,
+  started_by TEXT,
+  started_at TEXT,
+  stopped_by TEXT,
+  stopped_at TEXT,
+  outcome TEXT
+);
+CREATE INDEX function_intervention_person ON function_intervention(person_id, state);
+`,
+  },
 ];
