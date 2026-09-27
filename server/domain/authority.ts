@@ -64,6 +64,7 @@ export type Operation =
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'ACUITY'; personId: string }
+  | { op: 'RECOMMENDATION'; personId: string; cap: 'recommendation.make' | 'recommendation.respond' | 'recommendation.record' }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -276,6 +277,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-CHK-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can use their checklists`));
+    case 'RECOMMENDATION':
+      // A service about to receive the person (TRANSFER) can already respond to what is recommended for them.
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'TRANSFER'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-REC-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can make or act on recommendations for them`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])

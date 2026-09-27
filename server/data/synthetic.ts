@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 40;
+const SET = 41;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -367,6 +367,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 38) set38(store);
     if (at < 39) set39(store);
     if (at < 40) set40(store);
+    if (at < 41) set41(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2896,4 +2897,56 @@ function set40(store: Store): void {
       belongings: { state: 'DONE', u: 'mere', mins: 69 },
     } });
   checklist({ nhi: 'ZZZ0059', service: 'svc-arc', template: 'SAFETY_ROUND', state: 'REQUIRED', u: 'kate', mins: 30, reason: 'New confusion; check her room.' });
+}
+
+// Recommendations (the recommendation lifecycle under Shared Lifecycle Object 278): Lena's
+// mobility recommendation for Peggy and Dr Singh's neuro observations for Tom, both waiting for
+// the ward nurses; Lena's sit-out-for-meals for Aroha, accepted and waiting to be done; Dr Li's
+// daily weights for Wiremu, done and waiting for her review.
+function set41(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface R { nhi: string; u: string; from: [string, string]; to: [string, string]; mins: number; basis: string; what: string; state: string; channel?: string;
+    implementBy?: number; response?: { u: string; mins: number; requirement: string; note?: string }; done?: { u: string; mins: number; note: string } }
+  const rec = (x: R) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('recommendation', {
+      id, person_id: pid, state: x.state, basis: x.basis, what: x.what, from_service_id: x.from[0], from_role_key: x.from[1], to_service_id: x.to[0], to_role_key: x.to[1],
+      implement_by: x.implementBy !== undefined ? addDays(todayLocal(), x.implementBy) : null, made_by: by, made_at: ago(x.mins),
+      channel: x.channel ?? null, communicated_at: x.channel ? ago(x.mins) : null,
+      responded_by: x.response ? who(x.response.u) : null, responded_at: x.response ? ago(x.response.mins) : null, response: x.response?.note ?? null,
+      modified_what: null, requirement: x.response?.requirement ?? null,
+      implemented_by: x.done ? who(x.done.u) : null, implemented_at: x.done ? ago(x.done.mins) : null, not_done_reason: null, implementation_note: x.done?.note ?? null,
+      reviewed_by: null, reviewed_at: null, review_note: null,
+    });
+    const logs: [string, string, string, number][] = [['RECOMMENDED', `${x.what}. Based on: ${x.basis}`, by, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, 'RECOMMENDED', by, x.mins]];
+    if (x.channel) { logs.push(['COMMUNICATED', x.channel === 'SHIFT' ? 'Sent in SHIFT.' : 'Told them in person.', by, x.mins]); trans.push(['RECOMMENDED', 'COMMUNICATED', by, x.mins]); }
+    if (x.response) {
+      logs.push(['ACCEPTED', `${x.response.note ? `${x.response.note} ` : ''}To do: ${x.response.requirement}.`, who(x.response.u)!, x.response.mins]);
+      trans.push(['COMMUNICATED', 'ACCEPTED', who(x.response.u)!, x.response.mins]);
+    }
+    if (x.done) { logs.push(['IMPLEMENTED', x.done.note, who(x.done.u)!, x.done.mins]); trans.push(['ACCEPTED', 'IMPLEMENTED', who(x.done.u)!, x.done.mins]); }
+    for (const [kind, body, b, mins] of logs) store.insert('recommendation_log', { id: newId(), recommendation_id: id, kind, body, by_id: b, at: ago(mins) });
+    for (const [from, to, b, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'recommendation', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  rec({ nhi: 'ZZZ0032', u: 'lena', from: ['svc-physio', 'physio'], to: ['svc-genmed', 'genmed-rn'], mins: 120, state: 'COMMUNICATED', channel: 'SHIFT',
+    basis: 'Unsteady when turning; relies on furniture; walks safely with a frame and one person beside her.',
+    what: 'Walk with her frame and one person beside her to the toilet, day and night; not to walk alone yet' });
+  rec({ nhi: 'ZZZ0148', u: 'ravi', from: ['svc-ed', 'ed-doctor'], to: ['svc-genmed', 'genmed-rn'], mins: 45, state: 'COMMUNICATED', channel: 'SHIFT',
+    basis: 'Head injury while on apixaban; CT head clear.',
+    what: 'Neuro observations every hour for 24 hours after he arrives on the ward', implementBy: 0 });
+  rec({ nhi: 'ZZZ9999', u: 'lena', from: ['svc-physio', 'physio'], to: ['svc-genmed', 'genmed-rn'], mins: 26 * 60, state: 'ACCEPTED', channel: 'VERBAL',
+    basis: 'Deconditioned after four days in bed; breathing better when upright.',
+    what: 'Sit out of bed in the chair for lunch and dinner', implementBy: 0,
+    response: { u: 'grace', mins: 25 * 60, requirement: 'Add to her care plan; help her into the chair before meals' } });
+  rec({ nhi: 'ZZZ0016', u: 'hannah', from: ['svc-genmed', 'genmed-physician'], to: ['svc-genmed', 'genmed-rn'], mins: 3 * 24 * 60, state: 'IMPLEMENTED', channel: 'SHIFT',
+    basis: 'Swollen ankles and crackles at both lung bases; on furosemide.',
+    what: 'Weigh him every morning before breakfast, on the same scales',
+    response: { u: 'grace', mins: 3 * 24 * 60 - 30, requirement: 'Daily weight on the morning list' },
+    done: { u: 'grace', mins: 2 * 24 * 60, note: 'On the morning list; weighed daily since. Down 1.8 kg.' } });
 }

@@ -37,6 +37,7 @@ import { forPerson as interventionsFor, current as interventionsNow } from './in
 import { forPerson as treatmentPlansFor } from './treatmentplans.ts';
 import { forPerson as pathwaysFor, current as pathwaysNow } from './pathways.ts';
 import { forPerson as checklistsFor, current as checklistsNow } from './checklists.ts';
+import { forPerson as recommendationsFor } from './recommendations.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -426,6 +427,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'checklists':
       body = checklistsFor(store, ctx, personId);
+      break;
+    case 'recommendations':
+      body = recommendationsFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

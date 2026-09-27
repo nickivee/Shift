@@ -249,6 +249,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-REC-001',
+    question: 'Whether a recommendation from one health profession binds another in New Zealand (for example a physiotherapist\'s mobility recommendation to nursing staff), who is accountable when one is declined or not implemented, and what must be documented.',
+    blocks: 'Treating a recommendation as an order. SHIFT records who recommended what, the response and the outcome, and leaves the decision with the recipient.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',
