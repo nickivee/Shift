@@ -201,6 +201,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-INC-001',
+    question: 'How New Zealand services must rate and report adverse events: the Health Quality & Safety Commission national adverse events policy (severity rating and the always report and review list), notifications to HealthCERT, WorkSafe and the coroner, and what applies in each setting.',
+    blocks: 'Rating an incident on the national scale or deciding that it must be notified. SHIFT records the reviewer\'s decision only.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',
