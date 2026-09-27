@@ -23,6 +23,7 @@ export type Operation =
   | { op: 'REVIEW_RESULT'; personId: string }
   | { op: 'KNOWLEDGE' }
   | { op: 'ROSTER_DECIDE'; serviceId: string }
+  | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
   | { op: 'TRANSFER_REQUEST'; personId: string }
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
   | { op: 'TRANSFER_VIEW'; serviceIds: string[] }
@@ -124,6 +125,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
     case 'COMMUNICATION_ACT':
       if (o.serviceId !== ctx.serviceId) return block('This communication belongs to another service');
       return need(ctx, 'communication.manage') ?? professional(ctx) ?? allow();
+    case 'ALLOCATION':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (o.serviceId === ctx.serviceId
+        ? allow([ORG, 'LAW-NZ-007'])
+        : block('That allocation belongs to another service'));
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'TASK':

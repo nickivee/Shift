@@ -31,6 +31,7 @@ import * as questionnaires from '../domain/questionnaires.ts';
 import * as functional from '../domain/functional.ts';
 import * as usual from '../domain/usual.ts';
 import * as assignments from '../domain/assignments.ts';
+import * as allocations from '../domain/allocations.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -215,6 +216,12 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/allocation', (req) => allocations.overview(store, work(req)));
+  r.on('POST', '/api/work/allocation', (req) => allocations.create(store, work(req), { date: str(req.body.date), period: str(req.body.period) }));
+  r.on('GET', '/api/work/allocation/:id', (req) => allocations.get(store, work(req), req.params.id));
+  r.on('POST', '/api/work/allocation/:id/:action', (req) => allocations.act(store, work(req), req.params.id, req.params.action, {
+    workerId: str(req.body.workerId), personId: str(req.body.personId), toId: str(req.body.toId), reason: str(req.body.reason), note: str(req.body.note),
+  }));
   r.on('GET', '/api/work/team', (req) => assignments.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/team', (req) => assignments.propose(store, work(req), req.params.id, {
     kind: str(req.body.kind), assigneeId: str(req.body.assigneeId), externalName: str(req.body.externalName), externalOrg: str(req.body.externalOrg),
