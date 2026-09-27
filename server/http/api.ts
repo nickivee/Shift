@@ -46,6 +46,7 @@ import * as recommendations from '../domain/recommendations.ts';
 import * as requirements from '../domain/requirements.ts';
 import * as careDue from '../domain/caredue.ts';
 import * as recalls from '../domain/recalls.ts';
+import * as followups from '../domain/followups.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -230,6 +231,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/followups', (req) => followups.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/followups', (req) => followups.make(store, work(req), req.params.id, {
+    what: str(req.body.what), reason: str(req.body.reason), dueBy: str(req.body.dueBy), to: str(req.body.to), externalName: str(req.body.externalName),
+  }));
+  r.on('POST', '/api/work/followups/:id/:action', (req) => followups.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), told: str(req.body.told), link: str(req.body.link), ref: str(req.body.ref), when: str(req.body.when), where: str(req.body.where),
+    outcome: str(req.body.outcome), furtherWhat: str(req.body.furtherWhat), furtherDue: str(req.body.furtherDue),
+  }));
   r.on('GET', '/api/work/recalls', (req) => recalls.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/recalls', (req) => recalls.setUp(store, work(req), req.params.id, {
     kind: str(req.body.kind), what: str(req.body.what), detail: str(req.body.detail), every: str(req.body.every), dueDate: str(req.body.dueDate),

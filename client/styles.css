@@ -763,3 +763,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.recall-booked { border-left: 6px solid var(--ok); }
 .tile.recall-done, .tile.recall-exited, .tile.recall-entered_in_error { border-left: 6px solid var(--ink-soft); }
 .tile.recall-did_not_attend, .tile.recall-overdue { border-left: 6px solid var(--danger); }
+
+/* Follow-ups */
+.followup h3 { margin: 0; font-size: 17px; }
+.tile.followup-required, .tile.followup-completed { border-left: 6px solid var(--warn); }
+.tile.followup-accepted, .tile.followup-arranged, .tile.followup-scheduled { border-left: 6px solid var(--ok); }
+.tile.followup-closed, .tile.followup-cancelled, .tile.followup-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.tile.followup-declined, .tile.followup-overdue { border-left: 6px solid var(--danger); }

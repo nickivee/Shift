@@ -2553,4 +2553,60 @@ CREATE TABLE recall_log (
 CREATE INDEX recall_log_recall ON recall_log(recall_id, at);
 `,
   },
+  {
+    version: 45,
+    name: 'follow-up requirement lifecycle',
+    sql: `
+-- Follow-up: required → responsibility → referral/appointment/task linkage → scheduled →
+-- completed → outcome → further follow-up/closure.
+CREATE TABLE followup (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  what TEXT NOT NULL,
+  reason TEXT,
+  due_by TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- REQUIRED | DECLINED | ACCEPTED | ARRANGED | SCHEDULED | COMPLETED | CLOSED | CANCELLED | ENTERED_IN_ERROR
+  previous_id TEXT,
+  further_id TEXT,
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  from_role_key TEXT NOT NULL,
+  made_by TEXT NOT NULL REFERENCES workforce_person(id),
+  made_at TEXT NOT NULL,
+  resp_kind TEXT NOT NULL,              -- INTERNAL | EXTERNAL
+  to_service_id TEXT,
+  to_role_key TEXT,
+  external_name TEXT,
+  accepted_by TEXT,
+  accepted_at TEXT,
+  told TEXT,
+  accept_note TEXT,
+  link_kind TEXT,
+  link_ref TEXT,
+  arranged_by TEXT,
+  arranged_at TEXT,
+  scheduled_for TEXT,
+  scheduled_where TEXT,
+  completed_by TEXT,
+  completed_at TEXT,
+  completed_note TEXT,
+  outcome TEXT,
+  outcome_note TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX followup_person ON followup(person_id, state);
+CREATE INDEX followup_from ON followup(from_service_id, state);
+CREATE INDEX followup_to ON followup(to_service_id, state);
+CREATE TABLE followup_log (
+  id TEXT PRIMARY KEY,
+  followup_id TEXT NOT NULL REFERENCES followup(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX followup_log_f ON followup_log(followup_id, at);
+`,
+  },
 ];

@@ -273,6 +273,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-FU-001',
+    question: 'Who in New Zealand stays accountable for a follow-up that a hospital service asks a GP or another outside provider to do (for example a repeat blood test after discharge), what must be sent to them, and what the hospital must do if it does not happen.',
+    blocks: 'Treating a follow-up as handed over just because it is in a letter. SHIFT records who took responsibility, how they were told, and whether it happened.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

@@ -68,6 +68,7 @@ export type Operation =
   | { op: 'REQUIREMENT'; personId: string; cap: 'requirement.record' | 'requirement.manage' }
   | { op: 'CARE_DUE'; personId: string; cap: 'due.record' | 'due.manage' }
   | { op: 'RECALL'; personId: string }
+  | { op: 'FOLLOWUP'; personId: string }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -298,6 +299,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'recall.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-RECALL-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can manage their recalls`));
+    case 'FOLLOWUP':
+      // A service asked to follow someone up may not be caring for them yet (a physio outpatient review after discharge).
+      return need(ctx, 'followup.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'TRANSFER'].includes(rel) || followupFor(store, o.personId, ctx.serviceId)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-FU-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()}, or asked to follow them up, can see or act on their follow-ups`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])
@@ -361,6 +367,11 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return allow([ORG, 'LAW-NZ-002']);
     }
   }
+}
+
+// A service named as responsible for an open follow-up for this person.
+function followupFor(store: Store, personId: string, serviceId: string): boolean {
+  return !!store.get(`SELECT 1 FROM followup WHERE person_id = ? AND to_service_id = ? AND state IN ('REQUIRED', 'ACCEPTED', 'ARRANGED', 'SCHEDULED', 'COMPLETED') LIMIT 1`, personId, serviceId);
 }
 
 function need(ctx: WorkContext, cap: Capability): AuthorityResult | null {
