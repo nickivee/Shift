@@ -78,7 +78,7 @@ export function searchView() {
           h('div', { class: 'grow' },
             h('h3', {}, r.name),
             h('p', {}, [r.nhi ? `NHI ${r.nhi}` : null, r.dateOfBirth ? `DOB ${fmtDate(r.dateOfBirth)}` : null].filter(Boolean).join(' · ')),
-            r.relationship ? h('span', { class: 'tag ok' }, r.relationship === 'EXCEPTIONAL' ? 'Exceptional access active' : `In ${state.me.context.service}`) : h('span', { class: 'tag warn' }, 'No care relationship in your service'),
+            r.relationship ? h('span', { class: 'tag ok' }, r.relationship === 'EXCEPTIONAL' ? 'Exceptional access active' : r.relationship === 'AFTER_DEATH' ? `Died in ${state.me.context.service}` : `In ${state.me.context.service}`) : h('span', { class: 'tag warn' }, 'No care relationship in your service'),
           ),
           r.relationship
             ? h('button', { class: 'btn', onclick: () => go(`/work/patient/${r.id}`) }, 'Open')

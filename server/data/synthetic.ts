@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 33;
+const SET = 34;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -360,6 +360,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 31) set31(store);
     if (at < 32) set32(store);
     if (at < 33) set33(store);
+    if (at < 34) set34(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2289,4 +2290,82 @@ function set33(store: Store): void {
     findings: { u: 'nicki', mins: 25 * day, text: 'Heel boots were not on the equipment list for his room after he moved rooms; repositioning chart gaps overnight' },
     actions: [{ what: 'Carry equipment lists over when a resident moves rooms', owner: 'Kate Rowe', due: -20, done: { u: 'kate', mins: 21 * day, note: 'Added to the room move checklist' } }],
     close: { u: 'nicki', mins: 14 * day, note: 'Heel healing; room move checklist now carries equipment over' } });
+}
+
+// Set 34: deaths. Hēmi Parata, a resident in palliative care, died early this morning: verified,
+// whānau and GP told, his wishes recorded, and the certificate, donation decision and release
+// still to do. Ivy Clarke died on Ward K ten days ago and her stay has ended.
+function set34(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const S = 'SYNTHETIC';
+  const newPerson = (p: { given: string; family: string; preferred?: string; dob: string; gender: string; ethnicity: string; iwi?: string; nhi: string; service: string; location: string; kind: string; startMins: number; endMins?: number }) => {
+    const id = newId();
+    store.insert('person', { id, family_name: p.family, given_name: p.given, preferred_name: p.preferred ?? null, date_of_birth: p.dob, gender: p.gender, ethnicity: p.ethnicity, iwi: p.iwi ?? null, data_source: S, created_at: now() });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'NHI', value: p.nhi, verification: S, created_at: now() });
+    store.insert('encounter', { id: newId(), person_id: id, service_id: p.service, location: p.location, kind: p.kind, started_at: ago(p.startMins),
+      state: p.endMins ? 'ENDED' : 'ACTIVE', ended_at: p.endMins ? ago(p.endMins) : null });
+    return id;
+  };
+  const kate = who('kate');
+  const tama = who('tama');
+  const hannah = who('hannah');
+  const grace = who('grace');
+  if (!kate || !tama || !hannah || !grace) return;
+  interface Step { kind: string; body: string; by: string; mins: number }
+  const write = (id: string, steps: Step[], notes: { kind: string; name: string; note: string; by: string; mins: number }[], trans: [string | null, string, string, number, string][]) => {
+    for (const [from, to, by, mins, reason] of trans) {
+      store.insert('state_transition', { id: newId(), object_type: 'death', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+    }
+    for (const n of notes) store.insert('death_notification', { id: newId(), event_id: id, kind: n.kind, name: n.name, note: n.note, by_id: n.by, at: ago(n.mins) });
+    for (const st of steps.sort((a, b) => b.mins - a.mins)) store.insert('death_step', { id: newId(), event_id: id, kind: st.kind, body: st.body, by_id: st.by, at: ago(st.mins) });
+  };
+
+  // Hēmi: open, in residential care.
+  const hemi = newPerson({ given: 'Hēmi', family: 'Parata', dob: '1934-05-02', gender: 'Male', ethnicity: 'Māori', iwi: 'Ngāti Kahungunu', nhi: 'ZZZ0156', service: 'svc-arc', location: 'Room 12', kind: 'RESIDENTIAL', startMins: 800 * day });
+  const h1 = newId();
+  const hemiWishes = 'Whānau to stay with him until he leaves. Karakia by his kaumātua before he is moved. Window opened. He is to go home to his marae in Wairoa.';
+  store.insert('death_event', {
+    id: h1, person_id: hemi, service_id: 'svc-arc', died_at: ago(320), expected: 'EXPECTED', place: 'In his room, Room 12',
+    circumstances: 'Found not breathing at the night check. Comfortable and settled an hour before. On the palliative care plan for three weeks.',
+    state: 'VERIFIED', identified_by: tama, identified_at: ago(315), verified_by: kate, verified_at: ago(290),
+    verify_note: 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated, no response to voice or pain.', wishes: hemiWishes,
+  });
+  write(h1, [
+    { kind: 'IDENTIFIED', body: 'Expected. Found not breathing at the night check. Comfortable and settled an hour before. On the palliative care plan for three weeks.', by: tama, mins: 315 },
+    { kind: 'VERIFIED', body: 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated, no response to voice or pain.', by: kate, mins: 290 },
+    { kind: 'NOTIFIED', body: 'Whānau or next of kin: Rawiri Parata (son). Phoned straight away; whānau coming in.', by: kate, mins: 280 },
+    { kind: 'WISHES', body: hemiWishes, by: kate, mins: 240 },
+    { kind: 'NOTIFIED', body: 'Their GP: Dr Anna Kerr, Parkside Medical. Message left with the practice; she will visit this morning.', by: kate, mins: 110 },
+  ], [
+    { kind: 'WHANAU', name: 'Rawiri Parata (son)', note: 'Phoned straight away; whānau coming in.', by: kate, mins: 280 },
+    { kind: 'GP', name: 'Dr Anna Kerr, Parkside Medical', note: 'Message left with the practice; she will visit this morning.', by: kate, mins: 110 },
+  ], [[null, 'IDENTIFIED', tama, 315, 'Expected'], ['IDENTIFIED', 'VERIFIED', kate, 290, 'Verified']]);
+
+  // Ivy: closed, ten days ago on Ward K.
+  const ivy = newPerson({ given: 'Ivy', family: 'Clarke', dob: '1929-11-18', gender: 'Female', ethnicity: 'NZ European', nhi: 'ZZZ0164', service: 'svc-genmed', location: 'Ward K Bed 2', kind: 'INPATIENT', startMins: 16 * day, endMins: 10 * day - 300 });
+  const i1 = newId();
+  store.insert('death_event', {
+    id: i1, person_id: ivy, service_id: 'svc-genmed', died_at: ago(10 * day), expected: 'EXPECTED', place: 'Ward K Bed 2',
+    circumstances: 'Died peacefully with her daughter present, on the end of life care plan for pneumonia.',
+    state: 'CLOSED', identified_by: grace, identified_at: ago(10 * day - 10), verified_by: grace, verified_at: ago(10 * day - 20),
+    verify_note: 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated.',
+    cert_kind: 'CERTIFICATE', cert_by: 'Dr Hannah Li', cert_ref: null, donation: 'NOT_APPLICABLE',
+    released_to: 'FUNERAL_DIRECTOR', released_name: 'Hope Funeral Services', released_at: ago(10 * day - 280), released_by: grace,
+    closed_by: grace, closed_at: ago(10 * day - 300),
+  });
+  write(i1, [
+    { kind: 'IDENTIFIED', body: 'Expected. Died peacefully with her daughter present, on the end of life care plan for pneumonia.', by: grace, mins: 10 * day - 10 },
+    { kind: 'VERIFIED', body: 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated.', by: grace, mins: 10 * day - 20 },
+    { kind: 'NOTIFIED', body: 'Whānau or next of kin: Susan Clarke (daughter). Present when she died.', by: grace, mins: 10 * day - 25 },
+    { kind: 'CERTIFIED', body: 'Medical certificate of cause of death completed by Dr Hannah Li.', by: hannah, mins: 10 * day - 120 },
+    { kind: 'DONATION', body: 'Not applicable', by: grace, mins: 10 * day - 125 },
+    { kind: 'NOTIFIED', body: 'Their GP: Dr Paul Singh, Eastside Health. Discharge summary sent.', by: grace, mins: 10 * day - 200 },
+    { kind: 'RELEASED', body: 'Funeral director: Hope Funeral Services.', by: grace, mins: 10 * day - 280 },
+    { kind: 'CLOSED', body: 'Stay ended.', by: grace, mins: 10 * day - 300 },
+  ], [
+    { kind: 'WHANAU', name: 'Susan Clarke (daughter)', note: 'Present when she died.', by: grace, mins: 10 * day - 25 },
+    { kind: 'GP', name: 'Dr Paul Singh, Eastside Health', note: 'Discharge summary sent.', by: grace, mins: 10 * day - 200 },
+  ], [[null, 'IDENTIFIED', grace, 10 * day - 10, 'Expected'], ['IDENTIFIED', 'VERIFIED', grace, 10 * day - 20, 'Verified'], ['VERIFIED', 'CLOSED', grace, 10 * day - 300, 'Stay ended']]);
 }

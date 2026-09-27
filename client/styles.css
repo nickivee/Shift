@@ -616,3 +616,20 @@ legend { font-weight: 700; margin-bottom: 6px; }
 .tile.inc-reviewed, .tile.inc-investigating, .tile.inc-actions { border-left: 6px solid var(--warn); }
 .inc-action { padding: 4px 0; border-top: 1px solid #e3eef1; align-items: center; gap: 8px; }
 .inc-overdue { color: var(--danger); }
+
+/* Death */
+.patient-death {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ink); color: #fff; border: 2px solid var(--ink);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-death svg { width: 24px; height: 24px; flex: none; }
+.patient-death b { display: block; font-size: 13px; letter-spacing: .6px; }
+.tile.death-identified { border-left: 6px solid var(--danger); }
+.tile.death-verified { border-left: 6px solid var(--warn); }
+.tile.death-closed, .tile.death-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.death-event h3 { margin: 0; font-size: 17px; }
+.death-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+.death-facts dt { font-weight: 700; }
+.death-facts dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .death-facts { grid-template-columns: 1fr; } .death-facts dd { margin-bottom: 6px; } }

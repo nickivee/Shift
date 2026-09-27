@@ -193,7 +193,8 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     table: 'deterioration_event',
     initial: 'DETECTED',
     next: {
-      DETECTED: ['ESCALATED', 'REASSESSED'], ESCALATED: ['RESPONDING', 'REASSESSED'], RESPONDING: ['ESCALATED', 'REASSESSED'],
+      // CLOSED from any state only when the person dies (death record closure); the view closes from REASSESSED.
+      DETECTED: ['ESCALATED', 'REASSESSED', 'CLOSED'], ESCALATED: ['RESPONDING', 'REASSESSED', 'CLOSED'], RESPONDING: ['ESCALATED', 'REASSESSED', 'CLOSED'],
       REASSESSED: ['ESCALATED', 'RESPONDING', 'CLOSED'],
     },
   },
@@ -201,6 +202,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     table: 'incident',
     initial: 'REPORTED',
     next: { REPORTED: ['REVIEWED'], REVIEWED: ['INVESTIGATING', 'ACTIONS'], INVESTIGATING: ['ACTIONS'], ACTIONS: ['CLOSED'] },
+  },
+  death: {
+    table: 'death_event',
+    initial: 'IDENTIFIED',
+    next: { IDENTIFIED: ['VERIFIED', 'ENTERED_IN_ERROR'], VERIFIED: ['CLOSED', 'ENTERED_IN_ERROR'] },
   },
   report: {
     table: 'patient_report',
