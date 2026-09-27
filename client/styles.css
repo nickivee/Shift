@@ -734,3 +734,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.checklist-required { border-left: 6px solid var(--warn); }
 .tile.checklist-overdue, .tile.checklist-exception { border-left: 6px solid var(--danger); }
 .tile.checklist-completed, .tile.checklist-cancelled, .tile.checklist-entered_in_error { border-left: 6px solid var(--ink-soft); }
+
+/* Recommendations */
+.recommendation h3 { margin: 0; font-size: 17px; }
+.tile.recommendation-communicated, .tile.recommendation-recommended { border-left: 6px solid var(--warn); }
+.tile.recommendation-accepted, .tile.recommendation-modified, .tile.recommendation-implemented { border-left: 6px solid var(--ok); }
+.tile.recommendation-declined, .tile.recommendation-not_implemented, .tile.recommendation-overdue { border-left: 6px solid var(--danger); }
+.tile.recommendation-reviewed, .tile.recommendation-withdrawn, .tile.recommendation-entered_in_error { border-left: 6px solid var(--ink-soft); }

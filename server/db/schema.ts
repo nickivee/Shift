@@ -2359,4 +2359,51 @@ CREATE TABLE checklist_log (
 CREATE INDEX checklist_log_checklist ON checklist_log(checklist_id, at);
 `,
   },
+  {
+    version: 41,
+    name: 'recommendation lifecycle',
+    sql: `
+-- Recommendation: assessment → recommendation → recipient → communicated →
+-- accepted/declined/modified → implementation requirement → implemented/not implemented → review.
+CREATE TABLE recommendation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- RECOMMENDED | COMMUNICATED | ACCEPTED | MODIFIED | DECLINED | IMPLEMENTED | NOT_IMPLEMENTED | REVIEWED | WITHDRAWN | ENTERED_IN_ERROR
+  basis TEXT NOT NULL,                  -- what the assessment found
+  what TEXT NOT NULL,
+  from_service_id TEXT NOT NULL REFERENCES service(id),
+  from_role_key TEXT NOT NULL,
+  to_service_id TEXT NOT NULL REFERENCES service(id),
+  to_role_key TEXT NOT NULL,
+  implement_by TEXT,
+  made_by TEXT NOT NULL REFERENCES workforce_person(id),
+  made_at TEXT NOT NULL,
+  channel TEXT,                         -- SHIFT | VERBAL | PHONE | MEETING
+  communicated_at TEXT,
+  responded_by TEXT,
+  responded_at TEXT,
+  response TEXT,
+  modified_what TEXT,
+  requirement TEXT,                     -- what needs doing to put it in place
+  implemented_by TEXT,
+  implemented_at TEXT,
+  not_done_reason TEXT,
+  implementation_note TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT
+);
+CREATE INDEX recommendation_person ON recommendation(person_id, state);
+CREATE INDEX recommendation_to ON recommendation(to_service_id, state);
+CREATE TABLE recommendation_log (
+  id TEXT PRIMARY KEY,
+  recommendation_id TEXT NOT NULL REFERENCES recommendation(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX recommendation_log_rec ON recommendation_log(recommendation_id, at);
+`,
+  },
 ];

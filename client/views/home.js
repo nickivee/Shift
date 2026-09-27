@@ -39,6 +39,7 @@ const DESCRIPTIONS = {
   treatmentplans: () => 'Plans waiting to be agreed, plans not going to plan, and reviews due.',
   pathways: () => 'Pathway steps overdue, pathways suggested by an entry, and pathways ready to complete.',
   checklists: () => 'Checks not met and not yet fixed, checklists overdue, and ones not started.',
+  recommendations: () => 'Recommendations to respond to, to put in place, and your own to review.',
   deterioration: () => 'People getting worse: not yet escalated first, then those being responded to.',
   acuity: () => 'People recorded as unwell, statuses overdue for another look, and people with none.',
   allocation: () => 'Which patients each person has this shift, and allocations waiting for your review.',
@@ -58,7 +59,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', codingqueries: '/work/coding-questions',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', recommendations: '/work/recommendations', codingqueries: '/work/coding-questions',
 };
 
 export function openTab(tabId) {
@@ -89,6 +90,7 @@ export async function homeView() {
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
     if (want.includes('reports')) jobs.push(get('/api/work/reports').then((d) => (counts.reports = d.toReview.length)));
+    if (want.includes('recommendations')) jobs.push(get('/api/work/recommendations').then((d) => (counts.recommendations = d.toRespond.length + d.toImplement.length + d.toReview.length)));
     if (want.includes('checklists')) jobs.push(get('/api/work/checklists').then((d) => (counts.checklists = new Set([...d.exceptions, ...d.overdue].map((x) => x.id)).size)));
     if (want.includes('pathways')) jobs.push(get('/api/work/pathways').then((d) => (counts.pathways = d.overdue.length + d.suggested.length)));
     if (want.includes('treatmentplans')) jobs.push(get('/api/work/treatment-plans').then((d) => (counts.treatmentplans = (d.canAuthorise ? d.toAgree.length : 0) + d.offTrack.length + d.reviews.length)));
