@@ -71,7 +71,7 @@ export function patientList(store: Store, ctx: WorkContext) {
             COALESCE(e.location, (SELECT o.location FROM encounter o WHERE o.person_id = p.id AND o.state = 'ACTIVE' ORDER BY o.started_at DESC LIMIT 1)) AS location,
             e.started_at AS arrived_at,
             (SELECT value FROM external_identifier x WHERE x.person_id = p.id AND x.system = 'NHI') AS nhi,
-            (SELECT 1 FROM allocation a WHERE a.person_id = p.id AND a.workforce_person_id = ? AND a.service_id = ? AND a.shift_date = ?) AS allocated,
+            (SELECT 1 FROM allocation a WHERE a.person_id = p.id AND a.workforce_person_id = ? AND a.service_id = ? AND (a.state = 'ACTIVE' OR (a.state = 'LEGACY' AND a.shift_date = ?))) AS allocated,
             (SELECT count(*) FROM handover_mark h WHERE h.person_id = p.id AND h.service_id = ? AND h.cleared_at IS NULL) AS handover,
             (SELECT count(*) FROM task t WHERE t.person_id = p.id AND t.service_id = ? AND t.state NOT IN ('COMPLETED','CLOSED','CANCELLED')) AS open_tasks,
             (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies,

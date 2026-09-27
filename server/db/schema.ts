@@ -1798,4 +1798,44 @@ CREATE INDEX assignment_person ON assignment(person_id, kind, state);
 CREATE INDEX assignment_assignee ON assignment(assignee_id, state);
 `,
   },
+  {
+    version: 30,
+    name: 'patient allocation lifecycle',
+    sql: `
+-- Patient allocation (Shared Lifecycle Object 266): patient requires care → staffing/team
+-- context → proposed allocation → senior/authorised review → confirmed allocation → active
+-- assignment → change/reallocation → handover/end. A plan covers one service and one shift;
+-- its allocation rows are the patients each staff member has. Rows written before plans
+-- existed are LEGACY and count for their date only.
+CREATE TABLE allocation_plan (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  shift_date TEXT NOT NULL,
+  period TEXT NOT NULL,                 -- AM | PM | NIGHT (server/config/allocation.ts)
+  state TEXT NOT NULL,                  -- DRAFT | SUBMITTED | CONFIRMED | ACTIVE | ENDED | CANCELLED
+  staff_json TEXT NOT NULL DEFAULT '[]', -- [{ id, onRoster, reason }]
+  drafted_by TEXT NOT NULL REFERENCES workforce_person(id),
+  drafted_at TEXT NOT NULL,
+  submitted_by TEXT,
+  submitted_at TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  started_by TEXT,
+  started_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX allocation_plan_service ON allocation_plan(service_id, state);
+ALTER TABLE allocation ADD COLUMN plan_id TEXT REFERENCES allocation_plan(id);
+ALTER TABLE allocation ADD COLUMN state TEXT NOT NULL DEFAULT 'LEGACY'; -- PROPOSED | ACTIVE | ENDED | LEGACY
+ALTER TABLE allocation ADD COLUMN ended_at TEXT;
+ALTER TABLE allocation ADD COLUMN end_reason TEXT;
+ALTER TABLE allocation ADD COLUMN reallocated_from TEXT REFERENCES allocation(id);
+ALTER TABLE allocation ADD COLUMN move_reason TEXT;
+CREATE INDEX allocation_plan_lines ON allocation(plan_id, state);
+CREATE INDEX allocation_worker ON allocation(workforce_person_id, state);
+`,
+  },
 ];

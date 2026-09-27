@@ -7,6 +7,7 @@ import { recordInitial } from '../domain/lifecycle.ts';
 import { KEY_BY_CODE } from '../config/keys.ts';
 import { INSTRUMENT_BY_CODE } from '../config/instruments.ts';
 import { render } from '../domain/commands.ts';
+import { currentPeriod, nextPeriod } from '../config/allocation.ts';
 import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
 export const SYNTHETIC_USERS = [
@@ -21,10 +22,11 @@ export const SYNTHETIC_USERS = [
   { username: 'ravi', label: 'Dr Ravi Singh, Emergency Physician (Emergency Department)' },
   { username: 'lena', label: 'Lena Fox, Physiotherapist (General Medicine caseload)' },
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
+  { username: 'grace', label: 'Grace Tupou, Registered Nurse (General Medicine)' },
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 29;
+const SET = 30;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -351,6 +353,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 27) set27(store);
     if (at < 28) set28(store);
     if (at < 29) set29(store);
+    if (at < 30) set30(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1965,4 +1968,72 @@ function set29(store: Store): void {
     const oldGp = named({ nhi: 'ZZZ0091', service: A, kind: 'GP', ext: 'Dr Mark Tane', org: 'Epsom Medical', by: 'kate', mins: 400 * day, ended: { mins: 120 * day, reason: 'His practice closed; handed over to Dr Whyte' } });
     named({ nhi: 'ZZZ0091', service: A, kind: 'GP', ext: 'Dr Anna Whyte', org: 'Cornwall Medical Centre', by: 'kate', mins: 120 * day, replaces: oldGp });
   });
+}
+
+// Set 30: patient allocation. A second General Medicine nurse; the allocation in use now for
+// each ward (replacing the day-by-day rows from set 1), and the next General Medicine shift
+// drafted by Grace and waiting for another nurse to review it.
+function set30(store: Store, password: string): void {
+  const today = todayLocal();
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+
+  let grace = who('grace');
+  if (!grace) {
+    grace = newWorker(store, hashPassword(password), 'grace', 'Grace', 'Tupou', 'Grace Tupou');
+    store.insert('professional_authority', { id: newId(), workforce_person_id: grace, profession: 'Registered Nurse', regulator: 'Nursing Council of New Zealand', registration_number: 'SYN-RN-41502', scope: 'Registered nurse', valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: 'SYNTHETIC' });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: grace, organisation_id: 'org-hosp', employment_type: 'PERMANENT', start_date: '2025-01-13' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-genmed', title: 'Registered Nurse', role_key: 'genmed-rn', start_date: '2025-01-13' });
+    for (let d = -7; d < 28; d++) {
+      const date = addDays(today, d);
+      if (new Date(`${date}T00:00:00`).getDay() === 0) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: grace, position_id: pos, service_id: 'svc-genmed', shift_date: date, start_time: d % 2 ? '14:30' : '07:00', end_time: d % 2 ? '23:00' : '15:30', state: 'PLANNED', data_source: 'SYNTHETIC' });
+    }
+  }
+
+  const step = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'allocplan', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  const nowShift = currentPeriod();
+  const next = nextPeriod(nowShift.date, nowShift.period);
+  interface Plan { service: string; date: string; period: string; state: 'ACTIVE' | 'SUBMITTED'; drafted: string; reviewer?: string; mins: number; lines: [string, string[]][]; note?: string }
+  const plan = (x: Plan) => {
+    const by = who(x.drafted);
+    const reviewer = x.reviewer ? who(x.reviewer) : null;
+    const staff = x.lines.map(([u]) => who(u)).filter((w): w is string => !!w);
+    if (!by || staff.length !== x.lines.length) return;
+    const id = newId();
+    const active = x.state === 'ACTIVE';
+    store.insert('allocation_plan', {
+      id, service_id: x.service, shift_date: x.date, period: x.period, state: x.state, staff_json: JSON.stringify(staff.map((w) => ({ id: w, onRoster: true, reason: null }))),
+      drafted_by: by, drafted_at: ago(x.mins + 60), submitted_by: by, submitted_at: ago(x.mins + 30),
+      reviewed_by: active ? reviewer : null, reviewed_at: active ? ago(x.mins + 15) : null, review_note: null,
+      started_by: active ? by : null, started_at: active ? ago(x.mins) : null,
+    });
+    step(id, null, 'DRAFT', by, ago(x.mins + 60), 'Drafted from the roster');
+    step(id, 'DRAFT', 'SUBMITTED', by, ago(x.mins + 30), x.note ?? 'Submitted for review');
+    if (active && reviewer) {
+      step(id, 'SUBMITTED', 'CONFIRMED', reviewer, ago(x.mins + 15), 'Reviewed and confirmed');
+      step(id, 'CONFIRMED', 'ACTIVE', by, ago(x.mins), 'Shift started');
+    }
+    x.lines.forEach(([u, nhis], i) => {
+      for (const nhi of nhis) {
+        const pid = person(nhi);
+        if (!pid) continue;
+        store.insert('allocation', { id: newId(), workforce_person_id: staff[i], person_id: pid, service_id: x.service, shift_date: x.date, created_at: ago(x.mins + 45), created_by: by, plan_id: id, state: active ? 'ACTIVE' : 'PROPOSED' });
+      }
+      void u;
+    });
+  };
+
+  store.run("UPDATE allocation SET state = 'ENDED', ended_at = ?, end_reason = 'Replaced by allocation plans' WHERE state = 'LEGACY'", now());
+  plan({ service: 'svc-genmed', date: nowShift.date, period: nowShift.period, state: 'ACTIVE', drafted: 'nicki', reviewer: 'grace', mins: 90,
+    lines: [['nicki', ['ZZZ9999', 'ZZZ0016']], ['grace', ['ZZZ0024', 'ZZZ0032', 'ZZZ0040']]] });
+  plan({ service: 'svc-genmed', date: next.date, period: next.period, state: 'SUBMITTED', drafted: 'grace', mins: 20,
+    note: 'Peggy now needs two to help her move, so I have given Sione to Nicki to even out the load',
+    lines: [['nicki', ['ZZZ9999', 'ZZZ0016', 'ZZZ0024']], ['grace', ['ZZZ0032', 'ZZZ0040']]] });
+  plan({ service: 'svc-arc', date: nowShift.date, period: nowShift.period, state: 'ACTIVE', drafted: 'kate', reviewer: 'nicki', mins: 100,
+    lines: [['nicki', ['ZZZ0059', 'ZZZ0067', 'ZZZ0075']], ['kate', ['ZZZ0083', 'ZZZ0091']], ['tama', ['ZZZ0059', 'ZZZ0067', 'ZZZ0075', 'ZZZ0083', 'ZZZ0091']]] });
 }

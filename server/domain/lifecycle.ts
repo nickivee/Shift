@@ -179,6 +179,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'PROPOSED',
     next: { PROPOSED: ['CONFIRMED', 'DECLINED'], CONFIRMED: ['ACTIVE', 'ENDED'], ACTIVE: ['ENDED'] },
   },
+  allocplan: {
+    table: 'allocation_plan',
+    initial: 'DRAFT',
+    next: { DRAFT: ['SUBMITTED', 'CANCELLED'], SUBMITTED: ['CONFIRMED', 'DRAFT'], CONFIRMED: ['ACTIVE', 'CANCELLED'], ACTIVE: ['ENDED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
