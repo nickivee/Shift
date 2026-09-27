@@ -35,6 +35,7 @@ import { problemsPanel } from './problems.js';
 import { symptomsPanel } from './symptoms.js';
 import { interventionsPanel } from './interventions.js';
 import { treatmentPlansPanel } from './treatmentplans.js';
+import { pathwaysPanel } from './pathways.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -362,6 +363,7 @@ export async function workstationView(personId, initialView) {
       case 'incidents': return incidentsPanel(personId, d, () => go(`/work/patient/${personId}/incidents`));
       case 'interventions': return interventionsPanel(personId, d, () => go(`/work/patient/${personId}/interventions`));
       case 'treatmentplans': return treatmentPlansPanel(personId, d, () => go(`/work/patient/${personId}/treatmentplans`));
+      case 'pathways': return pathwaysPanel(personId, d, () => go(`/work/patient/${personId}/pathways`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
@@ -455,6 +457,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.pathwaysDue?.length) {
+      block.append(h('button', { class: 'patient-pathways', onclick: () => openView('pathways') }, icon('pathways'),
+        h('span', {}, h('b', {}, 'PATHWAY STEP OVERDUE'), patient.pathwaysDue.join(' · '))));
     }
     if (patient.interventionsDue?.length) {
       block.append(h('button', { class: 'patient-interventions', onclick: () => openView('interventions') }, icon('interventions'),

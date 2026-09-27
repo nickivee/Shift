@@ -7,6 +7,7 @@ import { recordInitial, transition } from './lifecycle.ts';
 import { KEY_BY_CODE, type KeyTemplate } from '../config/keys.ts';
 import { fromEntry as problemFromEntry } from './problems.ts';
 import { fromPainEntry } from './symptoms.ts';
+import { fromEntry as pathwayFromEntry } from './pathways.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 export interface CommandInput {
@@ -171,6 +172,8 @@ export function execute(store: Store, ctx: WorkContext, input: CommandInput) {
       if (template.code === '.problem') problemFromEntry(store, ctx, person.id, fields, id);
       // A .pain entry feeds the symptom record (Object 274).
       if (template.code === '.pain') fromPainEntry(store, ctx, person.id, fields);
+      // An entry can suggest a clinical pathway (Object 278), e.g. a .fall.
+      pathwayFromEntry(store, ctx, person.id, template.code, id, render(template, fields));
       event = { id, lineage_id: id };
       result.eventId = id;
     } else {

@@ -45,7 +45,7 @@ function responsible(store: Store, ctx: WorkContext, personId: string) {
   return enc?.service_id ?? ctx.serviceId;
 }
 
-function recipients(store: Store, ctx: WorkContext, personId: string) {
+export function recipients(store: Store, ctx: WorkContext, personId: string) {
   const serviceId = responsible(store, ctx, personId);
   const service = store.get<{ name: string }>('SELECT name FROM service WHERE id = ?', serviceId)?.name ?? '';
   return (ctx.role.escalatesTo ?? []).map((key) => ({ serviceId, roleKey: key, label: `${roleLabel(key)}, ${service}` }));

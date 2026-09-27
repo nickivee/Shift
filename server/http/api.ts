@@ -40,6 +40,7 @@ import * as problems from '../domain/problems.ts';
 import * as symptoms from '../domain/symptoms.ts';
 import * as interventions from '../domain/interventions.ts';
 import * as treatmentplans from '../domain/treatmentplans.ts';
+import * as pathways from '../domain/pathways.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -224,6 +225,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/pathways', (req) => pathways.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/pathways', (req) => pathways.start(store, work(req), req.params.id, {
+    pathwayId: str(req.body.pathwayId), answers: req.body.answers, note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/pathways/:id/:action', (req) => pathways.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), answers: req.body.answers, stepId: str(req.body.stepId), to: str(req.body.to), deferMins: str(req.body.deferMins),
+    reason: str(req.body.reason), roleKey: str(req.body.roleKey), urgency: str(req.body.urgency), deviationId: str(req.body.deviationId),
+  }));
   r.on('GET', '/api/work/treatment-plans', (req) => treatmentplans.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/treatment-plans', (req) => treatmentplans.create(store, work(req), req.params.id, {
     need: str(req.body.need), problemId: str(req.body.problemId), goal: str(req.body.goal),
