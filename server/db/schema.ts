@@ -2171,4 +2171,80 @@ CREATE TABLE intervention_step (
 CREATE INDEX intervention_step_intervention ON intervention_step(intervention_id, at);
 `,
   },
+  {
+    version: 38,
+    name: 'treatment plan lifecycle',
+    sql: `
+-- Treatment Plan (Shared Lifecycle Object 277): treatment need → options → agreed/authorised plan →
+-- components → responsible services → implementation → monitoring → review → modification →
+-- completion/cessation.
+CREATE TABLE treatment_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  need TEXT,
+  problem_id TEXT,                      -- the clinical problem (273) it treats, when there is one
+  goal TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- DRAFT | AWAITING_AGREEMENT | AGREED | ACTIVE | COMPLETED | STOPPED | ENTERED_IN_ERROR
+  chosen_option_id TEXT,                -- the agreed option
+  proposed_option_id TEXT,              -- an option waiting for agreement
+  version INTEGER NOT NULL DEFAULT 1,
+  agreed_with TEXT,                     -- PATIENT | WHANAU | EPOA | UNABLE (server/config/treatmentplans.ts)
+  agreement_note TEXT,
+  authorised_by TEXT,
+  authorised_at TEXT,
+  started_at TEXT,
+  review_due TEXT,
+  created_by TEXT NOT NULL REFERENCES workforce_person(id),
+  created_at TEXT NOT NULL,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX treatment_plan_person ON treatment_plan(person_id, state);
+CREATE TABLE treatment_option (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES treatment_plan(id),
+  what TEXT NOT NULL,
+  benefits TEXT,
+  risks TEXT,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  added_at TEXT NOT NULL
+);
+CREATE INDEX treatment_option_plan ON treatment_option(plan_id);
+CREATE TABLE treatment_component (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES treatment_plan(id),
+  kind TEXT NOT NULL,
+  what TEXT NOT NULL,
+  service_id TEXT NOT NULL REFERENCES service(id),   -- the responsible service
+  intervention_id TEXT,                 -- an intervention (276) this component is
+  state TEXT NOT NULL,                  -- PLANNED | UNDER_WAY | DONE | STOPPED
+  note TEXT,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  added_at TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT
+);
+CREATE INDEX treatment_component_plan ON treatment_component(plan_id);
+CREATE TABLE treatment_progress (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES treatment_plan(id),
+  progress TEXT NOT NULL,               -- ON_TRACK | SLOWER | NOT_WORKING
+  note TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX treatment_progress_plan ON treatment_progress(plan_id, at);
+CREATE TABLE treatment_step (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES treatment_plan(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX treatment_step_plan ON treatment_step(plan_id, at);
+`,
+  },
 ];

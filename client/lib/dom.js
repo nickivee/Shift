@@ -100,6 +100,7 @@ const PATHS = {
   incidents: 'M12 3 2 20h20L12 3ZM12 10v4M12 17h.01M8 3h8',
   deterioration: 'M3 6l6 6 4-4 8 8M21 10v6h-6',
   interventions: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
+  treatmentplans: 'M9 3h6v3H9zM6 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1M8 12h8M8 16h5M12 10v4',
   symptoms: 'M4 18h3l2-6 3 9 3-12 2 9h3',
   death: 'M12 2c-2 3-2 5 0 7 2-2 2-4 0-7ZM12 9v13M8 22h8M6 13h12',
   deaths: 'M12 2c-2 3-2 5 0 7 2-2 2-4 0-7ZM12 9v13M8 22h8M6 13h12',

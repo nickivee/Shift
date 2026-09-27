@@ -233,6 +233,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ACTIVE: ['AWAITING_AUTHORISATION', 'CEASED', 'ENTERED_IN_ERROR'],
     },
   },
+  treatment_plan: {
+    table: 'treatment_plan',
+    initial: 'DRAFT',
+    next: {
+      DRAFT: ['AWAITING_AGREEMENT', 'AGREED', 'STOPPED', 'ENTERED_IN_ERROR'], AWAITING_AGREEMENT: ['DRAFT', 'AGREED', 'ACTIVE', 'STOPPED', 'ENTERED_IN_ERROR'],
+      AGREED: ['ACTIVE', 'STOPPED', 'ENTERED_IN_ERROR'], ACTIVE: ['AWAITING_AGREEMENT', 'COMPLETED', 'STOPPED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

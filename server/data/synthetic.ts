@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 37;
+const SET = 38;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -364,6 +364,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 35) set35(store);
     if (at < 36) set36(store);
     if (at < 37) set37(store);
+    if (at < 38) set38(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2602,4 +2603,123 @@ function set37(store: Store): void {
     symptom: 'PAIN', state: 'ACTIVE', reviewDue: 0, done: [{ u: 'tama', mins: 23 * 60, response: 'Walked to the lounge more easily' }, { u: 'tama', mins: 5 * 60 }] });
   intervention({ nhi: 'ZZZ0016', service: 'svc-genmed', category: 'NURSING', what: 'Oxygen 2 L by nasal prongs, keep sats 92 to 96%', u: 'grace', mins: 4 * day, frequency: 'AS_NEEDED',
     problem: 'Chest infection with sepsis', state: 'CEASED', ceased: { u: 'grace', mins: day, note: 'Sats 95% on air for 24 hours' } });
+}
+
+// Treatment plans (Shared Lifecycle Object 277): Aroha's pneumonia plan under way and slower than
+// hoped, with its review due today; Peggy's falls plan waiting for a doctor to agree it; Rua's
+// confusion plan waiting in residential care, where no-one can agree it (RR-TP-002); and
+// Wiremu's sepsis plan completed.
+function set38(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface O { what: string; benefits?: string; risks?: string }
+  interface C { kind: string; what: string; service: string; intervention?: string }
+  interface P { nhi: string; service: string; problem: string; goal: string; u: string; mins: number; options: O[]; state: string;
+    proposed?: { option: number; u: string; mins: number };
+    agreed?: { option: number; u: string; mins: number; with: string; note?: string };
+    components?: C[]; startedMins?: number; reviewDue?: number; progress?: { u: string; mins: number; progress: string; note: string }[];
+    ended?: { u: string; mins: number; note: string } }
+  const plan = (x: P) => {
+    const pid = person(x.nhi);
+    const cb = who(x.u);
+    if (!pid || !cb) return;
+    const problemId = store.get<{ id: string }>('SELECT id FROM clinical_problem WHERE person_id = ? AND title = ? ORDER BY raised_at DESC', pid, x.problem)?.id ?? null;
+    const id = newId();
+    const optionIds = x.options.map(() => newId());
+    store.insert('treatment_plan', {
+      id, person_id: pid, service_id: x.service, need: problemId ? null : x.problem, problem_id: problemId, goal: x.goal, state: x.state,
+      chosen_option_id: x.agreed ? optionIds[x.agreed.option] : null, proposed_option_id: x.proposed && !x.agreed ? optionIds[x.proposed.option] : null, version: 1,
+      agreed_with: x.agreed?.with ?? null, agreement_note: x.agreed?.note ?? null, authorised_by: x.agreed ? who(x.agreed.u) : null, authorised_at: x.agreed ? ago(x.agreed.mins) : null,
+      started_at: x.startedMins !== undefined ? ago(x.startedMins) : null, review_due: x.reviewDue !== undefined ? addDays(todayLocal(), x.reviewDue) : null,
+      created_by: cb, created_at: ago(x.mins), ended_by: x.ended ? who(x.ended.u) : null, ended_at: x.ended ? ago(x.ended.mins) : null, end_note: x.ended?.note ?? null,
+    });
+    const steps: [string, string, string, number][] = [['NEED', `${x.problem}. Goal: ${x.goal}`, cb, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, 'DRAFT', cb, x.mins]];
+    x.options.forEach((o, i) => {
+      store.insert('treatment_option', { id: optionIds[i], plan_id: id, what: o.what, benefits: o.benefits ?? null, risks: o.risks ?? null, added_by: cb, added_at: ago(x.mins - 1 - i) });
+      steps.push(['OPTION', [o.what, o.benefits ? `Benefits: ${o.benefits}` : '', o.risks ? `Risks: ${o.risks}` : ''].filter(Boolean).join('. '), cb, x.mins - 1 - i]);
+    });
+    if (x.proposed) {
+      steps.push(['PROPOSED', `${x.options[x.proposed.option].what}. Waiting for a doctor or therapist to agree it with the person.`, who(x.proposed.u)!, x.proposed.mins]);
+      trans.push(['DRAFT', 'AWAITING_AGREEMENT', who(x.proposed.u)!, x.proposed.mins]);
+    }
+    if (x.agreed) {
+      const labels: Record<string, string> = { PATIENT: 'the person themselves', WHANAU: 'the person, with their whānau', EPOA: 'their EPOA or welfare guardian' };
+      steps.push(['AGREED', `${x.options[x.agreed.option].what}. Agreed with ${labels[x.agreed.with]}.${x.agreed.note ? ` ${x.agreed.note}` : ''}`, who(x.agreed.u)!, x.agreed.mins]);
+      trans.push([trans[trans.length - 1][1], 'AGREED', who(x.agreed.u)!, x.agreed.mins]);
+    }
+    const names = store.all<{ id: string; name: string }>('SELECT id, name FROM service');
+    for (const [i, c] of (x.components ?? []).entries()) {
+      const interventionId = c.intervention ? store.get<{ id: string }>('SELECT id FROM intervention WHERE person_id = ? AND what = ?', pid, c.intervention)?.id ?? null : null;
+      const at = (x.agreed?.mins ?? x.mins) - 1 - i;
+      const cs = x.state === 'COMPLETED' ? 'DONE' : x.startedMins !== undefined ? 'UNDER_WAY' : 'PLANNED';
+      store.insert('treatment_component', { id: newId(), plan_id: id, kind: c.kind, what: c.what, service_id: c.service, intervention_id: interventionId, state: cs,
+        note: null, added_by: cb, added_at: ago(at), updated_by: null, updated_at: null });
+      const kinds: Record<string, string> = { INTERVENTION: 'Intervention', MEDICINE: 'Medicine', THERAPY: 'Therapy', TEST: 'Test or investigation' };
+      steps.push(['COMPONENT', `${kinds[c.kind]}: ${c.what}. Responsible: ${names.find((n) => n.id === c.service)?.name}.`, cb, at]);
+    }
+    if (x.startedMins !== undefined) {
+      steps.push(['STARTED', 'Started.', cb, x.startedMins]);
+      trans.push(['AGREED', 'ACTIVE', cb, x.startedMins]);
+    }
+    for (const g of x.progress ?? []) {
+      const labels: Record<string, string> = { ON_TRACK: 'Going to plan', SLOWER: 'Slower than hoped', NOT_WORKING: 'Not working' };
+      store.insert('treatment_progress', { id: newId(), plan_id: id, progress: g.progress, note: g.note, by_id: who(g.u)!, at: ago(g.mins) });
+      steps.push(['PROGRESS', `${labels[g.progress]}: ${g.note}`, who(g.u)!, g.mins]);
+    }
+    if (x.ended) {
+      steps.push([x.state, x.ended.note, who(x.ended.u)!, x.ended.mins]);
+      trans.push(['ACTIVE', x.state, who(x.ended.u)!, x.ended.mins]);
+    }
+    for (const [kind, body, by, mins] of steps) store.insert('treatment_step', { id: newId(), plan_id: id, kind, body, by_id: by, at: ago(mins) });
+    for (const [from, to, by, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'treatment_plan', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  plan({ nhi: 'ZZZ9999', service: 'svc-genmed', problem: 'Community-acquired pneumonia', goal: 'Chest clear, off oxygen and walking the corridor, ready to go home', u: 'hannah', mins: day + 60,
+    options: [
+      { what: 'Oral antibiotics, chest physiotherapy and breathing exercises', benefits: 'Can stay mobile; no drip', risks: 'Slower if the infection is resistant' },
+      { what: 'Intravenous antibiotics', benefits: 'Works faster in severe infection', risks: 'Drip site infection; stays in bed more' },
+    ],
+    state: 'ACTIVE', agreed: { option: 0, u: 'hannah', mins: day + 50, with: 'PATIENT', note: 'Aroha prefers tablets and wants to keep walking.' },
+    components: [
+      { kind: 'INTERVENTION', what: 'Deep breathing and coughing exercises, 10 breaths', service: 'svc-genmed', intervention: 'Deep breathing and coughing exercises, 10 breaths' },
+      { kind: 'MEDICINE', what: 'Amoxicillin by mouth for 5 days (prescribed in her medicines)', service: 'svc-genmed' },
+      { kind: 'THERAPY', what: 'Chest physiotherapy and walking practice twice a day', service: 'svc-physio' },
+    ],
+    startedMins: day + 40, reviewDue: 0,
+    progress: [
+      { u: 'lena', mins: 20 * 60, progress: 'ON_TRACK', note: 'Walked 20 metres with a frame; productive cough.' },
+      { u: 'nicki', mins: 3 * 60, progress: 'SLOWER', note: 'Still needing 2 L oxygen overnight; tired after walking to the bathroom.' },
+    ] });
+  plan({ nhi: 'ZZZ0032', service: 'svc-genmed', problem: 'Falls: unsteady on her feet', goal: 'Walking safely to the toilet with a frame, with no more falls', u: 'nicki', mins: 5 * 60,
+    options: [
+      { what: 'Strength and balance programme with physiotherapy, and stop the night-time sedative', benefits: 'Treats the causes; she keeps her independence', risks: 'May sleep less well at first' },
+      { what: 'Walking frame and supervision only', benefits: 'Simple to start today', risks: 'Does not treat the weakness or the sedative' },
+    ],
+    state: 'AWAITING_AGREEMENT', proposed: { option: 0, u: 'nicki', mins: 4 * 60 },
+    components: [
+      { kind: 'THERAPY', what: 'Strength and balance exercises every morning', service: 'svc-physio' },
+      { kind: 'MEDICINE', what: 'Stop the night-time sedative (change in her medicines)', service: 'svc-genmed' },
+    ] });
+  plan({ nhi: 'ZZZ0059', service: 'svc-arc', problem: 'New confusion', goal: 'Back to her usual self: knows where she is and sleeping at night', u: 'kate', mins: 150,
+    options: [
+      { what: 'Look for and treat the cause here: urine test, fluids, toileting round and a GP review', benefits: 'Stays in familiar surroundings with her whānau', risks: 'Slower to find a serious cause' },
+      { what: 'Transfer to hospital for assessment', benefits: 'Quick access to tests', risks: 'Moving often makes confusion worse' },
+    ],
+    state: 'AWAITING_AGREEMENT', proposed: { option: 0, u: 'kate', mins: 140 },
+    components: [
+      { kind: 'INTERVENTION', what: 'Toileting round, offer the toilet and a drink', service: 'svc-arc', intervention: 'Toileting round, offer the toilet and a drink' },
+      { kind: 'TEST', what: 'Urine dipstick and send a sample', service: 'svc-arc' },
+    ] });
+  plan({ nhi: 'ZZZ0016', service: 'svc-genmed', problem: 'Chest infection with sepsis', goal: 'Infection treated, eating and walking, back to his usual breathing', u: 'hannah', mins: 5 * day,
+    options: [{ what: 'Intravenous antibiotics then tablets, oxygen and fluids', benefits: 'Standard sepsis treatment', risks: 'Drip site problems' }],
+    state: 'COMPLETED', agreed: { option: 0, u: 'hannah', mins: 5 * day - 20, with: 'WHANAU', note: 'Discussed with Wiremu and his son.' },
+    components: [
+      { kind: 'MEDICINE', what: 'Intravenous antibiotics, changing to tablets when improving', service: 'svc-genmed' },
+      { kind: 'INTERVENTION', what: 'Oxygen 2 L by nasal prongs, keep sats 92 to 96%', service: 'svc-genmed', intervention: 'Oxygen 2 L by nasal prongs, keep sats 92 to 96%' },
+    ],
+    startedMins: 5 * day - 30,
+    progress: [{ u: 'grace', mins: 2 * day, progress: 'ON_TRACK', note: 'Fever settled; eating half his meals.' }],
+    ended: { u: 'hannah', mins: day - 60, note: 'Goal met: on air, eating and walking the corridor.' } });
 }

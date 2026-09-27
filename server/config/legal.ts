@@ -225,6 +225,18 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-TP-001',
+    question: 'Who may agree to a treatment plan for a person who cannot agree themselves (Code of Health and Disability Services Consumers\' Rights, Right 7(4); Protection of Personal and Property Rights Act 1988 EPOA and welfare guardian powers), and what must be recorded when treatment is given in their best interests.',
+    blocks: 'Treating a best-interests decision as consent. SHIFT records who agreed and why, and does not decide whether that agreement is lawful.',
+    category: 'LAW',
+  },
+  {
+    ref: 'RR-TP-002',
+    question: 'Which clinicians may authorise a treatment plan in each New Zealand setting (for example a general practitioner or nurse practitioner for aged residential care residents), and whether a plan must name a responsible clinician.',
+    blocks: 'Authorising plans in services with no doctor or therapist. SHIFT uses the synthetic organisation\'s rule (a doctor or physiotherapist agrees the plan), so residential care plans wait.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

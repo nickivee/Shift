@@ -39,6 +39,7 @@ import * as deaths from '../domain/deaths.ts';
 import * as problems from '../domain/problems.ts';
 import * as symptoms from '../domain/symptoms.ts';
 import * as interventions from '../domain/interventions.ts';
+import * as treatmentplans from '../domain/treatmentplans.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -223,6 +224,16 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/treatment-plans', (req) => treatmentplans.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/treatment-plans', (req) => treatmentplans.create(store, work(req), req.params.id, {
+    need: str(req.body.need), problemId: str(req.body.problemId), goal: str(req.body.goal),
+  }));
+  r.on('POST', '/api/work/treatment-plans/:id/:action', (req) => treatmentplans.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), what: str(req.body.what), benefits: str(req.body.benefits), risks: str(req.body.risks), optionId: str(req.body.optionId),
+    agreedWith: str(req.body.agreedWith), kind: str(req.body.kind), serviceId: str(req.body.serviceId), interventionId: str(req.body.interventionId),
+    componentId: str(req.body.componentId), state: str(req.body.state), progress: str(req.body.progress), outcome: str(req.body.outcome),
+    goal: str(req.body.goal), reviewDue: str(req.body.reviewDue),
+  }));
   r.on('GET', '/api/work/interventions', (req) => interventions.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/interventions', (req) => interventions.plan(store, work(req), req.params.id, {
     category: str(req.body.category), what: str(req.body.what), purpose: str(req.body.purpose), forId: str(req.body.forId), frequency: str(req.body.frequency),
