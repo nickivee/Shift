@@ -34,6 +34,7 @@ import * as assignments from '../domain/assignments.ts';
 import * as allocations from '../domain/allocations.ts';
 import * as acuity from '../domain/acuity.ts';
 import * as deterioration from '../domain/deterioration.ts';
+import * as incidents from '../domain/incidents.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -218,6 +219,16 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/incidents', (req) => incidents.list(store, work(req)));
+  r.on('GET', '/api/work/incidents/:id', (req) => incidents.get(store, work(req), req.params.id));
+  r.on('POST', '/api/work/patients/:id/incidents', (req) => incidents.report(store, work(req), req.params.id, {
+    category: str(req.body.category), occurredAt: str(req.body.occurredAt), place: str(req.body.place), what: str(req.body.what), harm: str(req.body.harm), immediate: str(req.body.immediate),
+  }));
+  r.on('POST', '/api/work/incidents/:id/:action', (req) => incidents.act(store, work(req), req.params.id, req.params.action, {
+    harm: str(req.body.harm), notify: str(req.body.notify), notifyNote: str(req.body.notifyNote), disclosure: str(req.body.disclosure), disclosureNote: str(req.body.disclosureNote),
+    note: str(req.body.note), lead: str(req.body.lead), ref: str(req.body.ref), findings: str(req.body.findings), what: str(req.body.what), owner: str(req.body.owner),
+    due: str(req.body.due), actionId: str(req.body.actionId),
+  }));
   r.on('GET', '/api/work/deterioration', (req) => deterioration.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/deterioration', (req) => deterioration.open(store, work(req), req.params.id, { change: str(req.body.change) }));
   r.on('POST', '/api/work/deterioration/:id/:action', (req) => deterioration.act(store, work(req), req.params.id, req.params.action, {

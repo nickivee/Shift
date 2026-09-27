@@ -197,6 +197,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       REASSESSED: ['ESCALATED', 'RESPONDING', 'CLOSED'],
     },
   },
+  incident: {
+    table: 'incident',
+    initial: 'REPORTED',
+    next: { REPORTED: ['REVIEWED'], REVIEWED: ['INVESTIGATING', 'ACTIONS'], INVESTIGATING: ['ACTIONS'], ACTIONS: ['CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

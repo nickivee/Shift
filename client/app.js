@@ -39,6 +39,7 @@ import { teamView } from './views/team.js';
 import { allocationView, allocationPlanView } from './views/allocation.js';
 import { acuityView } from './views/acuity.js';
 import { deteriorationView } from './views/deterioration.js';
+import { incidentsView } from './views/incidents.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -115,6 +116,7 @@ const routes = [
   [/^\/work\/function$/, () => functionView(), { work: true }],
   [/^\/work\/usual$/, () => usualView(), { work: true }],
   [/^\/work\/team$/, () => teamView(), { work: true }],
+  [/^\/work\/incidents$/, () => incidentsView(), { work: true }],
   [/^\/work\/deterioration$/, () => deteriorationView(), { work: true }],
   [/^\/work\/acuity$/, () => acuityView(), { work: true }],
   [/^\/work\/allocation$/, () => allocationView(), { work: true }],

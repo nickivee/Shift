@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 32;
+const SET = 33;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -359,6 +359,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 30) set30(store, password);
     if (at < 31) set31(store);
     if (at < 32) set32(store);
+    if (at < 33) set33(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2180,4 +2181,112 @@ function set32(store: Store): void {
       { kind: 'REASSESSMENT', u: 'nicki', mins: 3 * 24 * 60 - 60, body: 'Needs closer watching (better): pain 3/10, HR 88' },
       { kind: 'OUTCOME', u: 'nicki', mins: 2 * 24 * 60, body: `${DETERIORATION_OUTCOMES.IMPROVED}: Pain controlled with regular analgesia; obs back to her usual` },
     ] });
+}
+
+// Set 33: incidents. Rua's night-time fall with actions under way, a near miss for Elsie and a
+// labelling near miss for James waiting for review, Wiremu's late antibiotics being
+// investigated, and Bill's pressure injury from last month, closed.
+function set33(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const date = (days: number) => addDays(todayLocal(), days);
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const trans = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'incident', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Inc {
+    nhi: string; service: string; category: string; mins: number; place: string; what: string; immediate: string; harm: string; u: string;
+    review?: { u: string; mins: number; harm: string; notify: string; notifyNote?: string; disclosure: string; disclosureNote?: string; notified?: string };
+    investigate?: { u: string; mins: number; lead: string; ref?: string };
+    findings?: { u: string; mins: number; text: string };
+    actions?: { what: string; owner: string; due: number; done?: { u: string; mins: number; note: string } }[];
+    close?: { u: string; mins: number; note: string };
+  }
+  const incident = (x: Inc) => {
+    const pid = person(x.nhi);
+    const rb = who(x.u);
+    if (!pid || !rb) return;
+    const id = newId();
+    const steps: { kind: string; body: string; by: string; at: string }[] = [];
+    let state = 'REPORTED';
+    const move = (to: string, by: string, at: string, reason: string) => { trans(id, state, to, by, at, reason); state = to; };
+    const fields: Record<string, unknown> = {};
+    trans(id, null, 'REPORTED', rb, ago(x.mins - 20), x.what.slice(0, 200));
+    steps.push({ kind: 'REPORTED', body: `${x.what} Straight away: ${x.immediate}`, by: rb, at: ago(x.mins - 20) });
+    if (x.review) {
+      const v = who(x.review.u)!;
+      const at = ago(x.review.mins);
+      Object.assign(fields, { harm: x.review.harm, notify: x.review.notify, notify_note: x.review.notifyNote ?? null, disclosure: x.review.disclosure, disclosure_note: x.review.disclosureNote ?? null, reviewed_by: v, reviewed_at: at });
+      move('REVIEWED', v, at, 'Reviewed');
+      steps.push({ kind: 'REVIEWED', body: `Harm: ${x.review.harm.toLowerCase().replace('_', ' ')}. Notification: ${x.review.notify.toLowerCase().replace('_', ' ')}${x.review.notifyNote ? `: ${x.review.notifyNote}` : ''}. Open disclosure: ${x.review.disclosureNote ?? x.review.disclosure.toLowerCase()}.`, by: v, at });
+      if (x.review.notified) { fields.notified_at = at; steps.push({ kind: 'NOTIFIED', body: x.review.notified, by: v, at }); }
+    }
+    if (x.investigate) {
+      const v = who(x.investigate.u)!;
+      Object.assign(fields, { investigation_lead: x.investigate.lead, investigation_ref: x.investigate.ref ?? null });
+      move('INVESTIGATING', v, ago(x.investigate.mins), `Led by ${x.investigate.lead}`);
+      steps.push({ kind: 'INVESTIGATING', body: `Led by ${x.investigate.lead}${x.investigate.ref ? ` (reference ${x.investigate.ref})` : ''}`, by: v, at: ago(x.investigate.mins) });
+    }
+    if (x.findings) {
+      const v = who(x.findings.u)!;
+      fields.findings = x.findings.text;
+      move('ACTIONS', v, ago(x.findings.mins), 'Findings recorded');
+      steps.push({ kind: 'FINDINGS', body: x.findings.text, by: v, at: ago(x.findings.mins) });
+    }
+    if (x.close) {
+      const v = who(x.close.u)!;
+      Object.assign(fields, { closed_by: v, closed_at: ago(x.close.mins), close_note: x.close.note });
+    }
+    store.insert('incident', {
+      id, person_id: pid, service_id: x.service, category: x.category, occurred_at: ago(x.mins), place: x.place, what: x.what, immediate: x.immediate,
+      reported_harm: x.harm, state: 'REPORTED', reported_by: rb, reported_at: ago(x.mins - 20), ...fields,
+    });
+    for (const a of x.actions ?? []) {
+      const by = who(x.findings!.u)!;
+      const done = a.done ? who(a.done.u) : null;
+      store.insert('incident_action', {
+        id: newId(), incident_id: id, what: a.what, owner: a.owner, due: date(a.due), created_by: by, created_at: ago(x.findings!.mins - 5),
+        done_at: a.done ? ago(a.done.mins) : null, done_by: done, done_note: a.done?.note ?? null,
+      });
+      steps.push({ kind: 'ACTION', body: `${a.what} (${a.owner}, due ${date(a.due)})`, by, at: ago(x.findings!.mins - 5) });
+      if (a.done && done) steps.push({ kind: 'ACTION_DONE', body: `${a.what}: ${a.done.note}`, by: done, at: ago(a.done.mins) });
+    }
+    if (x.close) {
+      const v = who(x.close.u)!;
+      move('CLOSED', v, ago(x.close.mins), x.close.note);
+      steps.push({ kind: 'CLOSED', body: x.close.note, by: v, at: ago(x.close.mins) });
+    }
+    store.run('UPDATE incident SET state = ? WHERE id = ?', state, id);
+    steps.sort((a, b) => a.at.localeCompare(b.at));
+    for (const st of steps) store.insert('incident_step', { id: newId(), incident_id: id, kind: st.kind, body: st.body, by_id: st.by, at: st.at });
+  };
+  const A = 'svc-arc';
+  const G = 'svc-genmed';
+  incident({ nhi: 'ZZZ0059', service: A, category: 'FALL', u: 'tama', mins: 2 * day, place: 'Beside her bed, Room 3', harm: 'MINOR',
+    what: 'Found sitting on the floor beside her bed at 02:10. Said she was trying to get to the toilet. Bed alarm did not sound.',
+    immediate: 'Checked for injury: small skin tear on left forearm, dressed. Full obs normal. Kate and her daughter told',
+    review: { u: 'kate', mins: 2 * day - 300, harm: 'MINOR', notify: 'NOT_REQUIRED', disclosure: 'DONE', disclosureNote: 'Kate phoned her daughter Mere at 08:30 and explained what happened' },
+    findings: { u: 'kate', mins: day, text: 'The bed alarm had been switched off for cleaning the day before and not switched back on. No check for this in the cleaning routine' },
+    actions: [
+      { what: 'Switch Rua\'s bed alarm back on and check it every night shift', owner: 'Kate Rowe', due: -1, done: { u: 'kate', mins: day - 60, note: 'Alarm on; added to the night checklist' } },
+      { what: 'Add a bed alarm check to the cleaning routine for every room', owner: 'Facility manager', due: 3 },
+    ] });
+  incident({ nhi: 'ZZZ0067', service: A, category: 'MEDICATION', u: 'nicki', mins: 200, place: 'Medicine round, Room 5', harm: 'NEAR_MISS',
+    what: 'Evening antibiotic dose drawn up for Elsie from Rua\'s supply, which had the same name and strength. Noticed before giving it.',
+    immediate: 'Dose discarded, correct supply used, Kate told' });
+  incident({ nhi: 'ZZZ0040', service: G, category: 'IDENTIFICATION', u: 'sam', mins: 300, place: 'Ward K', harm: 'NEAR_MISS',
+    what: 'Blood tubes for James Chen were labelled with Sione Tuilagi\'s sticker. Picked up by the lab before testing.',
+    immediate: 'Samples discarded and taken again with the right labels; both patients checked' });
+  incident({ nhi: 'ZZZ0016', service: G, category: 'DELAY', u: 'grace', mins: 20 * 60, place: 'Ward K Bed 5', harm: 'MINOR',
+    what: 'First dose of IV antibiotics for suspected sepsis given 2 hours after it was charted.',
+    immediate: 'Dose given as soon as noticed; Dr Patel told; obs hourly',
+    review: { u: 'nicki', mins: 18 * 60, harm: 'MINOR', notify: 'UNSURE', notifyNote: 'Asked the quality and patient safety team', disclosure: 'DONE', disclosureNote: 'Dr Patel explained the delay to Wiremu and his wife' },
+    investigate: { u: 'nicki', mins: 17 * 60, lead: 'Charge Nurse Manager, Ward K', ref: 'QPS-2026-114' } });
+  incident({ nhi: 'ZZZ0091', service: A, category: 'PRESSURE_INJURY', u: 'kate', mins: 28 * day, place: 'Room 9', harm: 'MODERATE',
+    what: 'Stage 2 pressure injury found on his left heel at morning cares.',
+    immediate: 'Heel offloaded, dressing applied, wound chart started, GP told',
+    review: { u: 'nicki', mins: 28 * day - 240, harm: 'MODERATE', notify: 'NOT_REQUIRED', disclosure: 'DONE', disclosureNote: 'Kate talked with Bill and his son at the next visit' },
+    findings: { u: 'nicki', mins: 25 * day, text: 'Heel boots were not on the equipment list for his room after he moved rooms; repositioning chart gaps overnight' },
+    actions: [{ what: 'Carry equipment lists over when a resident moves rooms', owner: 'Kate Rowe', due: -20, done: { u: 'kate', mins: 21 * day, note: 'Added to the room move checklist' } }],
+    close: { u: 'nicki', mins: 14 * day, note: 'Heel healing; room move checklist now carries equipment over' } });
 }

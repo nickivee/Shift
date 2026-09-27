@@ -1900,4 +1900,67 @@ CREATE TABLE deterioration_step (
 CREATE INDEX deterioration_step_event ON deterioration_step(event_id, at);
 `,
   },
+  {
+    version: 33,
+    name: 'incident lifecycle',
+    sql: `
+-- Incident / adverse clinical event (Shared Lifecycle Object 269): event/concern → immediate
+-- clinical response → incident notification where required → safety review → investigation
+-- linkage → findings → actions → closure. Categories, harm levels and notification choices are
+-- in server/config/incidents.ts; the national rating and notification rules are RR-INC-001.
+CREATE TABLE incident (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  category TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  place TEXT,
+  what TEXT NOT NULL,
+  immediate TEXT NOT NULL,              -- the immediate clinical response
+  reported_harm TEXT NOT NULL,          -- as the reporter saw it
+  harm TEXT,                            -- as confirmed at review
+  state TEXT NOT NULL,                  -- REPORTED | REVIEWED | INVESTIGATING | ACTIONS | CLOSED
+  reported_by TEXT NOT NULL REFERENCES workforce_person(id),
+  reported_at TEXT NOT NULL,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  notify TEXT,                          -- REQUIRED | NOT_REQUIRED | UNSURE
+  notify_note TEXT,
+  notified_at TEXT,
+  disclosure TEXT,                      -- DONE | PLANNED | NOT_POSSIBLE | NOT_NEEDED
+  disclosure_note TEXT,
+  investigation_lead TEXT,
+  investigation_ref TEXT,
+  findings TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  close_note TEXT
+);
+CREATE INDEX incident_person ON incident(person_id, state);
+CREATE INDEX incident_service ON incident(service_id, state);
+CREATE TABLE incident_step (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES incident(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX incident_step_incident ON incident_step(incident_id, at);
+CREATE TABLE incident_action (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES incident(id),
+  what TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  due TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  done_at TEXT,
+  done_by TEXT,
+  done_note TEXT
+);
+CREATE INDEX incident_action_incident ON incident_action(incident_id);
+`,
+  },
 ];
