@@ -208,6 +208,15 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'IDENTIFIED',
     next: { IDENTIFIED: ['VERIFIED', 'ENTERED_IN_ERROR'], VERIFIED: ['CLOSED', 'ENTERED_IN_ERROR'] },
   },
+  problem: {
+    table: 'clinical_problem',
+    initial: 'CONCERN',
+    next: {
+      CONCERN: ['PROVISIONAL', 'ACTIVE', 'RULED_OUT', 'RESOLVED', 'ENTERED_IN_ERROR'], PROVISIONAL: ['ACTIVE', 'RULED_OUT', 'RESOLVED', 'ENTERED_IN_ERROR'],
+      ACTIVE: ['RESOLVED', 'INACTIVE', 'ENTERED_IN_ERROR'], RESOLVED: ['ACTIVE', 'ENTERED_IN_ERROR'], INACTIVE: ['ACTIVE', 'ENTERED_IN_ERROR'],
+      RULED_OUT: ['ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
