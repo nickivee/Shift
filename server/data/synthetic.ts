@@ -24,7 +24,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 26;
+const SET = 27;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -348,6 +348,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 24) set24(store, password);
     if (at < 25) set25(store);
     if (at < 26) set26(store);
+    if (at < 27) set27(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1760,6 +1761,83 @@ function set26(store: Store): void {
     add({
       nhi: 'ZZZ0075', service: 'svc-arc', code: 'PHQ-9', reason: 'Talking a lot about missing his dog Bess; sleeping in the day', asked: 'kate', askedMins: 60 * 24, dueMins: 60 * 5,
       done: { u: 'kate', mins: 60 * 3, mode: 'STAFF_ASKED', answers: [2, 2, 1, 2, 1, 1, 1, 0, 1] },
+    });
+  });
+}
+
+function set27(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  type E = [string, string | null, string | null];   // level, aid, note
+  const ACTS = ['WALKING', 'TRANSFERS', 'STAIRS', 'WASHING', 'DRESSING', 'TOILETING', 'EATING'];
+  const assess = (x: { nhi: string; service: string; kind: string; u: string; mins: number; e: (E | null)[]; source?: string; sourceName?: string; summary?: string; reviewMins?: number }) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const entries = Object.fromEntries(ACTS.map((a, n) => [a, x.e[n]]).filter(([, e]) => e).map(([a, e]) => [a, { level: (e as E)[0], aid: (e as E)[1], note: (e as E)[2] }]));
+    const id = newId();
+    store.insert('function_assessment', {
+      id, person_id: pid, service_id: x.service, kind: x.kind, state: 'CURRENT', source: x.source ?? null, source_name: x.sourceName ?? null,
+      entries_json: JSON.stringify(entries), summary: x.summary ?? null, assessed_by: by, assessed_at: ago(x.mins),
+      review_due: x.reviewMins === undefined ? null : ago(-x.reviewMins), supersedes: null,
+    });
+    step('function', id, null, 'CURRENT', by, ago(x.mins), x.kind === 'CURRENT' ? 'Function now recorded' : 'Usual function recorded');
+  };
+  const plan = (x: { nhi: string; service: string; activity: string; what: string; u: string; mins: number; started?: number; stopped?: { mins: number; outcome: string } }) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.stopped ? 'STOPPED' : x.started !== undefined ? 'IN_PLACE' : 'PLANNED';
+    store.insert('function_intervention', {
+      id, person_id: pid, service_id: x.service, activity: x.activity, what: x.what, state, planned_by: by, planned_at: ago(x.mins),
+      started_by: x.started !== undefined ? by : null, started_at: x.started !== undefined ? ago(x.started) : null,
+      stopped_by: x.stopped ? by : null, stopped_at: x.stopped ? ago(x.stopped.mins) : null, outcome: x.stopped?.outcome ?? null,
+    });
+    step('functionplan', id, null, 'PLANNED', by, ago(x.mins), x.what);
+    if (x.started !== undefined) step('functionplan', id, 'PLANNED', 'IN_PLACE', by, ago(x.started), 'Put in place');
+    if (x.stopped) step('functionplan', id, 'IN_PLACE', 'STOPPED', by, ago(x.stopped.mins), x.stopped.outcome);
+  };
+  const I: E = ['INDEPENDENT', null, null];
+  store.tx(() => {
+    // Wiremu: fully independent at home with a stick, per his son; much less so since the delirium.
+    assess({
+      nhi: 'ZZZ0016', service: 'svc-genmed', kind: 'BASELINE', u: 'nicki', mins: 60 * 70, source: 'WHANAU', sourceName: 'Rawiri, son, by phone',
+      e: [['INDEPENDENT', 'Stick', 'Walks to the marae and back'], I, ['INDEPENDENT', 'Rail', null], I, I, I, I],
+      summary: 'Lives with his son. Drives short distances. No carers.',
+    });
+    assess({
+      nhi: 'ZZZ0016', service: 'svc-genmed', kind: 'CURRENT', u: 'nicki', mins: 60 * 26, reviewMins: 60 * 20,
+      e: [['ASSIST_1', 'Frame', 'Unsteady when turning'], ['SUPERVISION', null, null], ['NOT_DOING', null, 'Not needed on the ward'],
+        ['ASSIST_1', 'Shower chair', null], ['SUPERVISION', null, 'Needs prompting with order'], ['SUPERVISION', null, null], I],
+      summary: 'Much less steady since the delirium began. Falls risk.',
+    });
+    plan({ nhi: 'ZZZ0016', service: 'svc-genmed', activity: 'WALKING', what: 'Physio to walk him with the frame twice a day', u: 'nicki', mins: 60 * 25, started: 60 * 24 });
+    plan({ nhi: 'ZZZ0016', service: 'svc-genmed', activity: 'WASHING', what: 'Shower with a nurse each morning, sitting on the shower chair', u: 'nicki', mins: 60 * 25, started: 60 * 22 });
+    // Peggy: hip pain has slowed her; the reassessment is overdue and no one has asked how she usually manages.
+    assess({
+      nhi: 'ZZZ0032', service: 'svc-genmed', kind: 'CURRENT', u: 'nicki', mins: 60 * 50, reviewMins: -180,
+      e: [['ASSIST_1', 'Frame', 'Left hip pain on weight bearing'], ['ASSIST_1', null, null], ['NOT_DOING', null, 'Hip pain'], ['ASSIST_1', 'Shower stool', null],
+        ['ASSIST_1', null, 'Help with lower half'], ['SUPERVISION', 'Raised seat', null], I],
+    });
+    // Frank: usual function in the home, and the same now. Two staff for all transfers.
+    assess({
+      nhi: 'ZZZ0075', service: 'svc-arc', kind: 'BASELINE', u: 'kate', mins: 60 * 24 * 120, source: 'STAFF', sourceName: 'Care team, Room 8',
+      e: [['DEPENDENT', 'Wheelchair', 'Pushed by staff'], ['ASSIST_2', 'Full hoist', null], ['NOT_DOING', null, 'Wheelchair user'], ['ASSIST_1', 'Shower chair', null],
+        ['ASSIST_1', null, null], ['ASSIST_2', 'Commode', null], ['INDEPENDENT', 'Lidded cup', null]],
+    });
+    assess({
+      nhi: 'ZZZ0075', service: 'svc-arc', kind: 'CURRENT', u: 'kate', mins: 60 * 24 * 10, reviewMins: 60 * 24 * 20,
+      e: [['DEPENDENT', 'Wheelchair', 'Pushed by staff'], ['ASSIST_2', 'Full hoist', 'Two staff every time'], ['NOT_DOING', null, 'Wheelchair user'], ['ASSIST_1', 'Shower chair', null],
+        ['ASSIST_1', null, null], ['ASSIST_2', 'Commode', null], ['INDEPENDENT', 'Lidded cup', null]],
+      summary: 'Unchanged from usual. Knees sore on weight bearing.',
+    });
+    plan({
+      nhi: 'ZZZ0075', service: 'svc-arc', activity: 'TRANSFERS', what: 'Trial of the standing hoist instead of the full hoist', u: 'kate', mins: 60 * 24 * 40, started: 60 * 24 * 38,
+      stopped: { mins: 60 * 24 * 30, outcome: 'Could not take his weight through his knees. Back to the full hoist.' },
     });
   });
 }

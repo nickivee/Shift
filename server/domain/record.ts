@@ -25,6 +25,7 @@ import { forPerson as externalFor, current as externalNow } from './external.ts'
 import { forPerson as codingFor } from './coding.ts';
 import { forPerson as reportsFor } from './reports.ts';
 import { forPerson as instrumentsFor, current as instrumentsNow } from './questionnaires.ts';
+import { forPerson as functionFor, current as functionNow } from './functional.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
@@ -195,6 +196,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     access: accessNow(store, personId),
     external: externalNow(store, personId),
     instruments: instrumentsNow(store, personId),
+    function: functionNow(store, personId),
   };
 }
 
@@ -372,6 +374,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'instruments':
       body = instrumentsFor(store, ctx, personId);
+      break;
+    case 'function':
+      body = functionFor(store, ctx, personId);
       break;
     case 'routes':
       body = {
