@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 42;
+const SET = 43;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -369,6 +369,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 40) set40(store);
     if (at < 41) set41(store);
     if (at < 42) set42(store);
+    if (at < 43) set43(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3013,4 +3014,48 @@ function set42(store: Store): void {
     label: 'Admission assessment', actioned: { u: 'nicki', mins: 4 * 60, note: 'Shown twice; he did it back correctly both times.' } });
   req({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', mins: 5 * 60, what: 'Put new batteries in her hearing aids', priority: 'TODAY', due: 0,
     label: 'Morning cares', detail: 'Left aid whistling; she is missing conversation at lunch.' });
+}
+
+// Care due (the due-date lifecycle under Shared Lifecycle Object 278). On Ward K: Peggy's
+// two-hourly turns, overdue; Wiremu's cannula check, due now; Aroha's daily weight, coming up;
+// James's repeat potassium later today; Sione's dressing in two days. At Kōwhai: Frank's catheter
+// bag, due now; Elsie's weekly weight, overdue; Rua's four-hourly turns, coming up.
+function set43(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface D { nhi: string; svc: string; u: string; kind: string; what: string; every: number | null; setMins: number; dueIn: number; detail?: string; done?: { u: string; mins: number }[] }
+  const item = (x: D) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('due_item', {
+      id, person_id: pid, service_id: x.svc, kind: x.kind, what: x.what, detail: x.detail ?? null, every_hours: x.every, state: 'ACTIVE',
+      set_by: by, set_at: at(-x.setMins), ended_by: null, ended_at: null, ended_note: null,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'due_item', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: by, work_context_id: null, at: at(-x.setMins), reason: null, transaction_id: null });
+    store.insert('due_log', { id: newId(), item_id: id, kind: 'SET_UP', body: `${x.what}. ${x.every ? `Every ${x.every} hours` : 'Once'}.`, by_id: by, at: at(-x.setMins) });
+    const occ = (dueMins: number, done?: { u: string; mins: number }) => {
+      const oid = newId();
+      const d = done ? who(done.u) : null;
+      store.insert('due_occurrence', { id: oid, item_id: id, due_at: at(dueMins), state: done ? 'COMPLETED' : 'SCHEDULED', done_by: d, done_at: done ? at(-done.mins) : null, note: null, reason: null });
+      store.insert('state_transition', { id: newId(), object_type: 'due_occurrence', object_id: oid, from_state: null, to_state: 'SCHEDULED', actor_id: by, work_context_id: null, at: at(-x.setMins), reason: null, transaction_id: null });
+      if (done && d) {
+        store.insert('state_transition', { id: newId(), object_type: 'due_occurrence', object_id: oid, from_state: 'SCHEDULED', to_state: 'COMPLETED', actor_id: d, work_context_id: null, at: at(-done.mins), reason: null, transaction_id: null });
+        store.insert('due_log', { id: newId(), item_id: id, kind: 'DONE', body: 'Done.', by_id: d, at: at(-done.mins) });
+      }
+    };
+    for (const dn of x.done ?? []) occ(-dn.mins, dn);
+    occ(x.dueIn);
+  };
+  item({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'grace', kind: 'REPOSITION', what: 'Change position (pressure care)', every: 2, setMins: 6 * 60, dueIn: -40,
+    detail: 'Red area on her sacrum. Left side, back, right side; off her back as much as she will allow.', done: [{ u: 'grace', mins: 4 * 60 + 40 }, { u: 'grace', mins: 2 * 60 + 40 }] });
+  item({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'grace', kind: 'CANNULA', what: 'Check the IV cannula site', every: 8, setMins: 30 * 60, dueIn: -10, done: [{ u: 'grace', mins: 8 * 60 + 10 }] });
+  item({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'grace', kind: 'WEIGHT', what: 'Weigh', every: 24, setMins: 45 * 60, dueIn: 3 * 60, detail: 'Same scales, before breakfast.', done: [{ u: 'grace', mins: 21 * 60 }] });
+  item({ nhi: 'ZZZ0040', svc: 'svc-genmed', u: 'hannah', kind: 'BLOODS', what: 'Repeat potassium', every: null, setMins: 2 * 60, dueIn: 5 * 60, detail: 'Potassium 3.1 this morning; on oral replacement.' });
+  item({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'grace', kind: 'DRESSING', what: 'Change the dressing on his left shin', every: 72, setMins: 26 * 60, dueIn: 46 * 60 });
+  item({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', kind: 'CATHETER_BAG', what: 'Change the catheter bag', every: 168, setMins: 30 * 24 * 60, dueIn: -2 * 60, done: [{ u: 'tama', mins: 7 * 24 * 60 + 120 }] });
+  item({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', kind: 'WEIGHT', what: 'Weigh', every: 168, setMins: 60 * 24 * 60, dueIn: -6 * 60, done: [{ u: 'tama', mins: 7 * 24 * 60 + 360 }] });
+  item({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', kind: 'REPOSITION', what: 'Change position (pressure care)', every: 4, setMins: 3 * 24 * 60, dueIn: 30, done: [{ u: 'tama', mins: 3 * 60 + 30 }] });
 }

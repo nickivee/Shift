@@ -2454,4 +2454,49 @@ CREATE TABLE requirement_log (
 CREATE INDEX requirement_log_req ON requirement_log(requirement_id, at);
 `,
   },
+  {
+    version: 43,
+    name: 'care due lifecycle',
+    sql: `
+-- Care due: requirement established → due date/time → upcoming → due → overdue → completed/ceased/rescheduled.
+-- Upcoming, due and overdue follow from the clock; each time it falls due is an occurrence.
+CREATE TABLE due_item (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  what TEXT NOT NULL,
+  detail TEXT,
+  every_hours INTEGER,                  -- NULL means once
+  state TEXT NOT NULL,                  -- ACTIVE | COMPLETED | CEASED | ENTERED_IN_ERROR
+  set_by TEXT NOT NULL REFERENCES workforce_person(id),
+  set_at TEXT NOT NULL,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX due_item_person ON due_item(person_id, state);
+CREATE INDEX due_item_service ON due_item(service_id, state);
+CREATE TABLE due_occurrence (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES due_item(id),
+  due_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- SCHEDULED | COMPLETED | RESCHEDULED | CEASED | ENTERED_IN_ERROR
+  done_by TEXT,
+  done_at TEXT,
+  note TEXT,
+  reason TEXT
+);
+CREATE INDEX due_occurrence_item ON due_occurrence(item_id, state);
+CREATE TABLE due_log (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES due_item(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX due_log_item ON due_log(item_id, at);
+`,
+  },
 ];

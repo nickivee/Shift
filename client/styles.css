@@ -706,13 +706,13 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.treatment-completed, .tile.treatment-stopped, .tile.treatment-entered_in_error { border-left: 6px solid var(--ink-soft); }
 
 /* Pathways */
-.patient-pathways, .patient-checks {
+.patient-pathways, .patient-checks, .patient-caredue {
   display: flex; align-items: center; gap: 10px;
   background: #fff; color: var(--ink); border: 2px solid var(--danger);
   border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
 }
-.patient-pathways svg, .patient-checks svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
-.patient-pathways b, .patient-checks b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.patient-pathways svg, .patient-checks svg, .patient-caredue svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-pathways b, .patient-checks b, .patient-caredue b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
 .pathway h3 { margin: 0; font-size: 17px; }
 .pathway-steps, .pathway-deviations { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .pathway-steps li, .pathway-deviations li { background: var(--tint); border: 2px solid transparent; border-radius: 10px; padding: 6px 10px; }
@@ -748,3 +748,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.requirement-assigned, .tile.requirement-actioned { border-left: 6px solid var(--ok); }
 .tile.requirement-deferred, .tile.requirement-cancelled, .tile.requirement-closed, .tile.requirement-entered_in_error { border-left: 6px solid var(--ink-soft); }
 .tile.requirement-overdue { border-left: 6px solid var(--danger); }
+
+/* Care due */
+.caredue h3 { margin: 0; font-size: 17px; }
+.tile.caredue-upcoming, .tile.caredue-due { border-left: 6px solid var(--warn); }
+.tile.caredue-overdue { border-left: 6px solid var(--danger); }
+.tile.caredue-scheduled { border-left: 6px solid var(--ok); }
+.tile.caredue-completed, .tile.caredue-ceased, .tile.caredue-entered_in_error { border-left: 6px solid var(--ink-soft); }

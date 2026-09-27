@@ -261,6 +261,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-DUE-001',
+    question: 'How late regular care (such as pressure-area repositioning, cannula checks or catheter care) may be in a New Zealand health or aged residential care service before it must be escalated or reported, and whether the Ngā Paerewa Health and Disability Services Standard sets any interval.',
+    blocks: 'Automatic escalation or reporting of late care. SHIFT shows how late care is and who moved or stopped it, and leaves escalation to people.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

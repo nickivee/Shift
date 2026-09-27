@@ -39,6 +39,7 @@ import { pathwaysPanel } from './pathways.js';
 import { checklistsPanel } from './checklists.js';
 import { recommendationsPanel } from './recommendations.js';
 import { requirementsPanel } from './requirements.js';
+import { careDuePanel } from './caredue.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -370,6 +371,7 @@ export async function workstationView(personId, initialView) {
       case 'checklists': return checklistsPanel(personId, d, () => go(`/work/patient/${personId}/checklists`));
       case 'recommendations': return recommendationsPanel(personId, d, () => go(`/work/patient/${personId}/recommendations`));
       case 'requirements': return requirementsPanel(personId, d, () => go(`/work/patient/${personId}/requirements`));
+      case 'caredue': return careDuePanel(personId, d, () => go(`/work/patient/${personId}/caredue`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
@@ -467,6 +469,10 @@ export async function workstationView(personId, initialView) {
     if (patient.checkExceptions?.length) {
       block.append(h('button', { class: 'patient-checks', onclick: () => openView('checklists') }, icon('checklists'),
         h('span', {}, h('b', {}, 'CHECK NOT MET'), patient.checkExceptions.join(' · '))));
+    }
+    if (patient.careOverdue?.length) {
+      block.append(h('button', { class: 'patient-caredue', onclick: () => openView('caredue') }, icon('caredue'),
+        h('span', {}, h('b', {}, 'CARE OVERDUE'), patient.careOverdue.join(' · '))));
     }
     if (patient.pathwaysDue?.length) {
       block.append(h('button', { class: 'patient-pathways', onclick: () => openView('pathways') }, icon('pathways'),

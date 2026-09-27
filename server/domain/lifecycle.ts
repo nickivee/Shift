@@ -274,6 +274,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ACTIONED: ['CLOSED', 'ENTERED_IN_ERROR'], CANCELLED: ['CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  due_item: {
+    table: 'due_item',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['COMPLETED', 'CEASED', 'ENTERED_IN_ERROR'] },
+  },
+  due_occurrence: {
+    table: 'due_occurrence',
+    initial: 'SCHEDULED',
+    next: { SCHEDULED: ['COMPLETED', 'RESCHEDULED', 'CEASED', 'ENTERED_IN_ERROR'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
