@@ -36,6 +36,7 @@ import { forPerson as symptomsFor, current as symptomsNow } from './symptoms.ts'
 import { forPerson as interventionsFor, current as interventionsNow } from './interventions.ts';
 import { forPerson as treatmentPlansFor } from './treatmentplans.ts';
 import { forPerson as pathwaysFor, current as pathwaysNow } from './pathways.ts';
+import { forPerson as checklistsFor, current as checklistsNow } from './checklists.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -216,6 +217,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     symptoms: ctx.role.views.includes('symptoms') ? symptomsNow(store, personId) : null,
     interventionsDue: ctx.role.views.includes('interventions') ? interventionsNow(store, personId) : null,
     pathwaysDue: ctx.role.views.includes('pathways') ? pathwaysNow(store, personId) : null,
+    checkExceptions: ctx.role.views.includes('checklists') ? checklistsNow(store, personId) : null,
     team: teamNow(store, personId),
   };
 }
@@ -421,6 +423,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'pathways':
       body = pathwaysFor(store, ctx, personId);
+      break;
+    case 'checklists':
+      body = checklistsFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

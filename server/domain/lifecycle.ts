@@ -248,6 +248,13 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       SUGGESTED: ['ACTIVE', 'DECLINED', 'ENTERED_IN_ERROR'], ACTIVE: ['COMPLETED', 'EXITED', 'ENTERED_IN_ERROR'],
     },
   },
+  checklist: {
+    table: 'checklist',
+    initial: 'REQUIRED',
+    next: {
+      REQUIRED: ['IN_PROGRESS', 'CANCELLED', 'ENTERED_IN_ERROR'], IN_PROGRESS: ['COMPLETED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

@@ -2309,4 +2309,54 @@ CREATE TABLE pathway_log (
 CREATE INDEX pathway_log_instance ON pathway_log(instance_id, at);
 `,
   },
+  {
+    version: 40,
+    name: 'checklist lifecycle',
+    sql: `
+-- Checklist: checklist required → individual check items due → check performed →
+-- evidence/response → exception → resolution/escalation → checklist completion.
+CREATE TABLE checklist (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  template_id TEXT NOT NULL,            -- server/config/checklists.ts
+  state TEXT NOT NULL,                  -- REQUIRED | IN_PROGRESS | COMPLETED | CANCELLED | ENTERED_IN_ERROR
+  due_at TEXT NOT NULL,
+  reason TEXT,
+  required_by TEXT NOT NULL REFERENCES workforce_person(id),
+  required_at TEXT NOT NULL,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX checklist_person ON checklist(person_id, state);
+CREATE TABLE checklist_item (
+  id TEXT PRIMARY KEY,
+  checklist_id TEXT NOT NULL REFERENCES checklist(id),
+  item_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  evidence_label TEXT,                  -- what to record as evidence, when the item asks for it
+  state TEXT NOT NULL,                  -- DUE | DONE | NOT_APPLICABLE | EXCEPTION | RESOLVED | ESCALATED
+  evidence TEXT,
+  note TEXT,
+  by_id TEXT,
+  at TEXT,
+  resolution TEXT,
+  resolved_by TEXT,
+  resolved_at TEXT,
+  escalation_id TEXT                    -- the escalation (225) an exception was raised as
+);
+CREATE INDEX checklist_item_checklist ON checklist_item(checklist_id, seq);
+CREATE TABLE checklist_log (
+  id TEXT PRIMARY KEY,
+  checklist_id TEXT NOT NULL REFERENCES checklist(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX checklist_log_checklist ON checklist_log(checklist_id, at);
+`,
+  },
 ];
