@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 41;
+const SET = 42;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -368,6 +368,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 39) set39(store);
     if (at < 40) set40(store);
     if (at < 41) set41(store);
+    if (at < 42) set42(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2949,4 +2950,67 @@ function set41(store: Store): void {
     what: 'Weigh him every morning before breakfast, on the same scales',
     response: { u: 'grace', mins: 3 * 24 * 60 - 30, requirement: 'Daily weight on the morning list' },
     done: { u: 'grace', mins: 2 * 24 * 60, note: 'On the morning list; weighed daily since. Down 1.8 kg.' } });
+}
+
+// Requirements (the requirement lifecycle under Shared Lifecycle Object 278). On Ward K: the
+// requirement from Lena's accepted sit-out recommendation for Aroha, with Grace; a pressure
+// mattress for Peggy waiting to be assigned; a shower stool for Wiremu assigned to Nicki and not
+// yet accepted; a diabetes educator visit for Sione deferred until his result is back; and
+// spacer teaching for James, done and waiting for its outcome. At Kōwhai: new hearing aid
+// batteries for Rua, waiting for someone to take it on.
+function set42(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface Q { nhi: string; svc: string; u: string; mins: number; what: string; priority: string; due?: number; label: string; detail?: string;
+    source?: { kind: string; id: string | null }; assigned?: { u: string; by: string; mins: number; accepted: boolean };
+    deferred?: { until: number; reason: string; note: string; mins: number }; actioned?: { u: string; mins: number; note: string } }
+  const req = (x: Q) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.actioned ? 'ACTIONED' : x.deferred ? 'DEFERRED' : x.assigned ? 'ASSIGNED' : 'PENDING';
+    const a = x.assigned ?? (x.actioned ? { u: x.actioned.u, by: x.actioned.u, mins: x.actioned.mins + 30, accepted: true } : undefined);
+    store.insert('requirement', {
+      id, person_id: pid, service_id: x.svc, state, what: x.what, detail: x.detail ?? null, priority: x.priority,
+      due_by: x.due !== undefined ? addDays(todayLocal(), x.due) : null, source: x.source?.kind ?? 'MANUAL', source_id: x.source?.id ?? null, source_label: x.label,
+      generated_by: by, generated_at: ago(x.mins),
+      assigned_to: a && !x.deferred ? who(a.u) : null, assigned_by: a && !x.deferred ? who(a.by) : null, assigned_at: a && !x.deferred ? ago(a.mins) : null,
+      accepted_at: a && a.accepted && !x.deferred ? ago(a.mins) : null,
+      actioned_by: x.actioned ? who(x.actioned.u) : null, actioned_at: x.actioned ? ago(x.actioned.mins) : null, action_note: x.actioned?.note ?? null,
+      deferred_until: x.deferred ? addDays(todayLocal(), x.deferred.until) : null, defer_reason: x.deferred?.reason ?? null,
+      ended_note: null, outcome: null, outcome_note: null, closed_by: null, closed_at: null,
+    });
+    const logs: [string, string, string, number][] = [['GENERATED', `${x.what}. From ${x.label}.`, by, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, 'PENDING', by, x.mins]];
+    if (a) {
+      logs.push(['ASSIGNED', a.u === a.by ? 'Took it on.' : 'Assigned; waiting for them to accept.', who(a.by)!, a.mins]);
+      trans.push(['PENDING', 'ASSIGNED', who(a.by)!, a.mins]);
+    }
+    if (x.deferred) {
+      logs.push(['DEFERRED', `Until ${addDays(todayLocal(), x.deferred.until)}. ${x.deferred.note}`, by, x.deferred.mins]);
+      trans.push([a ? 'ASSIGNED' : 'PENDING', 'DEFERRED', by, x.deferred.mins]);
+    }
+    if (x.actioned) { logs.push(['ACTIONED', x.actioned.note, who(x.actioned.u)!, x.actioned.mins]); trans.push(['ASSIGNED', 'ACTIONED', who(x.actioned.u)!, x.actioned.mins]); }
+    for (const [kind, body, b, mins] of logs) store.insert('requirement_log', { id: newId(), requirement_id: id, kind, body, by_id: b, at: ago(mins) });
+    for (const [from, to, b, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'requirement', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  const aroha = person('ZZZ9999');
+  const sitOut = aroha ? store.get<{ id: string; requirement: string }>("SELECT id, requirement FROM recommendation WHERE person_id = ? AND state = 'ACCEPTED' LIMIT 1", aroha) : undefined;
+  if (sitOut) {
+    req({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'grace', mins: 25 * 60, what: sitOut.requirement, priority: 'TODAY', due: 0,
+      label: "Lena Fox's recommendation (Physiotherapist): Sit out of bed in the chair for lunch and dinner", source: { kind: 'RECOMMENDATION', id: sitOut.id },
+      assigned: { u: 'grace', by: 'grace', mins: 25 * 60 - 5, accepted: true } });
+  }
+  req({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'grace', mins: 3 * 60, what: 'Get a pressure-relieving mattress on her bed', priority: 'URGENT', due: 0,
+    label: 'Skin check on the morning round', detail: 'Red area on her sacrum that does not blanch; Waterlow 18.' });
+  req({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'grace', mins: 90, what: 'Order a shower stool for home before he goes', priority: 'ROUTINE', due: 2,
+    label: 'Discharge planning meeting', assigned: { u: 'nicki', by: 'grace', mins: 80, accepted: false } });
+  req({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', mins: 26 * 60, what: 'Diabetes educator to see him before discharge', priority: 'ROUTINE',
+    label: 'Ward round', deferred: { until: 1, reason: 'WAITING', note: 'Waiting for his HbA1c; the educator will come once it is back.', mins: 20 * 60 } });
+  req({ nhi: 'ZZZ0040', svc: 'svc-genmed', u: 'grace', mins: 8 * 60, what: 'Teach him to use his inhaler with the new spacer', priority: 'TODAY', due: 0,
+    label: 'Admission assessment', actioned: { u: 'nicki', mins: 4 * 60, note: 'Shown twice; he did it back correctly both times.' } });
+  req({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', mins: 5 * 60, what: 'Put new batteries in her hearing aids', priority: 'TODAY', due: 0,
+    label: 'Morning cares', detail: 'Left aid whistling; she is missing conversation at lunch.' });
 }

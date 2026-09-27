@@ -6,6 +6,7 @@ import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { ROLES } from '../config/workstations.ts';
 import { CHANNELS, NOT_DONE } from '../config/recommendations.ts';
+import { generate as generateRequirement } from './requirements.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Recommendation (the recommendation lifecycle listed under Shared Lifecycle Object 278):
@@ -190,6 +191,11 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
           ctx.workerId, at, note || null, modified || null, req, by, id);
         addLog(store, ctx, id, to, `${modified ? `Changed to: ${modified}. ` : ''}${note ? `${note} ` : ''}To do: ${req}${by ? ` by ${by}` : ''}.`);
         logged(store, ctx, `RECOMMENDATION_${to}`, personId, id, req.slice(0, 200));
+        // What needs doing becomes a requirement for the recipient's service.
+        generateRequirement(store, ctx, {
+          personId, serviceId: String(r.toServiceId), what: req, source: 'RECOMMENDATION', sourceId: id, dueBy: by,
+          sourceLabel: `${r.madeBy}'s recommendation (${roleLabel(String(r.fromRoleKey))}): ${modified || r.what}`,
+        });
       });
       break;
     }

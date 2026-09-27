@@ -43,6 +43,7 @@ import * as treatmentplans from '../domain/treatmentplans.ts';
 import * as pathways from '../domain/pathways.ts';
 import * as checklists from '../domain/checklists.ts';
 import * as recommendations from '../domain/recommendations.ts';
+import * as requirements from '../domain/requirements.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -227,6 +228,13 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/requirements', (req) => requirements.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/requirements', (req) => requirements.add(store, work(req), req.params.id, {
+    what: str(req.body.what), detail: str(req.body.detail), priority: str(req.body.priority), dueBy: str(req.body.dueBy), from: str(req.body.from),
+  }));
+  r.on('POST', '/api/work/requirements/:id/:action', (req) => requirements.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), to: str(req.body.to), until: str(req.body.until), reason: str(req.body.reason), outcome: str(req.body.outcome),
+  }));
   r.on('GET', '/api/work/recommendations', (req) => recommendations.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/recommendations', (req) => recommendations.make(store, work(req), req.params.id, {
     basis: str(req.body.basis), what: str(req.body.what), to: str(req.body.to), implementBy: str(req.body.implementBy), channel: str(req.body.channel), note: str(req.body.note),

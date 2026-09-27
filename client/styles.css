@@ -741,3 +741,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.recommendation-accepted, .tile.recommendation-modified, .tile.recommendation-implemented { border-left: 6px solid var(--ok); }
 .tile.recommendation-declined, .tile.recommendation-not_implemented, .tile.recommendation-overdue { border-left: 6px solid var(--danger); }
 .tile.recommendation-reviewed, .tile.recommendation-withdrawn, .tile.recommendation-entered_in_error { border-left: 6px solid var(--ink-soft); }
+
+/* Requirements */
+.requirement h3 { margin: 0; font-size: 17px; }
+.tile.requirement-pending { border-left: 6px solid var(--warn); }
+.tile.requirement-assigned, .tile.requirement-actioned { border-left: 6px solid var(--ok); }
+.tile.requirement-deferred, .tile.requirement-cancelled, .tile.requirement-closed, .tile.requirement-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.tile.requirement-overdue { border-left: 6px solid var(--danger); }

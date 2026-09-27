@@ -38,6 +38,7 @@ import { treatmentPlansPanel } from './treatmentplans.js';
 import { pathwaysPanel } from './pathways.js';
 import { checklistsPanel } from './checklists.js';
 import { recommendationsPanel } from './recommendations.js';
+import { requirementsPanel } from './requirements.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -368,6 +369,7 @@ export async function workstationView(personId, initialView) {
       case 'pathways': return pathwaysPanel(personId, d, () => go(`/work/patient/${personId}/pathways`));
       case 'checklists': return checklistsPanel(personId, d, () => go(`/work/patient/${personId}/checklists`));
       case 'recommendations': return recommendationsPanel(personId, d, () => go(`/work/patient/${personId}/recommendations`));
+      case 'requirements': return requirementsPanel(personId, d, () => go(`/work/patient/${personId}/requirements`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));

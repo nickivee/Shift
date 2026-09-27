@@ -255,6 +255,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-REQ-001',
+    question: 'Who in a New Zealand health service is accountable for a care requirement that is deferred, cancelled or never done, how long a deferral may run before it must be escalated, and what must be recorded when one is closed without being met.',
+    blocks: 'Automatic escalation or closure of requirements. SHIFT records who took each requirement on, what was done or why not, and the outcome, and leaves escalation to people.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',
