@@ -755,3 +755,11 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.caredue-overdue { border-left: 6px solid var(--danger); }
 .tile.caredue-scheduled { border-left: 6px solid var(--ok); }
 .tile.caredue-completed, .tile.caredue-ceased, .tile.caredue-entered_in_error { border-left: 6px solid var(--ink-soft); }
+
+/* Recalls */
+.recall h3 { margin: 0; font-size: 17px; }
+.tile.recall-scheduled { border-left: 6px solid var(--ink-soft); }
+.tile.recall-invited { border-left: 6px solid var(--warn); }
+.tile.recall-booked { border-left: 6px solid var(--ok); }
+.tile.recall-done, .tile.recall-exited, .tile.recall-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.tile.recall-did_not_attend, .tile.recall-overdue { border-left: 6px solid var(--danger); }

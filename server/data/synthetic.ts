@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 43;
+const SET = 44;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -370,6 +370,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 41) set41(store);
     if (at < 42) set42(store);
     if (at < 43) set43(store);
+    if (at < 44) set44(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3058,4 +3059,63 @@ function set43(store: Store): void {
   item({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', kind: 'CATHETER_BAG', what: 'Change the catheter bag', every: 168, setMins: 30 * 24 * 60, dueIn: -2 * 60, done: [{ u: 'tama', mins: 7 * 24 * 60 + 120 }] });
   item({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', kind: 'WEIGHT', what: 'Weigh', every: 168, setMins: 60 * 24 * 60, dueIn: -6 * 60, done: [{ u: 'tama', mins: 7 * 24 * 60 + 360 }] });
   item({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', kind: 'REPOSITION', what: 'Change position (pressure care)', every: 4, setMins: 3 * 24 * 60, dueIn: 30, done: [{ u: 'tama', mins: 3 * 60 + 30 }] });
+}
+
+// Recalls (Shared Lifecycle Object 283). At Kōwhai: Losa's flu vaccine due in ten days (last
+// year's done); Rua's flu vaccine due in three weeks; Frank's B12 injection booked for tomorrow;
+// Bill's six-monthly medicines review overdue, his son phoned; Elsie's eye check missed when the
+// optometrist came. On Ward K: a heart failure nurse review for Wiremu after he goes home.
+function set44(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface R { nhi: string; svc: string; u: string; kind: string; what: string; every: number | null; due: number; setDays: number; detail?: string;
+    checked?: number; invited?: { days: number; channel: string; note?: string }; booked?: { inMins: number; where: string; days: number };
+    dna?: { days: number; note: string }; done?: { days: number; outcome: string }; previousId?: string }
+  const rec = (x: R) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return null;
+    const id = newId();
+    const state = x.done ? 'DONE' : x.dna ? 'DID_NOT_ATTEND' : x.booked ? 'BOOKED' : x.invited ? 'INVITED' : 'SCHEDULED';
+    store.insert('recall', {
+      id, person_id: pid, service_id: x.svc, kind: x.kind, what: x.what, detail: x.detail ?? null, every_days: x.every, due_date: addDays(todayLocal(), x.due),
+      state, previous_id: x.previousId ?? null, next_id: null, set_by: by, set_at: ago(x.setDays * day),
+      checked_by: x.checked !== undefined ? by : null, checked_at: x.checked !== undefined ? ago(x.checked * day) : null, eligibility_note: null,
+      invited_by: x.invited ? by : null, invited_at: x.invited ? ago(x.invited.days * day) : null, channel: x.invited?.channel ?? null, invite_note: x.invited?.note ?? null,
+      booked_by: x.booked ? by : null, booked_at: x.booked ? ago(x.booked.days * day) : null,
+      booked_for: x.booked ? new Date(Date.now() + x.booked.inMins * 60_000).toISOString() : null, booked_where: x.booked?.where ?? null,
+      dna_at: x.dna ? ago(x.dna.days * day) : null, dna_note: x.dna?.note ?? null,
+      done_by: x.done ? by : null, done_at: x.done ? ago(x.done.days * day) : null, outcome: x.done?.outcome ?? null,
+      exit_reason: null, ended_by: null, ended_at: null, ended_note: null,
+    });
+    const steps: [string, string, string | null, string, number][] = [['SET_UP', `${x.what}. Due ${addDays(todayLocal(), x.due)}.`, null, 'SCHEDULED', x.setDays]];
+    if (x.checked !== undefined) steps.push(['ELIGIBLE', 'Checked.', null, '', x.checked]);
+    if (x.invited) steps.push(['INVITED', `${x.invited.channel === 'PHONE' ? 'By phone' : x.invited.channel === 'WHANAU' ? 'Through their whānau or representative' : 'Told them in person'}.${x.invited.note ? ` ${x.invited.note}` : ''}`, 'SCHEDULED', 'INVITED', x.invited.days]);
+    if (x.booked) steps.push(['BOOKED', `${x.booked.where}.`, 'INVITED', 'BOOKED', x.booked.days]);
+    if (x.dna) steps.push(['DID_NOT_ATTEND', x.dna.note, 'BOOKED', 'DID_NOT_ATTEND', x.dna.days]);
+    if (x.done) steps.push(['DONE', x.done.outcome, 'BOOKED', 'DONE', x.done.days]);
+    for (const [kind, body, from, to, days] of steps) {
+      store.insert('recall_log', { id: newId(), recall_id: id, kind, body, by_id: by, at: ago(days * day) });
+      if (to) store.insert('state_transition', { id: newId(), object_type: 'recall', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(days * day), reason: null, transaction_id: null });
+    }
+    return id;
+  };
+  const A = 'svc-arc';
+  const last = rec({ nhi: 'ZZZ0083', svc: A, u: 'nicki', kind: 'FLU', what: 'Influenza vaccine', every: 365, due: -355, setDays: 720, checked: 362,
+    invited: { days: 362, channel: 'WHANAU', note: 'Talked it through with Mele; Losa agreed.' }, booked: { inMins: -355 * 24 * 60, where: 'Kōwhai treatment room', days: 361 },
+    done: { days: 355, outcome: 'Vaccine given, left arm. No reaction.' } });
+  const next = rec({ nhi: 'ZZZ0083', svc: A, u: 'nicki', kind: 'FLU', what: 'Influenza vaccine', every: 365, due: 10, setDays: 355, previousId: last ?? undefined });
+  if (last && next) store.run('UPDATE recall SET next_id = ? WHERE id = ?', next, last);
+  rec({ nhi: 'ZZZ0059', svc: A, u: 'nicki', kind: 'FLU', what: 'Influenza vaccine', every: 365, due: 21, setDays: 300 });
+  rec({ nhi: 'ZZZ0075', svc: A, u: 'nicki', kind: 'B12', what: 'Vitamin B12 injection', every: 91, due: 1, setDays: 90, checked: 4,
+    invited: { days: 3, channel: 'IN_PERSON' }, booked: { inMins: 24 * 60, where: 'Kōwhai treatment room', days: 3 } });
+  rec({ nhi: 'ZZZ0091', svc: A, u: 'nicki', kind: 'MEDS_REVIEW', what: 'Medicines review with the GP', every: 182, due: -5, setDays: 180, checked: 9,
+    invited: { days: 8, channel: 'WHANAU', note: 'Phoned his son Ian, who wants to be there; he will call back with a day.' } });
+  rec({ nhi: 'ZZZ0067', svc: A, u: 'nicki', kind: 'EYES', what: 'Eye check (optometrist)', every: 365, due: -20, setDays: 360, checked: 25,
+    invited: { days: 24, channel: 'IN_PERSON' }, booked: { inMins: -6 * 24 * 60, where: 'Visiting optometrist, Kōwhai lounge', days: 20 },
+    dna: { days: 6, note: 'She was at the hairdresser when the optometrist came; not told about the booking.' } });
+  rec({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'hannah', kind: 'HF_REVIEW', what: 'Heart failure nurse review', every: null, due: 16, setDays: 1,
+    detail: 'Two weeks after he goes home: weight, swelling, furosemide dose.' });
 }
