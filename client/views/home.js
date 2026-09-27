@@ -34,6 +34,7 @@ const DESCRIPTIONS = {
   incidents: () => 'Incidents waiting for review, open ones and overdue actions.',
   deaths: () => 'People who have died: what is still to do before their stay ends.',
   problems: () => 'Concerns waiting to be assessed, problems getting worse and reviews due.',
+  symptoms: () => 'Symptoms to look at again, anyone rating 7 or more, and ones not yet assessed.',
   deterioration: () => 'People getting worse: not yet escalated first, then those being responded to.',
   acuity: () => 'People recorded as unwell, statuses overdue for another look, and people with none.',
   allocation: () => 'Which patients each person has this shift, and allocations waiting for your review.',
@@ -53,7 +54,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', codingqueries: '/work/coding-questions',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', codingqueries: '/work/coding-questions',
 };
 
 export function openTab(tabId) {
@@ -84,6 +85,7 @@ export async function homeView() {
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
     if (want.includes('reports')) jobs.push(get('/api/work/reports').then((d) => (counts.reports = d.toReview.length)));
+    if (want.includes('symptoms')) jobs.push(get('/api/work/symptoms').then((d) => (counts.symptoms = d.reassess.filter((x) => x.reassessOverdue).length + d.severe.length + d.notAssessed.length)));
     if (want.includes('problems')) jobs.push(get('/api/work/problems').then((d) => (counts.problems = d.toAssess.length + d.dueReview.length + d.worse.length)));
     if (want.includes('deaths')) jobs.push(get('/api/work/deaths').then((d) => (counts.deaths = d.open.length)));
     if (want.includes('incidents')) jobs.push(get('/api/work/incidents').then((d) => (counts.incidents = d.toReview.length + d.overdueActions)));

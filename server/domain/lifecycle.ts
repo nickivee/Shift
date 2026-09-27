@@ -217,6 +217,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       RULED_OUT: ['ENTERED_IN_ERROR'],
     },
   },
+  symptom: {
+    table: 'symptom',
+    initial: 'RECORDED',
+    next: {
+      RECORDED: ['ASSESSED', 'INTERVENTION', 'REASSESSED', 'CLOSED', 'ENTERED_IN_ERROR'], ASSESSED: ['INTERVENTION', 'REASSESSED', 'CLOSED', 'ENTERED_IN_ERROR'],
+      INTERVENTION: ['REASSESSED', 'CLOSED', 'ENTERED_IN_ERROR'], REASSESSED: ['INTERVENTION', 'CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

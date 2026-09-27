@@ -37,6 +37,7 @@ import * as deterioration from '../domain/deterioration.ts';
 import * as incidents from '../domain/incidents.ts';
 import * as deaths from '../domain/deaths.ts';
 import * as problems from '../domain/problems.ts';
+import * as symptoms from '../domain/symptoms.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -221,6 +222,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/symptoms', (req) => symptoms.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/symptoms', (req) => symptoms.record(store, work(req), req.params.id, {
+    kind: str(req.body.kind), name: str(req.body.name), onset: str(req.body.onset), site: str(req.body.site), context: str(req.body.context),
+    pattern: str(req.body.pattern), associated: str(req.body.associated), score: str(req.body.score), rated: str(req.body.rated), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/symptoms/:id/:action', (req) => symptoms.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), score: str(req.body.score), rated: str(req.body.rated), mins: str(req.body.mins), outcome: str(req.body.outcome),
+  }));
   r.on('GET', '/api/work/problems', (req) => problems.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/problems', (req) => problems.raise(store, work(req), req.params.id, {
     title: str(req.body.title), evidence: str(req.body.evidence), onset: str(req.body.onset),

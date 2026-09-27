@@ -2067,4 +2067,55 @@ CREATE TABLE problem_step (
 CREATE INDEX problem_step_problem ON problem_step(problem_id, at);
 `,
   },
+  {
+    version: 36,
+    name: 'symptom lifecycle',
+    sql: `
+-- Symptom (Shared Lifecycle Object 274): symptom → onset → location/context → severity →
+-- pattern → associated features → assessment → intervention → reassessment → outcome.
+CREATE TABLE symptom (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- server/config/symptoms.ts KINDS
+  name TEXT,                            -- when kind is OTHER
+  onset TEXT,
+  site TEXT,
+  context TEXT,                         -- what brings it on
+  pattern TEXT,
+  associated TEXT,
+  state TEXT NOT NULL,                  -- RECORDED | ASSESSED | INTERVENTION | REASSESSED | CLOSED | ENTERED_IN_ERROR
+  assessment TEXT,
+  reassess_due TEXT,
+  outcome TEXT,                         -- RESOLVED | CONTROLLED | PROBLEM | OTHER
+  outcome_note TEXT,
+  problem_id TEXT,                      -- the clinical problem it became, if any
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  assessed_by TEXT,
+  assessed_at TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+CREATE INDEX symptom_person ON symptom(person_id, state);
+CREATE TABLE symptom_score (
+  id TEXT PRIMARY KEY,
+  symptom_id TEXT NOT NULL REFERENCES symptom(id),
+  score INTEGER NOT NULL,               -- 0 to 10
+  rated_by TEXT NOT NULL,               -- SELF | OBSERVED
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX symptom_score_symptom ON symptom_score(symptom_id, at);
+CREATE TABLE symptom_step (
+  id TEXT PRIMARY KEY,
+  symptom_id TEXT NOT NULL REFERENCES symptom(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX symptom_step_symptom ON symptom_step(symptom_id, at);
+`,
+  },
 ];
