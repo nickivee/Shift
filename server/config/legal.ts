@@ -195,6 +195,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-INSTR-001',
+    question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
+    blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-CODE-001',
     question: 'Which classifications and editions must be used to code hospital events in New Zealand (for example ICD-10-AM, ACHI and the SNOMED CT NZ Edition), where the licensed code tables come from, and what must be reported to national collections and by when.',
     blocks: 'Checking codes against the official code tables and sending coded events to national collections. SHIFT checks the form of each code only.',

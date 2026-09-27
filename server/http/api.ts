@@ -27,6 +27,7 @@ import * as access from '../domain/access.ts';
 import * as external from '../domain/external.ts';
 import * as coding from '../domain/coding.ts';
 import * as reports from '../domain/reports.ts';
+import * as questionnaires from '../domain/questionnaires.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -211,6 +212,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/questionnaires', (req) => questionnaires.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/questionnaires', (req) => questionnaires.request(store, work(req), req.params.id, {
+    code: str(req.body.code), reason: str(req.body.reason), dueAt: str(req.body.dueAt),
+  }));
+  r.on('POST', '/api/work/questionnaires/:id/:action', (req) => questionnaires.act(store, work(req), req.params.id, req.params.action, {
+    mode: str(req.body.mode), responses: typeof req.body.responses === 'object' && req.body.responses ? req.body.responses as Record<string, unknown> : {},
+    note: str(req.body.note), interpretation: str(req.body.interpretation), action: str(req.body.action),
+    repeatDays: typeof req.body.repeatDays === 'number' ? req.body.repeatDays : str(req.body.repeatDays),
+  }));
   r.on('GET', '/api/work/reports', (req) => reports.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/reports', (req) => reports.record(store, work(req), req.params.id, reportFields(req.body)));
   r.on('POST', '/api/work/reports/:id/:action', (req) => reports.act(store, work(req), req.params.id, req.params.action, {

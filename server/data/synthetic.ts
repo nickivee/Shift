@@ -5,6 +5,7 @@ import { hashPassword } from '../domain/identity.ts';
 import { audit } from '../domain/audit.ts';
 import { recordInitial } from '../domain/lifecycle.ts';
 import { KEY_BY_CODE } from '../config/keys.ts';
+import { INSTRUMENT_BY_CODE } from '../config/instruments.ts';
 import { render } from '../domain/commands.ts';
 import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
@@ -23,7 +24,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 25;
+const SET = 26;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -346,6 +347,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 23) set23(store);
     if (at < 24) set24(store, password);
     if (at < 25) set25(store);
+    if (at < 26) set26(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -1698,5 +1700,66 @@ function set25(store: Store): void {
       });
       step(first, 'RECORDED', 'SUPERSEDED', who('kate')!, ago(60 * 5 - 5), 'Replaced by their correction');
     }
+  });
+}
+
+function set26(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'instrument', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  interface Use {
+    nhi: string; service: string; code: string; reason: string; asked: string; askedMins: number; dueMins: number; repeatOf?: string;
+    done?: { u: string; mins: number; mode: string; answers: number[] };
+    interpreted?: { u: string; mins: number; meaning: string; action: string };
+  }
+  const add = (x: Use) => {
+    const inst = INSTRUMENT_BY_CODE.get(x.code)!;
+    const pid = person(x.nhi);
+    const by = who(x.asked);
+    if (!pid || !by) return null;
+    const id = newId();
+    const row: Record<string, unknown> = {
+      id, person_id: pid, service_id: x.service, instrument_code: inst.code, instrument_version: inst.version, state: 'REQUESTED',
+      reason: x.reason, due_at: ago(x.dueMins), requested_by: by, requested_at: ago(x.askedMins), repeat_of: x.repeatOf ?? null,
+    };
+    const doneBy = x.done ? who(x.done.u) : null;
+    if (x.done && doneBy) {
+      const responses = Object.fromEntries(inst.items.map((it, n) => [it.id, x.done!.answers[n]]));
+      const score = inst.items.reduce((t, it, n) => t + it.options[x.done!.answers[n]].score, 0);
+      const flags = inst.flags.filter((f) => inst.items.find((it) => it.id === f.item)!.options[responses[f.item]].score >= f.atLeast).map((f) => f.text);
+      Object.assign(row, {
+        state: 'COMPLETED', mode: x.done.mode, administered_by: doneBy, administered_at: ago(x.done.mins), responses_json: JSON.stringify(responses),
+        score, band: inst.bands.find((b) => score >= b.min && score <= b.max)?.label ?? null, flags_json: flags.length ? JSON.stringify(flags) : null,
+      });
+    }
+    const readBy = x.interpreted ? who(x.interpreted.u) : null;
+    if (x.interpreted && readBy) Object.assign(row, { state: 'INTERPRETED', interpreted_by: readBy, interpreted_at: ago(x.interpreted.mins), interpretation: x.interpreted.meaning, action: x.interpreted.action });
+    store.insert('instrument_use', row);
+    step(id, null, 'REQUESTED', by, ago(x.askedMins), `${inst.name}: ${x.reason}`);
+    if (x.done && doneBy) step(id, 'REQUESTED', 'COMPLETED', doneBy, ago(x.done.mins), `Score ${row.score}`);
+    if (x.interpreted && readBy) step(id, 'COMPLETED', 'INTERPRETED', readBy, ago(x.interpreted.mins), x.interpreted.meaning.slice(0, 200));
+    return id;
+  };
+  store.tx(() => {
+    // Wiremu: a 4AT yesterday suggested delirium; the physician read it and asked for a daily repeat, now overdue.
+    const first = add({
+      nhi: 'ZZZ0016', service: 'svc-genmed', code: '4AT', reason: 'Night staff noticed new confusion', asked: 'nicki', askedMins: 60 * 27, dueMins: 60 * 27,
+      done: { u: 'nicki', mins: 60 * 26, mode: 'OBSERVED', answers: [0, 1, 0, 1] },
+      interpreted: { u: 'hannah', mins: 60 * 25, meaning: 'Possible delirium, new since admission. Most likely from his urine infection and poor sleep; no new medicines to blame.',
+        action: 'Delirium care plan started: glasses and hearing aids on, lights low at night, fluids pushed. Son Rawiri told. Repeat the 4AT daily.' },
+    });
+    if (first) {
+      const next = add({ nhi: 'ZZZ0016', service: 'svc-genmed', code: '4AT', reason: 'Repeat of 4AT (score 5)', asked: 'hannah', askedMins: 60 * 25, dueMins: 60, repeatOf: first });
+      if (next) store.run('UPDATE instrument_use SET next_id = ? WHERE id = ?', next, first);
+    }
+    // Peggy: a PHQ-9 asked for this morning, due later today.
+    add({ nhi: 'ZZZ0032', service: 'svc-genmed', code: 'PHQ-9', reason: 'Low mood and eating little since admission', asked: 'hannah', askedMins: 90, dueMins: -180 });
+    // Frank: filled in with Kate this afternoon; item 9 was answered and no one has followed it up yet.
+    add({
+      nhi: 'ZZZ0075', service: 'svc-arc', code: 'PHQ-9', reason: 'Talking a lot about missing his dog Bess; sleeping in the day', asked: 'kate', askedMins: 60 * 24, dueMins: 60 * 5,
+      done: { u: 'kate', mins: 60 * 3, mode: 'STAFF_ASKED', answers: [2, 2, 1, 2, 1, 1, 1, 0, 1] },
+    });
   });
 }
