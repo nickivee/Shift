@@ -678,3 +678,17 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .score-choice:has(input:checked).score-mid { background: #fff3dc; border-color: #b35c00; }
 .score-choice:has(input:checked).score-high { background: var(--danger-bg); border-color: var(--danger); }
 .score-choice:has(input:focus-visible) { outline: 3px solid var(--line); outline-offset: 2px; }
+
+/* Interventions */
+.patient-interventions {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid var(--danger);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-interventions svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-interventions b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.intervention h3 { margin: 0; font-size: 17px; }
+.tile.intervention-active { border-left: 6px solid var(--ok); }
+.tile.intervention-awaiting_authorisation, .tile.intervention-considered { border-left: 6px solid var(--warn); }
+.tile.intervention-due { border-left: 6px solid var(--danger); }
+.tile.intervention-ceased, .tile.intervention-declined, .tile.intervention-entered_in_error { border-left: 6px solid var(--ink-soft); }

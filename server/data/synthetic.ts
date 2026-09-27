@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 36;
+const SET = 37;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -363,6 +363,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 34) set34(store);
     if (at < 35) set35(store);
     if (at < 36) set36(store);
+    if (at < 37) set37(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2545,4 +2546,60 @@ function set36(store: Store): void {
       { kind: 'REASSESSED', body: '1/10 (was 5). Off oxygen.', u: 'grace', mins: 24 * 60 + 30, score: 1 },
       { kind: 'CLOSED', body: 'Gone: off oxygen, walking the corridor without stopping', u: 'grace', mins: 24 * 60 },
     ] });
+}
+
+// Set 37: interventions. Aroha's breathing exercises for her pneumonia are overdue; Sione's
+// urinary catheter is waiting for a doctor to authorise it; Rua's two-hourly toileting round
+// for her confusion is under way; Frank's heat pack for his knee is due a review; Wiremu's
+// oxygen was stopped yesterday.
+function set37(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface I { nhi: string; service: string; category: string; what: string; u: string; mins: number; frequency: string; everyHours?: number;
+    problem?: string; symptom?: string; purpose?: string; state: string; authorised?: { u: string; mins: number; note?: string };
+    done?: { u: string; mins: number; note?: string; response?: string }[]; reviewDue?: number; ceased?: { u: string; mins: number; note: string } }
+  const intervention = (x: I) => {
+    const pid = person(x.nhi);
+    const pb = who(x.u);
+    if (!pid || !pb) return;
+    const problemId = x.problem ? store.get<{ id: string }>('SELECT id FROM clinical_problem WHERE person_id = ? AND title = ? ORDER BY raised_at DESC', pid, x.problem)?.id ?? null : null;
+    const symptomId = x.symptom ? store.get<{ id: string }>("SELECT id FROM symptom WHERE person_id = ? AND kind = ? AND state != 'CLOSED' ORDER BY recorded_at DESC", pid, x.symptom)?.id ?? null : null;
+    const id = newId();
+    const lastDone = x.done?.length ? Math.min(...x.done.map((d) => d.mins)) : null;
+    const hours = x.frequency === 'DAILY' ? 24 : x.everyHours ?? 0;
+    const nextDue = x.state !== 'ACTIVE' || x.frequency === 'AS_NEEDED' ? null : lastDone === null ? ago(x.mins) : x.frequency === 'ONCE' ? null : ago(lastDone - hours * 60);
+    store.insert('intervention', {
+      id, person_id: pid, service_id: x.service, category: x.category, what: x.what, purpose: x.purpose ?? null, problem_id: problemId, symptom_id: symptomId,
+      frequency: x.frequency, every_hours: x.everyHours ?? null, state: x.state, start_at: ago(x.mins), next_due: nextDue,
+      review_due: x.reviewDue !== undefined ? addDays(todayLocal(), x.reviewDue) : null, last_done_at: lastDone !== null ? ago(lastDone) : null,
+      planned_by: pb, planned_at: ago(x.mins), authorised_by: x.authorised ? who(x.authorised.u) : null, authorised_at: x.authorised ? ago(x.authorised.mins) : null,
+      auth_note: x.authorised?.note ?? null, ceased_by: x.ceased ? who(x.ceased.u) : null, ceased_at: x.ceased ? ago(x.ceased.mins) : null, cease_note: x.ceased?.note ?? null,
+    });
+    const freq = x.frequency === 'HOURS' ? `Every ${x.everyHours} hours` : x.frequency === 'DAILY' ? 'Once a day' : x.frequency === 'ONCE' ? 'Once' : 'When needed';
+    const steps: [string, string, string, number][] = [['PLANNED', `${x.what}. ${freq}.`, pb, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, x.authorised || x.state === 'AWAITING_AUTHORISATION' ? 'AWAITING_AUTHORISATION' : 'ACTIVE', pb, x.mins]];
+    if (x.authorised) { steps.push(['AUTHORISED', x.authorised.note ?? 'Authorised.', who(x.authorised.u)!, x.authorised.mins]); trans.push(['AWAITING_AUTHORISATION', 'ACTIVE', who(x.authorised.u)!, x.authorised.mins]); }
+    for (const d of x.done ?? []) {
+      const by = who(d.u)!;
+      store.insert('intervention_delivery', { id: newId(), intervention_id: id, done: 1, note: d.note ?? null, response: d.response ?? null, by_id: by, at: ago(d.mins) });
+      steps.push(['DONE', [d.note, d.response ? `Response: ${d.response}` : ''].filter(Boolean).join(' ') || 'Done.', by, d.mins]);
+    }
+    if (x.ceased) { steps.push(['CEASED', x.ceased.note, who(x.ceased.u)!, x.ceased.mins]); trans.push([trans[trans.length - 1][1], 'CEASED', who(x.ceased.u)!, x.ceased.mins]); }
+    for (const [kind, body, by, mins] of steps.sort((a, b) => b[3] - a[3])) store.insert('intervention_step', { id: newId(), intervention_id: id, kind, body, by_id: by, at: ago(mins) });
+    for (const [from, to, by, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'intervention', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  intervention({ nhi: 'ZZZ9999', service: 'svc-genmed', category: 'NURSING', what: 'Deep breathing and coughing exercises, 10 breaths', u: 'nicki', mins: day, frequency: 'HOURS', everyHours: 2,
+    problem: 'Community-acquired pneumonia', state: 'ACTIVE', reviewDue: 1,
+    done: [{ u: 'nicki', mins: 6 * 60, response: 'Coughed up green sputum' }, { u: 'nicki', mins: 150, response: 'Less sputum; sats 94%' }] });
+  intervention({ nhi: 'ZZZ0024', service: 'svc-genmed', category: 'DEVICE', what: 'Urinary catheter for retention', u: 'grace', mins: 50, frequency: 'ONCE',
+    purpose: 'Not passed urine for 9 hours; bladder scan 780 mL', state: 'AWAITING_AUTHORISATION' });
+  intervention({ nhi: 'ZZZ0059', service: 'svc-arc', category: 'NURSING', what: 'Toileting round, offer the toilet and a drink', u: 'kate', mins: 8 * 60, frequency: 'HOURS', everyHours: 2,
+    problem: 'New confusion', state: 'ACTIVE',
+    done: [{ u: 'tama', mins: 6 * 60 }, { u: 'tama', mins: 4 * 60, response: 'Passed urine; drank half a cup of tea' }, { u: 'tama', mins: 100 }] });
+  intervention({ nhi: 'ZZZ0075', service: 'svc-arc', category: 'COMFORT', what: 'Heat pack on his left knee for 20 minutes before walking', u: 'kate', mins: 24 * 60, frequency: 'DAILY',
+    symptom: 'PAIN', state: 'ACTIVE', reviewDue: 0, done: [{ u: 'tama', mins: 23 * 60, response: 'Walked to the lounge more easily' }, { u: 'tama', mins: 5 * 60 }] });
+  intervention({ nhi: 'ZZZ0016', service: 'svc-genmed', category: 'NURSING', what: 'Oxygen 2 L by nasal prongs, keep sats 92 to 96%', u: 'grace', mins: 4 * day, frequency: 'AS_NEEDED',
+    problem: 'Chest infection with sepsis', state: 'CEASED', ceased: { u: 'grace', mins: day, note: 'Sats 95% on air for 24 hours' } });
 }

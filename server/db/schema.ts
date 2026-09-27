@@ -2118,4 +2118,57 @@ CREATE TABLE symptom_step (
 CREATE INDEX symptom_step_symptom ON symptom_step(symptom_id, at);
 `,
   },
+  {
+    version: 37,
+    name: 'intervention lifecycle',
+    sql: `
+-- Intervention (Shared Lifecycle Object 276): intervention considered → planned → authorised
+-- where required → delivered/performed → response → reassessment → continued/modified/ceased.
+CREATE TABLE intervention (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  category TEXT NOT NULL,               -- server/config/interventions.ts
+  what TEXT NOT NULL,
+  purpose TEXT,
+  problem_id TEXT,                      -- what it is for: a clinical problem (273) ...
+  symptom_id TEXT,                      -- ... or a symptom (274)
+  frequency TEXT NOT NULL,              -- ONCE | HOURS | DAILY | AS_NEEDED
+  every_hours INTEGER,
+  state TEXT NOT NULL,                  -- CONSIDERED | AWAITING_AUTHORISATION | ACTIVE | DECLINED | CEASED | ENTERED_IN_ERROR
+  start_at TEXT NOT NULL,
+  next_due TEXT,
+  review_due TEXT,
+  last_done_at TEXT,
+  planned_by TEXT NOT NULL REFERENCES workforce_person(id),
+  planned_at TEXT NOT NULL,
+  authorised_by TEXT,
+  authorised_at TEXT,
+  auth_note TEXT,
+  ceased_by TEXT,
+  ceased_at TEXT,
+  cease_note TEXT
+);
+CREATE INDEX intervention_person ON intervention(person_id, state);
+CREATE TABLE intervention_delivery (
+  id TEXT PRIMARY KEY,
+  intervention_id TEXT NOT NULL REFERENCES intervention(id),
+  done INTEGER NOT NULL,                -- 1 done, 0 not done (with the reason in note)
+  note TEXT,
+  response TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX intervention_delivery_intervention ON intervention_delivery(intervention_id, at);
+CREATE TABLE intervention_step (
+  id TEXT PRIMARY KEY,
+  intervention_id TEXT NOT NULL REFERENCES intervention(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX intervention_step_intervention ON intervention_step(intervention_id, at);
+`,
+  },
 ];
