@@ -8,6 +8,8 @@ import { KEY_BY_CODE } from '../config/keys.ts';
 import { INSTRUMENT_BY_CODE } from '../config/instruments.ts';
 import { render } from '../domain/commands.ts';
 import { currentPeriod, nextPeriod } from '../config/allocation.ts';
+import { LEVEL_BY_ID } from '../config/acuity.ts';
+import { evidence as acuityEvidence } from '../domain/acuity.ts';
 import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
 export const SYNTHETIC_USERS = [
@@ -26,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 30;
+const SET = 31;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -354,6 +356,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 28) set28(store);
     if (at < 29) set29(store);
     if (at < 30) set30(store, password);
+    if (at < 31) set31(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2036,4 +2039,63 @@ function set30(store: Store, password: string): void {
     lines: [['nicki', ['ZZZ9999', 'ZZZ0016', 'ZZZ0024']], ['grace', ['ZZZ0032', 'ZZZ0040']]] });
   plan({ service: 'svc-arc', date: nowShift.date, period: nowShift.period, state: 'ACTIVE', drafted: 'kate', reviewer: 'nicki', mins: 100,
     lines: [['nicki', ['ZZZ0059', 'ZZZ0067', 'ZZZ0075']], ['kate', ['ZZZ0083', 'ZZZ0091']], ['tama', ['ZZZ0059', 'ZZZ0067', 'ZZZ0075', 'ZZZ0083', 'ZZZ0091']]] });
+}
+
+// Set 31: clinical status. Each ward's recorded statuses: some better, some worse, one overdue
+// for another look, and a few people with none yet.
+function set31(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const step = (id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  const rank = (l: string) => LEVEL_BY_ID.get(l)!.rank;
+  // Oldest first; each later one replaces the one before.
+  const history = (nhi: string, service: string, entries: { u: string; level: string; mins: number; basis: string }[]) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    let prior: { id: string; level: string } | null = null;
+    for (const e of entries) {
+      const by = who(e.u);
+      if (!by) continue;
+      const id = newId();
+      const change = prior === null ? 'FIRST' : rank(e.level) > rank(prior.level) ? 'WORSE' : rank(e.level) < rank(prior.level) ? 'BETTER' : 'SAME';
+      const at = ago(e.mins);
+      const last = e === entries[entries.length - 1];
+      store.insert('acuity_assessment', {
+        id, person_id: pid, service_id: service, level: e.level, basis: e.basis, evidence_json: last ? JSON.stringify(acuityEvidence(store, pid)) : null, change,
+        review_due: ago(e.mins - LEVEL_BY_ID.get(e.level)!.reviewHours * 60), state: 'CURRENT', assessed_by: by, assessed_at: at, supersedes: prior?.id ?? null,
+      });
+      step(id, null, 'CURRENT', by, at, `${LEVEL_BY_ID.get(e.level)!.label}: ${e.basis}`);
+      if (prior) {
+        store.run("UPDATE acuity_assessment SET state = 'SUPERSEDED' WHERE id = ?", prior.id);
+        step(prior.id, 'CURRENT', 'SUPERSEDED', by, at, 'Reassessed');
+      }
+      prior = { id, level: e.level };
+    }
+  };
+  const G = 'svc-genmed';
+  const A = 'svc-arc';
+  const E = 'svc-ed';
+  history('ZZZ9999', G, [
+    { u: 'nicki', level: 'STABLE', mins: 20 * 60, basis: 'Obs within her usual, eating and walking to the bathroom' },
+    { u: 'nicki', level: 'WATCH', mins: 120, basis: 'Heart rate 88, above her usual 60 to 80; says she feels "a bit off". Hourly obs for now' },
+  ]);
+  history('ZZZ0016', G, [
+    { u: 'nicki', level: 'WATCH', mins: 14 * 60, basis: 'Confused overnight, pulling at his drip' },
+    { u: 'sam', level: 'UNWELL', mins: 150, basis: 'More confused than this morning, resp rate 22, not drinking. Possible sepsis; bloods sent' },
+  ]);
+  history('ZZZ0024', G, [{ u: 'nicki', level: 'WATCH', mins: 11 * 60, basis: 'New admission with chest pain, settled on arrival; troponin repeat due' }]);
+  history('ZZZ0032', G, [
+    { u: 'hannah', level: 'UNWELL', mins: 3 * 24 * 60, basis: 'Fall with hip pain on admission, needed IV pain relief' },
+    { u: 'nicki', level: 'STABLE', mins: 6 * 60, basis: 'Pain controlled, obs steady for two days, eating a little more' },
+  ]);
+  history('ZZZ0059', A, [{ u: 'kate', level: 'STABLE', mins: 9 * 60, basis: 'Her usual self: up for breakfast, obs normal' }]);
+  history('ZZZ0067', A, [{ u: 'kate', level: 'WATCH', mins: 5 * 60, basis: 'Coughing more since yesterday, temp 37.6; GP to see tomorrow' }]);
+  history('ZZZ0075', A, [
+    { u: 'kate', level: 'STABLE', mins: 30 * 60, basis: 'His usual' },
+    { u: 'nicki', level: 'UNWELL', mins: 90, basis: 'Drowsy and hard to rouse at lunch, sats 89% on air (usually 94%)' },
+  ]);
+  history('ZZZ0091', A, [{ u: 'kate', level: 'STABLE', mins: 10 * 60, basis: 'No change from his usual' }]);
+  history('ZZZ0105', E, [{ u: 'ravi', level: 'UNWELL', mins: 40, basis: 'Short of breath at rest, resp rate 26; waiting for a medical bed' }]);
 }

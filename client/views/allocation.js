@@ -101,7 +101,8 @@ function patientTile(d, p, reload) {
     h('div', { class: 'spread' },
       h('div', {}, h('button', { class: 'link-btn', onclick: () => go(`/work/patient/${p.id}`) }, h('b', {}, p.name)),
         p.location ? h('span', { class: 'small muted' }, ` · ${p.location}`) : null),
-      d.movable ? h('button', { class: 'btn small', onclick: () => moveDialog(d, p, reload) }, 'Move') : null),
+      h('div', { class: 'row' }, p.status ? h('span', { class: `tag ${p.status.tone}` }, p.status.short) : null,
+        d.movable ? h('button', { class: 'btn small', onclick: () => moveDialog(d, p, reload) }, 'Move') : null)),
     p.needs.length ? h('div', { class: 'chips' }, p.needs.map((n) => h('span', { class: 'chip alloc-need' }, n))) : null,
     d.editable
       ? h('div', { class: 'toggles' }, d.staff.map((s) => h('button', {

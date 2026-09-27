@@ -1838,4 +1838,30 @@ CREATE INDEX allocation_plan_lines ON allocation(plan_id, state);
 CREATE INDEX allocation_worker ON allocation(workforce_person_id, state);
 `,
   },
+  {
+    version: 31,
+    name: 'clinical status and acuity lifecycle',
+    sql: `
+-- Clinical status / acuity (Shared Lifecycle Object 267): clinical evidence → acuity
+-- assessment → current status → escalation/resource implications → reassessment → changed
+-- status. A clinician's judgement with its basis and a snapshot of the evidence SHIFT held;
+-- levels are in server/config/acuity.ts. No score is calculated (RR-EWS-001, RR-ACU-001).
+CREATE TABLE acuity_assessment (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  level TEXT NOT NULL,                  -- STABLE | WATCH | UNWELL | CRITICAL
+  basis TEXT NOT NULL,                  -- what the clinician based it on, in their words
+  evidence_json TEXT,                   -- what SHIFT held at the time
+  change TEXT NOT NULL,                 -- FIRST | WORSE | BETTER | SAME
+  review_due TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- CURRENT | SUPERSEDED | ENTERED_IN_ERROR
+  assessed_by TEXT NOT NULL REFERENCES workforce_person(id),
+  assessed_at TEXT NOT NULL,
+  supersedes TEXT REFERENCES acuity_assessment(id),
+  error_reason TEXT
+);
+CREATE INDEX acuity_person ON acuity_assessment(person_id, state);
+`,
+  },
 ];

@@ -27,6 +27,7 @@ import { reportsPanel } from './reports.js';
 import { questionnairesPanel } from './questionnaires.js';
 import { functionPanel } from './function.js';
 import { usualPanel } from './usual.js';
+import { acuityPanel } from './acuity.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -351,6 +352,7 @@ export async function workstationView(personId, initialView) {
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
+      case 'acuity': return acuityPanel(personId, d, () => go(`/work/patient/${personId}/acuity`));
       case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
       case 'function': return functionPanel(personId, d, () => go(`/work/patient/${personId}/function`));
       case 'instruments': return questionnairesPanel(personId, d, () => go(`/work/patient/${personId}/instruments`));
@@ -418,6 +420,12 @@ export async function workstationView(personId, initialView) {
   // Alerts staff have raised stay in view with the allergies, on every page of the record.
   const flags = () => {
     const block = allergyBlock();
+    if (patient.acuity) {
+      const a = patient.acuity;
+      block.append(h('button', { class: `patient-acuity acuity-${a.level.toLowerCase()}`, onclick: () => openView('acuity') }, icon('acuity'),
+        h('span', {}, h('b', {}, `STATUS: ${a.label.toUpperCase()}`),
+          `${a.changeLabel} · ${a.overdue ? `look again was due ${fmtDateTime(a.reviewDue)}` : `look again by ${fmtDateTime(a.reviewDue)}`}`)));
+    }
     if (patient.alerts?.length) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),

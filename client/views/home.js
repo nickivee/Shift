@@ -31,6 +31,7 @@ const DESCRIPTIONS = {
   coding: () => 'Hospital episodes to code, being coded, and finalised.',
   reports: () => 'What people have told staff that a clinician should read.',
   instruments: () => 'Questionnaires due and results to interpret.',
+  acuity: () => 'People recorded as unwell, statuses overdue for another look, and people with none.',
   allocation: () => 'Which patients each person has this shift, and allocations waiting for your review.',
   team: () => 'Named clinicians waiting for you or to confirm, and people missing a required name.',
   usual: () => 'Changes from someone\'s usual that need action, and readings outside their usual range.',
@@ -48,7 +49,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', codingqueries: '/work/coding-questions',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', codingqueries: '/work/coding-questions',
 };
 
 export function openTab(tabId) {
@@ -79,6 +80,7 @@ export async function homeView() {
     if (want.includes('communications')) jobs.push(get('/api/work/communications').then((d) => (counts.communications = d.communications.filter((c) => c.actions.some((a) => a !== 'cancel')).length)));
     if (want.includes('monitoring')) jobs.push(get('/api/work/monitoring').then((d) => (counts.monitoring = d.plans.filter((m) => m.status === 'OVERDUE' || m.status === 'DUE_SOON').length)));
     if (want.includes('reports')) jobs.push(get('/api/work/reports').then((d) => (counts.reports = d.toReview.length)));
+    if (want.includes('acuity')) jobs.push(get('/api/work/acuity').then((d) => (counts.acuity = d.unwell.length + d.overdue.length + d.none.length)));
     if (want.includes('allocation')) jobs.push(get('/api/work/allocation').then((d) => (counts.allocation = d.toReview.length + (d.active ? 0 : 1))));
     if (want.includes('team')) jobs.push(get('/api/work/team').then((d) => (counts.team = d.forMe.length + d.toConfirm.length + d.missing.length)));
     if (want.includes('usual')) jobs.push(get('/api/work/usual').then((d) => (counts.usual = d.noticed.length + d.readings.length)));

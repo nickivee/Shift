@@ -195,6 +195,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-ACU-001',
+    question: 'Which acuity or patient-dependency tools New Zealand services use (for example under Care Capacity Demand Management), how they are calculated and licensed, and how their results should change staffing and escalation.',
+    blocks: 'Calculating an acuity or workload score. SHIFT records a clinician\'s judgement of clinical status only.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

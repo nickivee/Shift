@@ -7,6 +7,7 @@ import { transition, recordInitial, history } from './lifecycle.ts';
 import { activeRaised } from './alerts.ts';
 import { current as helpNeeded } from './functional.ts';
 import { current as differentNow } from './usual.ts';
+import { current as statusNow } from './acuity.ts';
 import { PERIODS, PERIOD_BY_ID, STAFF_ROLES, periodOf, currentPeriod, nextPeriod } from '../config/allocation.ts';
 import { ROLE_BY_KEY } from '../config/workstations.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
@@ -113,6 +114,7 @@ function detail(store: Store, ctx: WorkContext, r: Row) {
     const diff = differentNow(store, p.id);
     return {
       ...p, staffIds: live.filter((l) => l.personId === p.id).map((l) => l.workerId),
+      status: statusNow(store, p.id),
       needs: [...activeRaised(store, p.id).map((a) => a.title), ...(help ? [`Help: ${help.help.slice(0, 2).join('; ')}`] : []), ...(diff ? [`Different from usual: ${diff[0]}`] : [])],
     };
   });

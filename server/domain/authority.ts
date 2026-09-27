@@ -63,7 +63,8 @@ export type Operation =
   | { op: 'CONSULT_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
-  | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' };
+  | { op: 'ACUITY'; personId: string }
+  | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' | 'ACUITY_SCORE' };
 
 const ORG = 'ORG-SYN-001 v1';
 const allow = (refs: string[] = [ORG]): AuthorityResult => ({ decision: 'ALLOW', reasons: [], ruleRefs: refs });
@@ -83,6 +84,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return { decision: 'UNRESOLVED', reasons: ['Controlled-drug requirements need a current-version review'], ruleRefs: ['LAW-NZ-010', 'LAW-NZ-011', 'RR-CD-001'] };
     case 'EARLY_WARNING_SCORE':
       return { decision: 'UNRESOLVED', reasons: ['NZ early-warning thresholds have not been researched for this service'], ruleRefs: ['RR-EWS-001'] };
+    case 'ACUITY_SCORE':
+      return { decision: 'UNRESOLVED', reasons: ['Which NZ acuity or early-warning tool applies here, and how it is calculated, has not been researched'], ruleRefs: ['RR-ACU-001', 'RR-EWS-001'] };
     case 'KNOWLEDGE':
       return need(ctx, 'knowledge.use') ?? professional(ctx) ?? allow();
     case 'TRANSFER_RESPOND': {
@@ -228,6 +231,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'instrument.use') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can use questionnaires with them`));
+    case 'ACUITY':
+      return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their clinical status`));
     case 'USUAL':
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])

@@ -563,3 +563,31 @@ fieldset.function-item .row { flex-wrap: wrap; }
 .alloc-warn { color: var(--warn); font-weight: 700; }
 .alloc-none { border-left: 6px solid #c0392b; }
 .chip.alloc-need { font-weight: 600; font-size: 13px; border-radius: 10px; }
+
+/* Clinical status */
+.patient-acuity {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid var(--ok);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-acuity svg { width: 24px; height: 24px; flex: none; color: var(--ok); }
+.patient-acuity b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--ok); }
+.patient-acuity.acuity-watch { border-color: var(--warn); }
+.patient-acuity.acuity-watch svg, .patient-acuity.acuity-watch b { color: var(--warn); }
+.patient-acuity.acuity-unwell, .patient-acuity.acuity-critical { border-color: var(--danger); background: var(--danger-bg); }
+.patient-acuity.acuity-unwell svg, .patient-acuity.acuity-unwell b, .patient-acuity.acuity-critical svg, .patient-acuity.acuity-critical b { color: var(--danger); }
+.tile.acuity-watch { border-left: 6px solid var(--warn); }
+.tile.acuity-unwell, .tile.acuity-critical { border-left: 6px solid var(--danger); }
+.tile.acuity-stable { border-left: 6px solid var(--ok); }
+.acuity-now h3 { margin: 0; font-size: 17px; }
+.acuity-overdue { outline: 2px dashed var(--warn); outline-offset: -2px; }
+.acuity-implication { background: var(--tint); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.acuity-evidence { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 6px 0; font-size: 14px; }
+.acuity-evidence dt { font-weight: 700; color: var(--ink-soft); }
+.acuity-evidence dd { margin: 0; }
+@media (max-width: 520px) { .acuity-evidence { grid-template-columns: 1fr; } .acuity-evidence dd { margin-bottom: 6px; } }
+.acuity-choice { display: flex; gap: 10px; align-items: flex-start; border: 2px solid #b8d6dd; border-radius: 12px; padding: 8px 12px; cursor: pointer; }
+.acuity-choice:has(input:checked) { border-color: var(--line); background: var(--tint); }
+.acuity-choice.acuity-unwell:has(input:checked), .acuity-choice.acuity-critical:has(input:checked) { border-color: var(--danger); background: var(--danger-bg); }
+fieldset { border: 0; padding: 0; margin: 0; }
+legend { font-weight: 700; margin-bottom: 6px; }
