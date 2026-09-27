@@ -99,6 +99,8 @@ const PATHS = {
   reports: 'M7 8h10M7 12h6M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4V5Z',
   incidents: 'M12 3 2 20h20L12 3ZM12 10v4M12 17h.01M8 3h8',
   deterioration: 'M3 6l6 6 4-4 8 8M21 10v6h-6',
+  death: 'M12 2c-2 3-2 5 0 7 2-2 2-4 0-7ZM12 9v13M8 22h8M6 13h12',
+  deaths: 'M12 2c-2 3-2 5 0 7 2-2 2-4 0-7ZM12 9v13M8 22h8M6 13h12',
   acuity: 'M12 3v4M5.6 5.6l2.8 2.8M3 12h4M18.4 5.6l-2.8 2.8M21 12h-4M12 21a5 5 0 0 0 5-5c0-3-5-8-5-8s-5 5-5 8a5 5 0 0 0 5 5Z',
   allocation: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM15 16l2 2 4-4',
   team: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM3 21v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M21 21v-1a6 6 0 0 0-4-5.6',

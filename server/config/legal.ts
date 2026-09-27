@@ -207,6 +207,18 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-DTH-001',
+    question: 'Who may verify that a person has died in each New Zealand setting (hospital, aged residential care, community), what must be checked and recorded, and any Ministry of Health or professional guidance on verification of death.',
+    blocks: 'Deciding who is allowed to verify a death. SHIFT lets the synthetic organisation\'s nurses and doctors record verification (ORG-SYN-001) and records what they checked.',
+    category: 'REGULATION/CODE',
+  },
+  {
+    ref: 'RR-DTH-002',
+    question: 'Who may complete a medical certificate of cause of death, which deaths must be reported to the coroner (Coroners Act 2006) and how, what the Burial and Cremation Act requires before release, and how organ and tissue donation is raised.',
+    blocks: 'Issuing a certificate, deciding that a death must go to the coroner, or authorising release. SHIFT records references to what was done only.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

@@ -30,6 +30,7 @@ import { usualPanel } from './usual.js';
 import { acuityPanel } from './acuity.js';
 import { deteriorationPanel } from './deterioration.js';
 import { incidentsPanel } from './incidents.js';
+import { deathPanel } from './death.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -355,6 +356,7 @@ export async function workstationView(personId, initialView) {
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
       case 'incidents': return incidentsPanel(personId, d, () => go(`/work/patient/${personId}/incidents`));
+      case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
       case 'deterioration': return deteriorationPanel(personId, d, () => go(`/work/patient/${personId}/deterioration`));
       case 'acuity': return acuityPanel(personId, d, () => go(`/work/patient/${personId}/acuity`));
       case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
@@ -424,6 +426,12 @@ export async function workstationView(personId, initialView) {
   // Alerts staff have raised stay in view with the allergies, on every page of the record.
   const flags = () => {
     const block = allergyBlock();
+    if (patient.death) {
+      const x = patient.death;
+      block.append(h('button', { class: 'patient-death', onclick: () => openView('death') }, icon('death'),
+        h('span', {}, h('b', {}, `DIED ${fmtDateTime(x.diedAt).toUpperCase()}`),
+          x.state === 'IDENTIFIED' ? 'Not yet verified' : x.outstanding ? `${x.outstanding} thing${x.outstanding === 1 ? '' : 's'} still to do` : x.state === 'CLOSED' ? 'Stay ended' : 'Ready to end their stay')));
+    }
     if (patient.deterioration) {
       const x = patient.deterioration;
       block.append(h('button', { class: `patient-deterioration det-${x.state.toLowerCase()}`, onclick: () => openView('deterioration') }, icon('deterioration'),

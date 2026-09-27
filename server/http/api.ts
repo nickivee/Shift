@@ -35,6 +35,7 @@ import * as allocations from '../domain/allocations.ts';
 import * as acuity from '../domain/acuity.ts';
 import * as deterioration from '../domain/deterioration.ts';
 import * as incidents from '../domain/incidents.ts';
+import * as deaths from '../domain/deaths.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -219,6 +220,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/deaths', (req) => deaths.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/death', (req) => deaths.identify(store, work(req), req.params.id, {
+    diedAt: str(req.body.diedAt), expected: str(req.body.expected), place: str(req.body.place), circumstances: str(req.body.circumstances),
+  }));
+  r.on('POST', '/api/work/deaths/:id/:action', (req) => deaths.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), at: str(req.body.at), kind: str(req.body.kind), by: str(req.body.by), ref: str(req.body.ref),
+    name: str(req.body.name), to: str(req.body.to), donation: str(req.body.donation),
+  }));
   r.on('GET', '/api/work/incidents', (req) => incidents.list(store, work(req)));
   r.on('GET', '/api/work/incidents/:id', (req) => incidents.get(store, work(req), req.params.id));
   r.on('POST', '/api/work/patients/:id/incidents', (req) => incidents.report(store, work(req), req.params.id, {

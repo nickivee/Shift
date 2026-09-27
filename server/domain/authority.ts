@@ -64,6 +64,7 @@ export type Operation =
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'ACUITY'; personId: string }
+  | { op: 'DEATH'; personId: string; cap: 'death.record' | 'death.manage' }
   | { op: 'INCIDENT'; personId: string; cap: 'incident.report' | 'incident.review' }
   | { op: 'DETERIORATION'; personId: string; cap: 'deterioration.record' | 'deterioration.manage' }
   | { op: 'PRESCRIBE' | 'ADMINISTER' | 'CONTROLLED_DRUG' | 'EARLY_WARNING_SCORE' | 'ACUITY_SCORE' };
@@ -241,6 +242,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can report or review incidents about them`));
+    case 'DEATH':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-DTH-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their death`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])
@@ -319,7 +324,7 @@ function professional(ctx: WorkContext): AuthorityResult | null {
   return null;
 }
 
-export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'REFERRAL' | 'EXCEPTIONAL' | 'CODING_QUERY';
+export type Relationship = 'ENCOUNTER' | 'CARE_RELATIONSHIP' | 'TRANSFER' | 'CONSULTATION' | 'REFERRAL' | 'EXCEPTIONAL' | 'CODING_QUERY' | 'AFTER_DEATH';
 
 export function relationship(store: Store, ctx: WorkContext, personId: string): Relationship | null {
   const enc = store.get("SELECT 1 FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, ctx.serviceId);
@@ -352,6 +357,13 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
     personId, ctx.serviceId,
   );
   if (rf) return 'REFERRAL';
+  // The service a person died in may read their record for 30 days after their stay ended,
+  // to finish the documentation that follows a death.
+  const dd = store.get(
+    "SELECT 1 FROM death_event WHERE person_id = ? AND service_id = ? AND state = 'CLOSED' AND closed_at > ?",
+    personId, ctx.serviceId, new Date(Date.now() - 30 * 24 * 3600_000).toISOString(),
+  );
+  if (dd) return 'AFTER_DEATH';
   const ex = store.get(
     'SELECT 1 FROM exceptional_access WHERE work_context_id = ? AND person_id = ? AND expires_at > ?',
     ctx.id, personId, now(),

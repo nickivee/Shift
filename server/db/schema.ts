@@ -1963,4 +1963,66 @@ CREATE TABLE incident_action (
 CREATE INDEX incident_action_incident ON incident_action(incident_id);
 `,
   },
+  {
+    version: 34,
+    name: 'death event lifecycle',
+    sql: `
+-- Death event (Shared Lifecycle Object 270): death occurs/identified → verification →
+-- certification references → notifications → clinical episode closure/transition →
+-- mortuary/coronial/donation pathways where applicable. Choices are in server/config/deaths.ts;
+-- who may verify and certify, and coroner reporting, are RR-DTH-001 and RR-DTH-002.
+CREATE TABLE death_event (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  died_at TEXT NOT NULL,                -- time of death, or when they were found
+  expected TEXT NOT NULL,               -- EXPECTED | UNEXPECTED | UNSURE
+  place TEXT,
+  circumstances TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- IDENTIFIED | VERIFIED | CLOSED | ENTERED_IN_ERROR
+  identified_by TEXT NOT NULL REFERENCES workforce_person(id),
+  identified_at TEXT NOT NULL,
+  verified_by TEXT,
+  verified_at TEXT,
+  verify_note TEXT,
+  cert_kind TEXT,                       -- CERTIFICATE | CORONER (a reference only)
+  cert_by TEXT,
+  cert_ref TEXT,
+  cert_note TEXT,
+  donation TEXT,                        -- NOT_APPLICABLE | DISCUSSED | REFERRED
+  donation_note TEXT,
+  wishes TEXT,
+  released_to TEXT,                     -- FUNERAL_DIRECTOR | MORTUARY | CORONER | WHANAU
+  released_name TEXT,
+  released_at TEXT,
+  release_note TEXT,
+  released_by TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  close_note TEXT,
+  error_reason TEXT
+);
+CREATE INDEX death_event_person ON death_event(person_id, state);
+CREATE INDEX death_event_service ON death_event(service_id, state);
+CREATE TABLE death_notification (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES death_event(id),
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  note TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX death_notification_event ON death_notification(event_id);
+CREATE TABLE death_step (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES death_event(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX death_step_event ON death_step(event_id, at);
+`,
+  },
 ];
