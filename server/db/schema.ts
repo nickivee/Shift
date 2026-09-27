@@ -2025,4 +2025,46 @@ CREATE TABLE death_step (
 CREATE INDEX death_step_event ON death_step(event_id, at);
 `,
   },
+  {
+    version: 35,
+    name: 'clinical problem lifecycle',
+    sql: `
+-- Clinical problem / concern (Shared Lifecycle Object 273): concern identified → evidence →
+-- provisional problem → assessment → active problem → treatment/management linkage →
+-- monitoring → improving/stable/worsening → resolved/inactive → recurrence.
+CREATE TABLE clinical_problem (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  title TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- CONCERN | PROVISIONAL | ACTIVE | RESOLVED | INACTIVE | RULED_OUT | ENTERED_IN_ERROR
+  trend TEXT,                           -- IMPROVING | STABLE | WORSENING
+  onset TEXT,
+  assessment TEXT,
+  management TEXT,
+  monitoring TEXT,
+  review_due TEXT,
+  last_review_at TEXT,
+  recurrences INTEGER NOT NULL DEFAULT 0,
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL,
+  assessed_by TEXT,
+  assessed_at TEXT,
+  source_event_id TEXT,                 -- the .problem entry it came from, if any
+  closed_by TEXT,
+  closed_at TEXT,
+  close_note TEXT
+);
+CREATE INDEX clinical_problem_person ON clinical_problem(person_id, state);
+CREATE TABLE problem_step (
+  id TEXT PRIMARY KEY,
+  problem_id TEXT NOT NULL REFERENCES clinical_problem(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX problem_step_problem ON problem_step(problem_id, at);
+`,
+  },
 ];

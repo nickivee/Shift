@@ -5,6 +5,7 @@ import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { recordInitial, transition } from './lifecycle.ts';
 import { KEY_BY_CODE, type KeyTemplate } from '../config/keys.ts';
+import { fromEntry as problemFromEntry } from './problems.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 export interface CommandInput {
@@ -165,6 +166,8 @@ export function execute(store: Store, ctx: WorkContext, input: CommandInput) {
       });
       template.engines.forEach((e) => engines.add(e));
       audit(store, { ...auditBase, operation: 'CREATE_EVENT', objectType: 'clinical_event', objectId: id, reason: template.code, ruleRefs: ['ORG-SYN-001 v1', 'LAW-NZ-002'], engines: template.engines });
+      // A .problem entry keeps the problem list (Object 273) in step.
+      if (template.code === '.problem') problemFromEntry(store, ctx, person.id, fields, id);
       event = { id, lineage_id: id };
       result.eventId = id;
     } else {

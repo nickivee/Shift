@@ -36,6 +36,7 @@ import * as acuity from '../domain/acuity.ts';
 import * as deterioration from '../domain/deterioration.ts';
 import * as incidents from '../domain/incidents.ts';
 import * as deaths from '../domain/deaths.ts';
+import * as problems from '../domain/problems.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -220,6 +221,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/problems', (req) => problems.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/problems', (req) => problems.raise(store, work(req), req.params.id, {
+    title: str(req.body.title), evidence: str(req.body.evidence), onset: str(req.body.onset),
+  }));
+  r.on('POST', '/api/work/problems/:id/:action', (req) => problems.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), title: str(req.body.title), management: str(req.body.management), monitoring: str(req.body.monitoring),
+    reviewDue: str(req.body.reviewDue), trend: str(req.body.trend),
+  }));
   r.on('GET', '/api/work/deaths', (req) => deaths.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/death', (req) => deaths.identify(store, work(req), req.params.id, {
     diedAt: str(req.body.diedAt), expected: str(req.body.expected), place: str(req.body.place), circumstances: str(req.body.circumstances),

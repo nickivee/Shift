@@ -633,3 +633,20 @@ legend { font-weight: 700; margin-bottom: 6px; }
 .death-facts dt { font-weight: 700; }
 .death-facts dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 480px) { .death-facts { grid-template-columns: 1fr; } .death-facts dd { margin-bottom: 6px; } }
+
+/* Clinical problems */
+.patient-problems {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid var(--line);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-problems svg { width: 24px; height: 24px; flex: none; color: var(--line); }
+.patient-problems b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--line); }
+.problem h3 { margin: 0; font-size: 17px; }
+.tile.problem-active { border-left: 6px solid var(--danger); }
+.tile.problem-concern, .tile.problem-provisional { border-left: 6px solid var(--warn); }
+.tile.problem-resolved, .tile.problem-inactive, .tile.problem-ruled_out, .tile.problem-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.trend-choice { display: flex; align-items: center; gap: 6px; border: 2px solid var(--line); border-radius: 12px; padding: 6px 12px; }
+.trend-choice.trend-worsening:has(input:checked) { border-color: var(--danger); background: var(--danger-bg); }
+.trend-choice:has(input:checked) { background: var(--tint); }
+dd.overdue { color: var(--danger); font-weight: 700; }

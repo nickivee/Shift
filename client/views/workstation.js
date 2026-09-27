@@ -31,6 +31,7 @@ import { acuityPanel } from './acuity.js';
 import { deteriorationPanel } from './deterioration.js';
 import { incidentsPanel } from './incidents.js';
 import { deathPanel } from './death.js';
+import { problemsPanel } from './problems.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -356,6 +357,7 @@ export async function workstationView(personId, initialView) {
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
       case 'incidents': return incidentsPanel(personId, d, () => go(`/work/patient/${personId}/incidents`));
+      case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
       case 'deterioration': return deteriorationPanel(personId, d, () => go(`/work/patient/${personId}/deterioration`));
       case 'acuity': return acuityPanel(personId, d, () => go(`/work/patient/${personId}/acuity`));
@@ -447,6 +449,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-alert', onclick: () => openView('alerts') }, icon('alerts'),
         h('span', {}, h('b', {}, patient.alerts.length === 1 ? patient.alerts[0].categoryLabel.toUpperCase() : `${patient.alerts.length} ALERTS`),
           patient.alerts.map((a) => a.title).join(' · '))));
+    }
+    if (patient.problems?.length) {
+      block.append(h('button', { class: 'patient-problems', onclick: () => openView('problems') }, icon('problems'),
+        h('span', {}, h('b', {}, 'PROBLEMS'), patient.problems.join(' · '))));
     }
     if (patient.usual?.length) {
       block.append(h('button', { class: 'patient-usual', onclick: () => openView('usual') }, icon('usual'),

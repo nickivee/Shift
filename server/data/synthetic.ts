@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 34;
+const SET = 35;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -361,6 +361,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 32) set32(store);
     if (at < 33) set33(store);
     if (at < 34) set34(store);
+    if (at < 35) set35(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2368,4 +2369,111 @@ function set34(store: Store): void {
     { kind: 'WHANAU', name: 'Susan Clarke (daughter)', note: 'Present when she died.', by: grace, mins: 10 * day - 25 },
     { kind: 'GP', name: 'Dr Paul Singh, Eastside Health', note: 'Discharge summary sent.', by: grace, mins: 10 * day - 200 },
   ], [[null, 'IDENTIFIED', grace, 10 * day - 10, 'Expected'], ['IDENTIFIED', 'VERIFIED', grace, 10 * day - 20, 'Verified'], ['VERIFIED', 'CLOSED', grace, 10 * day - 300, 'Stay ended']]);
+}
+
+// Set 35: clinical problems. Every .problem entry already in the record joins the problem list.
+// Then: a new concern about Rua's confusion waiting to be assessed, Wiremu's chest infection
+// improving but overdue a look, Peggy's falls as a working problem, and Frank's constipation,
+// resolved last week.
+function set35(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const date = (days: number) => addDays(todayLocal(), days);
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const trans = (id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'problem', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('problem_step', { id: newId(), problem_id: id, kind, body, by_id: by, at: ago(mins) });
+
+  // Existing .problem entries.
+  const entries = store.all<{ id: string; person_id: string; service_id: string; fields_json: string; author_id: string; recorded_at: string }>(
+    "SELECT id, person_id, service_id, fields_json, author_id, recorded_at FROM clinical_event WHERE key_code = '.problem' AND state = 'CURRENT' ORDER BY recorded_at");
+  for (const e of entries) {
+    if (store.get('SELECT 1 FROM clinical_problem WHERE source_event_id = ?', e.id)) continue;
+    const f = JSON.parse(e.fields_json) as Record<string, string>;
+    if (!f.problem) continue;
+    const state = f.status === 'Resolved' ? 'RESOLVED' : f.status === 'Under investigation' ? 'PROVISIONAL' : 'ACTIVE';
+    const id = newId();
+    store.insert('clinical_problem', {
+      id, person_id: e.person_id, service_id: e.service_id, title: f.problem, state, recurrences: 0, raised_by: e.author_id, raised_at: e.recorded_at,
+      assessed_by: e.author_id, assessed_at: e.recorded_at, assessment: f.note || null, source_event_id: e.id,
+      closed_by: state === 'RESOLVED' ? e.author_id : null, closed_at: state === 'RESOLVED' ? e.recorded_at : null,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'problem', object_id: id, from_state: null, to_state: state, actor_id: e.author_id, work_context_id: null, at: e.recorded_at, reason: 'From a .problem entry', transaction_id: null });
+    store.insert('problem_step', { id: newId(), problem_id: id, kind: 'ENTRY', body: [`${f.problem} (${f.status ?? 'Active'})`, f.note].filter(Boolean).join('. '), by_id: e.author_id, at: e.recorded_at });
+  }
+  const hannah = who('hannah');
+  const aroha = person('ZZZ9999');
+  const pneumonia = aroha ? store.get<{ id: string }>("SELECT id FROM clinical_problem WHERE person_id = ? AND title = 'Community-acquired pneumonia' AND state = 'ACTIVE'", aroha) : null;
+  if (pneumonia && hannah) {
+    store.run('UPDATE clinical_problem SET management = ?, monitoring = ?, review_due = ?, trend = ?, last_review_at = ? WHERE id = ?',
+      'IV amoxicillin, switch to oral when afebrile 24 hours; chest physio', '4-hourly obs; oxygen to keep sats 92 to 96%', date(0), 'IMPROVING', ago(day), pneumonia.id);
+    step(pneumonia.id, 'PLAN', 'Managing: IV amoxicillin, switch to oral when afebrile 24 hours; chest physio. Watching: 4-hourly obs; oxygen to keep sats 92 to 96%.', hannah, 2 * day - 60);
+    step(pneumonia.id, 'REVIEW', 'Improving: afebrile overnight, off oxygen.', hannah, day);
+  }
+
+  interface P { nhi: string; service: string; title: string; u: string; mins: number; evidence: string; onset?: number;
+    provisional?: { u: string; mins: number; note: string }; confirm?: { u: string; mins: number; note: string };
+    plan?: { u: string; mins: number; management: string; monitoring: string; due: number };
+    reviews?: { u: string; mins: number; trend: string; note: string }[]; resolve?: { u: string; mins: number; note: string } }
+  const problem = (x: P) => {
+    const pid = person(x.nhi);
+    const rb = who(x.u);
+    if (!pid || !rb) return;
+    const id = newId();
+    const pending: [string, string, string, number][] = [];
+    const later = (kind: string, text: string, by: string, mins: number) => pending.push([kind, text, by, mins]);
+    let state = 'CONCERN';
+    const fields: Record<string, unknown> = {};
+    trans(id, null, 'CONCERN', rb, x.mins, x.title);
+    later('RAISED', x.evidence, rb, x.mins);
+    if (x.provisional) {
+      const v = who(x.provisional.u)!;
+      trans(id, state, 'PROVISIONAL', v, x.provisional.mins, x.provisional.note.slice(0, 200)); state = 'PROVISIONAL';
+      Object.assign(fields, { assessment: x.provisional.note, assessed_by: v, assessed_at: ago(x.provisional.mins) });
+      later('PROVISIONAL', `${x.title}: ${x.provisional.note}`, v, x.provisional.mins);
+    }
+    if (x.confirm) {
+      const v = who(x.confirm.u)!;
+      trans(id, state, 'ACTIVE', v, x.confirm.mins, x.confirm.note.slice(0, 200)); state = 'ACTIVE';
+      Object.assign(fields, { assessment: x.confirm.note, assessed_by: v, assessed_at: ago(x.confirm.mins) });
+      later('CONFIRMED', `${x.title}: ${x.confirm.note}`, v, x.confirm.mins);
+    }
+    if (x.plan) {
+      const v = who(x.plan.u)!;
+      Object.assign(fields, { management: x.plan.management, monitoring: x.plan.monitoring, review_due: date(x.plan.due) });
+      later('PLAN', `Managing: ${x.plan.management}. Watching: ${x.plan.monitoring}. Look again by ${date(x.plan.due)}.`, v, x.plan.mins);
+    }
+    for (const r of x.reviews ?? []) {
+      Object.assign(fields, { trend: r.trend, last_review_at: ago(r.mins) });
+      later('REVIEW', `${r.trend === 'IMPROVING' ? 'Improving' : r.trend === 'WORSENING' ? 'Worse' : 'Stable'}: ${r.note}`, who(r.u)!, r.mins);
+    }
+    if (x.resolve) {
+      const v = who(x.resolve.u)!;
+      trans(id, state, 'RESOLVED', v, x.resolve.mins, x.resolve.note.slice(0, 200)); state = 'RESOLVED';
+      Object.assign(fields, { closed_by: v, closed_at: ago(x.resolve.mins), close_note: x.resolve.note, review_due: null });
+      later('RESOLVED', x.resolve.note, v, x.resolve.mins);
+    }
+    store.insert('clinical_problem', {
+      id, person_id: pid, service_id: x.service, title: x.title, state, onset: x.onset !== undefined ? date(x.onset) : null, recurrences: 0,
+      raised_by: rb, raised_at: ago(x.mins), ...fields,
+    });
+    for (const [kind, text, by, mins] of pending) step(id, kind, text, by, mins);
+  };
+  problem({ nhi: 'ZZZ0059', service: 'svc-arc', title: 'New confusion', u: 'tama', mins: 180, onset: 0,
+    evidence: 'Not recognising Mere this morning, pulling at her blanket and more drowsy than usual. Ate only a few mouthfuls of breakfast.' });
+  problem({ nhi: 'ZZZ0016', service: 'svc-genmed', title: 'Chest infection with sepsis', u: 'grace', mins: 4 * day, onset: -4,
+    evidence: 'Temp 38.9, resp rate 26, BP 92/58, new cough with green sputum.',
+    confirm: { u: 'sam', mins: 4 * day - 60, note: 'Right lower lobe consolidation on chest X-ray; lactate 3.1. Meets the sepsis pathway.' },
+    plan: { u: 'sam', mins: 4 * day - 50, management: 'IV ceftriaxone; IV fluids; oxygen to keep sats 92 to 96%', monitoring: 'Hourly obs for 12 hours then 4-hourly; fluid balance; lactate repeat', due: -1 },
+    reviews: [{ u: 'sam', mins: 2 * day, trend: 'IMPROVING', note: 'Afebrile, lactate 1.4, eating again.' }] });
+  problem({ nhi: 'ZZZ0032', service: 'svc-genmed', title: 'Falls: unsteady on her feet', u: 'nicki', mins: 30 * 60, onset: -10,
+    evidence: 'Two near falls walking to the toilet overnight; says she has been dizzy when she stands up.',
+    provisional: { u: 'grace', mins: 20 * 60, note: 'Possible postural drop: lying 138/80, standing 112/70. Checking her medicines and bloods.' } });
+  problem({ nhi: 'ZZZ0075', service: 'svc-arc', title: 'Constipation', u: 'tama', mins: 14 * day, onset: -15,
+    evidence: 'No bowel motion for 4 days; abdomen bloated and he is off his food.',
+    confirm: { u: 'kate', mins: 14 * day - 90, note: 'Hard stool on examination; on codeine for his knee.' },
+    plan: { u: 'kate', mins: 14 * day - 80, management: 'Laxatives twice daily; more fluids and fruit; GP asked to review codeine', monitoring: 'Bowel chart daily', due: -10 },
+    resolve: { u: 'kate', mins: 7 * day, note: 'Bowels open daily for five days; codeine stopped by his GP.' } });
 }

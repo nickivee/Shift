@@ -31,6 +31,7 @@ import { forPerson as acuityFor, current as acuityNow } from './acuity.ts';
 import { forPerson as deteriorationFor, current as deteriorationNow } from './deterioration.ts';
 import { forPerson as incidentsFor } from './incidents.ts';
 import { forPerson as deathFor, current as deathNow } from './deaths.ts';
+import { forPerson as problemsFor, current as problemsNow } from './problems.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -207,6 +208,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     acuity: ctx.role.views.includes('acuity') ? acuityNow(store, personId) : null,
     deterioration: ctx.role.views.includes('deterioration') ? deteriorationNow(store, personId) : null,
     death: ctx.role.views.includes('death') ? deathNow(store, personId) : null,
+    problems: ctx.role.views.includes('problems') ? problemsNow(store, personId) : null,
     team: teamNow(store, personId),
   };
 }
@@ -397,6 +399,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'death':
       body = deathFor(store, ctx, personId);
+      break;
+    case 'problems':
+      body = problemsFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);
