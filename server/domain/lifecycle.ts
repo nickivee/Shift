@@ -264,6 +264,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       DECLINED: ['REVIEWED', 'ENTERED_IN_ERROR'], IMPLEMENTED: ['REVIEWED', 'ENTERED_IN_ERROR'], NOT_IMPLEMENTED: ['REVIEWED', 'ENTERED_IN_ERROR'],
     },
   },
+  requirement: {
+    table: 'requirement',
+    initial: 'PENDING',
+    next: {
+      PENDING: ['ASSIGNED', 'DEFERRED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      ASSIGNED: ['ASSIGNED', 'PENDING', 'ACTIONED', 'DEFERRED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      DEFERRED: ['PENDING', 'ASSIGNED', 'CANCELLED', 'CLOSED', 'ENTERED_IN_ERROR'],
+      ACTIONED: ['CLOSED', 'ENTERED_IN_ERROR'], CANCELLED: ['CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

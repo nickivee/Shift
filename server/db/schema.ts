@@ -2406,4 +2406,52 @@ CREATE TABLE recommendation_log (
 CREATE INDEX recommendation_log_rec ON recommendation_log(recommendation_id, at);
 `,
   },
+  {
+    version: 42,
+    name: 'requirement lifecycle',
+    sql: `
+-- Requirement: generated → pending → assigned → actioned OR deferred OR cancelled → outcome → closed.
+CREATE TABLE requirement (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- PENDING | ASSIGNED | ACTIONED | DEFERRED | CANCELLED | CLOSED | ENTERED_IN_ERROR
+  what TEXT NOT NULL,
+  detail TEXT,
+  priority TEXT NOT NULL,               -- URGENT | TODAY | ROUTINE
+  due_by TEXT,
+  source TEXT NOT NULL,                 -- RECOMMENDATION | MANUAL
+  source_id TEXT,
+  source_label TEXT NOT NULL,
+  generated_by TEXT NOT NULL REFERENCES workforce_person(id),
+  generated_at TEXT NOT NULL,
+  assigned_to TEXT,
+  assigned_by TEXT,
+  assigned_at TEXT,
+  accepted_at TEXT,
+  actioned_by TEXT,
+  actioned_at TEXT,
+  action_note TEXT,
+  deferred_until TEXT,
+  defer_reason TEXT,
+  ended_note TEXT,
+  outcome TEXT,                         -- MET | PARTLY_MET | NOT_MET | NO_LONGER_NEEDED
+  outcome_note TEXT,
+  closed_by TEXT,
+  closed_at TEXT
+);
+CREATE INDEX requirement_person ON requirement(person_id, state);
+CREATE INDEX requirement_service ON requirement(service_id, state);
+CREATE INDEX requirement_source ON requirement(source, source_id);
+CREATE TABLE requirement_log (
+  id TEXT PRIMARY KEY,
+  requirement_id TEXT NOT NULL REFERENCES requirement(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX requirement_log_req ON requirement_log(requirement_id, at);
+`,
+  },
 ];
