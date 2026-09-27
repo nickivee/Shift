@@ -219,6 +219,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-INT-001',
+    question: 'Which clinical interventions New Zealand law, regulators or national standards require to be authorised before they start (for example devices, procedures and restraint under NZS 8134 Ngā paerewa), who may authorise each, and what must be recorded.',
+    blocks: 'Deciding which interventions need authorising and by whom. SHIFT uses the synthetic organisation\'s own rule (devices and procedures need a doctor) and does not offer restraint.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

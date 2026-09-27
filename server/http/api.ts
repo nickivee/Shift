@@ -38,6 +38,7 @@ import * as incidents from '../domain/incidents.ts';
 import * as deaths from '../domain/deaths.ts';
 import * as problems from '../domain/problems.ts';
 import * as symptoms from '../domain/symptoms.ts';
+import * as interventions from '../domain/interventions.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -222,6 +223,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/interventions', (req) => interventions.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/interventions', (req) => interventions.plan(store, work(req), req.params.id, {
+    category: str(req.body.category), what: str(req.body.what), purpose: str(req.body.purpose), forId: str(req.body.forId), frequency: str(req.body.frequency),
+    everyHours: str(req.body.everyHours), startAt: str(req.body.startAt), reviewDue: str(req.body.reviewDue), considerOnly: req.body.considerOnly === true || req.body.considerOnly === 'true',
+  }));
+  r.on('POST', '/api/work/interventions/:id/:action', (req) => interventions.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), done: req.body.done === false || req.body.done === 'false' ? false : true, response: str(req.body.response), outcome: str(req.body.outcome),
+    what: str(req.body.what), frequency: str(req.body.frequency), everyHours: str(req.body.everyHours), reviewDue: str(req.body.reviewDue),
+  }));
   r.on('GET', '/api/work/symptoms', (req) => symptoms.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/symptoms', (req) => symptoms.record(store, work(req), req.params.id, {
     kind: str(req.body.kind), name: str(req.body.name), onset: str(req.body.onset), site: str(req.body.site), context: str(req.body.context),
