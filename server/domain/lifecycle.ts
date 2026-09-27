@@ -241,6 +241,13 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       AGREED: ['ACTIVE', 'STOPPED', 'ENTERED_IN_ERROR'], ACTIVE: ['AWAITING_AGREEMENT', 'COMPLETED', 'STOPPED', 'ENTERED_IN_ERROR'],
     },
   },
+  pathway: {
+    table: 'pathway_instance',
+    initial: 'SUGGESTED',
+    next: {
+      SUGGESTED: ['ACTIVE', 'DECLINED', 'ENTERED_IN_ERROR'], ACTIVE: ['COMPLETED', 'EXITED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

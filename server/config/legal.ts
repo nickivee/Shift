@@ -237,6 +237,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-PW-001',
+    question: 'Which clinical pathways and protocols New Zealand services must or should follow (for example Health Quality & Safety Commission falls and sepsis guidance, and delirium standards), their eligibility criteria, steps and time frames, and who owns and approves each.',
+    blocks: 'Using real clinical pathways. SHIFT\'s three pathways are the synthetic organisation\'s own, are not clinically validated, and only track what was done against their steps.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

@@ -2247,4 +2247,66 @@ CREATE TABLE treatment_step (
 CREATE INDEX treatment_step_plan ON treatment_step(plan_id, at);
 `,
   },
+  {
+    version: 39,
+    name: 'clinical pathway lifecycle',
+    sql: `
+-- Clinical Pathway / Protocol Instance (Shared Lifecycle Object 278): patient meets
+-- trigger/eligibility → pathway initiated → applicable steps → completed/skipped/not
+-- applicable/deferred states → deviations → escalation → completion/exit.
+CREATE TABLE pathway_instance (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  pathway_id TEXT NOT NULL,             -- server/config/pathways.ts
+  state TEXT NOT NULL,                  -- SUGGESTED | ACTIVE | COMPLETED | EXITED | DECLINED | ENTERED_IN_ERROR
+  trigger_text TEXT,
+  trigger_event_id TEXT,                -- the entry that suggested it
+  eligibility_json TEXT,                -- the answer to each eligibility question
+  suggested_by TEXT,
+  suggested_at TEXT,
+  started_by TEXT,
+  started_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  exit_reason TEXT,
+  end_note TEXT
+);
+CREATE INDEX pathway_instance_person ON pathway_instance(person_id, state);
+CREATE TABLE pathway_step (
+  id TEXT PRIMARY KEY,
+  instance_id TEXT NOT NULL REFERENCES pathway_instance(id),
+  step_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  optional INTEGER NOT NULL DEFAULT 0,
+  due_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- PENDING | DONE | SKIPPED | NOT_APPLICABLE | DEFERRED
+  note TEXT,
+  by_id TEXT,
+  at TEXT
+);
+CREATE INDEX pathway_step_instance ON pathway_step(instance_id, seq);
+CREATE TABLE pathway_deviation (
+  id TEXT PRIMARY KEY,
+  instance_id TEXT NOT NULL REFERENCES pathway_instance(id),
+  step_id TEXT,
+  kind TEXT NOT NULL,                   -- ELIGIBILITY | SKIPPED | DEFERRED | LATE | OVERDUE
+  note TEXT NOT NULL,
+  escalation_id TEXT,                   -- the escalation (225) it was raised as
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX pathway_deviation_instance ON pathway_deviation(instance_id, at);
+CREATE TABLE pathway_log (
+  id TEXT PRIMARY KEY,
+  instance_id TEXT NOT NULL REFERENCES pathway_instance(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX pathway_log_instance ON pathway_log(instance_id, at);
+`,
+  },
 ];

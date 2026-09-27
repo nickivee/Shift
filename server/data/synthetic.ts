@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 38;
+const SET = 39;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -365,6 +365,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 36) set36(store);
     if (at < 37) set37(store);
     if (at < 38) set38(store);
+    if (at < 39) set39(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2722,4 +2723,96 @@ function set38(store: Store): void {
     startedMins: 5 * day - 30,
     progress: [{ u: 'grace', mins: 2 * day, progress: 'ON_TRACK', note: 'Fever settled; eating half his meals.' }],
     ended: { u: 'hannah', mins: day - 60, note: 'Goal met: on air, eating and walking the corridor.' } });
+}
+
+// Clinical pathways (Shared Lifecycle Object 278): Peggy on the after-a-fall pathway with the
+// doctor told late and telling her whānau now overdue; Rua on the new-confusion pathway with a
+// step deferred; Frank's fall suggesting the pathway, not yet started; Wiremu's sepsis
+// pathway completed.
+function set39(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const defs: Record<string, { id: string; label: string; dueMins: number; optional?: boolean }[]> = {
+    POST_FALL: [
+      { id: 'injury', label: 'Check for injury before moving them', dueMins: 0 }, { id: 'obs', label: 'Observations after the fall', dueMins: 30 },
+      { id: 'doctor', label: 'Tell the doctor, nurse practitioner or GP', dueMins: 60 }, { id: 'whanau', label: 'Tell their whānau or next of kin', dueMins: 240, optional: true },
+      { id: 'incident', label: 'Report the fall as an incident', dueMins: 24 * 60 }, { id: 'risk', label: 'Review their falls risk and care plan', dueMins: 24 * 60 },
+    ],
+    SEPSIS: [
+      { id: 'senior', label: 'Senior clinician review', dueMins: 30 }, { id: 'bloods', label: 'Blood tests, including cultures', dueMins: 60 },
+      { id: 'antibiotics', label: 'Antibiotics as prescribed', dueMins: 60 }, { id: 'fluids', label: 'Fluids as prescribed', dueMins: 60, optional: true },
+      { id: 'monitor', label: 'Closer observation plan in place', dueMins: 60 }, { id: 'review', label: 'Review response to treatment', dueMins: 6 * 60 },
+    ],
+    DELIRIUM: [
+      { id: 'screen', label: 'Confusion screen', dueMins: 2 * 60 }, { id: 'whanau', label: 'Ask whānau what is usual for them', dueMins: 4 * 60 },
+      { id: 'causes', label: 'Look for causes: infection, pain, constipation, fluids', dueMins: 8 * 60 }, { id: 'meds', label: 'Medicines review', dueMins: 24 * 60 },
+      { id: 'comfort', label: 'Comfort, orientation and sleep measures in the care plan', dueMins: 24 * 60 },
+      { id: 'review', label: 'Review whether the confusion is settling', dueMins: 48 * 60 },
+    ],
+  };
+  const LOGS: Record<string, string> = { DONE: 'DONE', SKIPPED: 'SKIPPED', NOT_APPLICABLE: 'NOT_APPLICABLE', DEFERRED: 'DEFERRED' };
+  interface S { state: string; u: string; mins: number; note?: string; deferTo?: number }
+  interface P { nhi: string; service: string; pathway: string; state: string; u: string; mins: number; eligibility?: boolean[]; trigger?: string;
+    steps?: Record<string, S>; deviations?: { step?: string; kind: string; note: string; u: string; mins: number }[]; ended?: { u: string; mins: number; note?: string } }
+  const pathway = (x: P) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const suggested = x.state === 'SUGGESTED';
+    store.insert('pathway_instance', {
+      id, person_id: pid, service_id: x.service, pathway_id: x.pathway, state: x.state, trigger_text: x.trigger ?? null, trigger_event_id: null,
+      eligibility_json: x.eligibility ? JSON.stringify(x.eligibility) : null, suggested_by: suggested ? by : null, suggested_at: suggested ? ago(x.mins) : null,
+      started_by: suggested ? null : by, started_at: suggested ? null : ago(x.mins), ended_by: x.ended ? who(x.ended.u) : null, ended_at: x.ended ? ago(x.ended.mins) : null,
+      exit_reason: null, end_note: x.ended?.note ?? null,
+    });
+    const logs: [string, string, string, number][] = [[suggested ? 'SUGGESTED' : 'STARTED', suggested ? `Suggested by a .fall entry: ${x.trigger}` : `${x.trigger ?? ''}`.trim() || 'Started.', by, x.mins]];
+    const trans: [string | null, string, string, number][] = [[null, suggested ? 'SUGGESTED' : 'ACTIVE', by, x.mins]];
+    const stepIds: Record<string, string> = {};
+    if (!suggested) {
+      defs[x.pathway].forEach((d, i) => {
+        const st = x.steps?.[d.id];
+        const sid = newId();
+        stepIds[d.id] = sid;
+        const due = st?.deferTo !== undefined ? ago(-st.deferTo) : ago(x.mins - d.dueMins);
+        store.insert('pathway_step', { id: sid, instance_id: id, step_key: d.id, label: d.label, seq: i, optional: d.optional ? 1 : 0, due_at: due,
+          state: st?.state ?? 'PENDING', note: st?.note ?? null, by_id: st ? who(st.u) : null, at: st ? ago(st.mins) : null });
+        if (st) logs.push([LOGS[st.state], `${d.label}.${st.note ? ` ${st.note}` : ''}`, who(st.u)!, st.mins]);
+      });
+    }
+    for (const d of x.deviations ?? []) {
+      const labels: Record<string, string> = { LATE: 'Step done late', SKIPPED: 'Step skipped', DEFERRED: 'Step deferred' };
+      store.insert('pathway_deviation', { id: newId(), instance_id: id, step_id: d.step ? stepIds[d.step] : null, kind: d.kind, note: d.note, escalation_id: null, by_id: who(d.u)!, at: ago(d.mins) });
+      logs.push(['DEVIATION', `${labels[d.kind]}: ${d.note}`, who(d.u)!, d.mins]);
+    }
+    if (x.ended) { logs.push(['COMPLETED', x.ended.note ?? 'Every step recorded.', who(x.ended.u)!, x.ended.mins]); trans.push(['ACTIVE', x.state, who(x.ended.u)!, x.ended.mins]); }
+    for (const [kind, body, b, mins] of logs.sort((a, c) => c[3] - a[3])) store.insert('pathway_log', { id: newId(), instance_id: id, kind, body, by_id: b, at: ago(mins) });
+    for (const [from, to, b, mins] of trans) store.insert('state_transition', { id: newId(), object_type: 'pathway', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  };
+  pathway({ nhi: 'ZZZ0032', service: 'svc-genmed', pathway: 'POST_FALL', state: 'ACTIVE', u: 'nicki', mins: 5 * 60, eligibility: [true],
+    trigger: 'Found sitting on the floor by her bed; says she slipped getting up to the toilet.',
+    steps: {
+      injury: { state: 'DONE', u: 'nicki', mins: 5 * 60 - 5, note: 'Bruise on her right hip; moving all limbs; no head strike.' },
+      obs: { state: 'DONE', u: 'nicki', mins: 5 * 60 - 25, note: 'Within her usual range.' },
+      doctor: { state: 'DONE', u: 'nicki', mins: 3 * 60, note: 'Dr Sam Patel told; will review on the ward round.' },
+    },
+    deviations: [{ step: 'doctor', kind: 'LATE', note: 'Tell the doctor, nurse practitioner or GP: done 60 minutes after it was due. Registrar was at a cardiac arrest.', u: 'nicki', mins: 3 * 60 }] });
+  pathway({ nhi: 'ZZZ0059', service: 'svc-arc', pathway: 'DELIRIUM', state: 'ACTIVE', u: 'kate', mins: 3 * 60, eligibility: [true, true],
+    trigger: 'More muddled since yesterday; not sure where she is.',
+    steps: {
+      screen: { state: 'DONE', u: 'kate', mins: 2 * 60, note: 'Screen positive: inattentive and disorganised thinking.' },
+      whanau: { state: 'DEFERRED', u: 'kate', mins: 50, note: 'Daughter not answering; try again after work hours.', deferTo: 3 * 60 },
+    },
+    deviations: [{ step: 'whanau', kind: 'DEFERRED', note: 'Ask whānau what is usual for them: Daughter not answering; try again after work hours.', u: 'kate', mins: 50 }] });
+  pathway({ nhi: 'ZZZ0075', service: 'svc-arc', pathway: 'POST_FALL', state: 'SUGGESTED', u: 'tama', mins: 40,
+    trigger: 'Found on the floor beside his bed; says he was reaching for his glasses.' });
+  pathway({ nhi: 'ZZZ0016', service: 'svc-genmed', pathway: 'SEPSIS', state: 'COMPLETED', u: 'grace', mins: 4 * 24 * 60, eligibility: [true, true],
+    trigger: 'Fever, fast breathing and new confusion with a chest infection.',
+    steps: {
+      senior: { state: 'DONE', u: 'hannah', mins: 4 * 24 * 60 - 20 }, bloods: { state: 'DONE', u: 'grace', mins: 4 * 24 * 60 - 40 },
+      antibiotics: { state: 'DONE', u: 'grace', mins: 4 * 24 * 60 - 50 }, fluids: { state: 'NOT_APPLICABLE', u: 'hannah', mins: 4 * 24 * 60 - 20, note: 'Blood pressure normal; drinking well.' },
+      monitor: { state: 'DONE', u: 'grace', mins: 4 * 24 * 60 - 55 }, review: { state: 'DONE', u: 'hannah', mins: 4 * 24 * 60 - 6 * 60, note: 'Fever settling.' },
+    },
+    ended: { u: 'hannah', mins: 4 * 24 * 60 - 6 * 60 } });
 }
