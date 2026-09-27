@@ -64,6 +64,7 @@ export type Operation =
   | { op: 'ESCALATION_RESPOND'; serviceId: string; roleKey: string }
   | { op: 'DISCHARGE'; personId: string; cap: 'discharge.plan' | 'discharge.decide' | 'discharge.complete' }
   | { op: 'ACUITY'; personId: string }
+  | { op: 'SYMPTOM'; personId: string; cap: 'symptom.record' | 'symptom.manage' }
   | { op: 'PROBLEM'; personId: string; cap: 'problem.record' | 'problem.manage' }
   | { op: 'DEATH'; personId: string; cap: 'death.record' | 'death.manage' }
   | { op: 'INCIDENT'; personId: string; cap: 'incident.report' | 'incident.review' }
@@ -251,6 +252,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can add to their problem list`));
+    case 'SYMPTOM':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their symptoms`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])

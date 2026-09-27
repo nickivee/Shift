@@ -650,3 +650,31 @@ legend { font-weight: 700; margin-bottom: 6px; }
 .trend-choice.trend-worsening:has(input:checked) { border-color: var(--danger); background: var(--danger-bg); }
 .trend-choice:has(input:checked) { background: var(--tint); }
 dd.overdue { color: var(--danger); font-weight: 700; }
+
+/* Symptoms */
+.patient-symptoms {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; color: var(--ink); border: 2px solid var(--warn);
+  border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
+}
+.patient-symptoms svg { width: 24px; height: 24px; flex: none; color: var(--warn); }
+.patient-symptoms b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--warn); }
+.patient-symptoms.high { border-color: var(--danger); background: var(--danger-bg); }
+.patient-symptoms.high svg, .patient-symptoms.high b { color: var(--danger); }
+.symptom h3 { margin: 0; font-size: 17px; }
+.tile.symptom-recorded, .tile.symptom-intervention { border-left: 6px solid var(--warn); }
+.tile.symptom-severe { border-left: 6px solid var(--danger); }
+.tile.symptom-closed, .tile.symptom-entered_in_error { border-left: 6px solid var(--ink-soft); }
+.score-trail { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.score-pill { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.score-pill.score-low { background: var(--ok-bg); color: var(--ok); }
+.score-pill.score-mid { background: #fff3dc; color: #8a5a00; }
+.score-pill.score-high { background: var(--danger-bg); color: var(--danger); }
+.score-scale { border: 0; padding: 0; margin: 0; }
+.score-row { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; }
+.score-choice { position: relative; display: grid; place-items: center; height: 40px; border: 2px solid var(--line); border-radius: 10px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
+.score-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.score-choice:has(input:checked).score-low { background: var(--ok-bg); border-color: var(--ok); }
+.score-choice:has(input:checked).score-mid { background: #fff3dc; border-color: #b35c00; }
+.score-choice:has(input:checked).score-high { background: var(--danger-bg); border-color: var(--danger); }
+.score-choice:has(input:focus-visible) { outline: 3px solid var(--line); outline-offset: 2px; }

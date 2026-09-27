@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 35;
+const SET = 36;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -362,6 +362,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 33) set33(store);
     if (at < 34) set34(store);
     if (at < 35) set35(store);
+    if (at < 36) set36(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -2476,4 +2477,72 @@ function set35(store: Store): void {
     confirm: { u: 'kate', mins: 14 * day - 90, note: 'Hard stool on examination; on codeine for his knee.' },
     plan: { u: 'kate', mins: 14 * day - 80, management: 'Laxatives twice daily; more fluids and fruit; GP asked to review codeine', monitoring: 'Bowel chart daily', due: -10 },
     resolve: { u: 'kate', mins: 7 * day, note: 'Bowels open daily for five days; codeine stopped by his GP.' } });
+}
+
+// Set 36: symptoms. Aroha's chest pain had paracetamol and is overdue a second look; Elsie's
+// nausea was just recorded by Tama and is not yet assessed; Frank's knee pain is easing with
+// regular pain relief; Wiremu's breathlessness went yesterday.
+function set36(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface S { nhi: string; service: string; kind: string; site?: string; u: string; mins: number; score: number; pattern?: string; context?: string; associated?: string; onsetMins?: number;
+    steps: { kind: string; body: string; u: string; mins: number; score?: number }[]; state: string; assessment?: { u: string; mins: number; note: string };
+    reassessInMins?: number; close?: { u: string; mins: number; outcome: string; note?: string } }
+  const symptom = (x: S) => {
+    const pid = person(x.nhi);
+    const rb = who(x.u);
+    if (!pid || !rb) return;
+    const id = newId();
+    store.insert('symptom', {
+      id, person_id: pid, service_id: x.service, kind: x.kind, site: x.site ?? null, context: x.context ?? null, pattern: x.pattern ?? null, associated: x.associated ?? null,
+      onset: x.onsetMins !== undefined ? ago(x.onsetMins) : null, state: x.state, recorded_by: rb, recorded_at: ago(x.mins),
+      assessment: x.assessment?.note ?? null, assessed_by: x.assessment ? who(x.assessment.u) : null, assessed_at: x.assessment ? ago(x.assessment.mins) : null,
+      reassess_due: x.reassessInMins !== undefined ? new Date(Date.now() + x.reassessInMins * 60_000).toISOString() : null,
+      outcome: x.close?.outcome ?? null, outcome_note: x.close?.note ?? null, closed_by: x.close ? who(x.close.u) : null, closed_at: x.close ? ago(x.close.mins) : null,
+    });
+    store.insert('symptom_score', { id: newId(), symptom_id: id, score: x.score, rated_by: 'SELF', by_id: rb, at: ago(x.mins) });
+    const path: [string, number, string][] = [['RECORDED', x.mins, rb]];
+    for (const st of x.steps) {
+      const by = who(st.u)!;
+      store.insert('symptom_step', { id: newId(), symptom_id: id, kind: st.kind, body: st.body, by_id: by, at: ago(st.mins) });
+      if (st.score !== undefined) store.insert('symptom_score', { id: newId(), symptom_id: id, score: st.score, rated_by: 'SELF', by_id: by, at: ago(st.mins) });
+      if (st.kind !== 'RECORDED' && path[path.length - 1][0] !== st.kind) path.push([st.kind, st.mins, by]);
+    }
+    let from: string | null = null;
+    for (const [to, mins, by] of path) {
+      store.insert('state_transition', { id: newId(), object_type: 'symptom', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+      from = to;
+    }
+  };
+  symptom({ nhi: 'ZZZ9999', service: 'svc-genmed', kind: 'PAIN', site: 'Right side of chest', u: 'nicki', mins: 150, score: 6, pattern: 'COMES_AND_GOES',
+    context: 'Deep breaths and coughing', onsetMins: 2 * 24 * 60, state: 'INTERVENTION', reassessInMins: -30,
+    assessment: { u: 'hannah', mins: 130, note: 'Pleuritic pain from her pneumonia. No new signs; sats unchanged.' },
+    steps: [
+      { kind: 'RECORDED', body: 'Right side of chest: 6/10 (their own rating). Comes and goes. Brought on by: deep breaths and coughing.', u: 'nicki', mins: 150 },
+      { kind: 'ASSESSED', body: 'Pleuritic pain from her pneumonia. No new signs; sats unchanged.', u: 'hannah', mins: 130 },
+      { kind: 'INTERVENTION', body: 'Paracetamol 1 g as charted; sitting upright with a pillow to hug when coughing. Look again in 60 minutes.', u: 'nicki', mins: 90 },
+    ] });
+  symptom({ nhi: 'ZZZ0067', service: 'svc-arc', kind: 'NAUSEA', u: 'tama', mins: 40, score: 5, pattern: 'AFTER_FOOD', associated: 'Vomited once after lunch',
+    state: 'RECORDED', steps: [{ kind: 'RECORDED', body: 'Nausea or vomiting: 5/10 (their own rating). After eating. Also: vomited once after lunch.', u: 'tama', mins: 40 }] });
+  symptom({ nhi: 'ZZZ0075', service: 'svc-arc', kind: 'PAIN', site: 'Left knee', u: 'tama', mins: 26 * 60, score: 7, pattern: 'ON_MOVEMENT', context: 'Standing and walking',
+    onsetMins: 30 * 24 * 60, state: 'REASSESSED', assessment: { u: 'kate', mins: 25 * 60, note: 'Osteoarthritis flare; no heat or swelling. GP stopped codeine, so regular paracetamol and a heat pack.' },
+    steps: [
+      { kind: 'RECORDED', body: 'Left knee: 7/10 (their own rating). When moving. Brought on by: standing and walking.', u: 'tama', mins: 26 * 60 },
+      { kind: 'ASSESSED', body: 'Osteoarthritis flare; no heat or swelling. GP stopped codeine, so regular paracetamol and a heat pack.', u: 'kate', mins: 25 * 60 },
+      { kind: 'INTERVENTION', body: 'Paracetamol 1 g; heat pack 20 minutes before his walk. Look again in 120 minutes.', u: 'kate', mins: 24 * 60 },
+      { kind: 'REASSESSED', body: '4/10 (was 7). Walked to the lounge with his frame.', u: 'tama', mins: 22 * 60, score: 4 },
+      { kind: 'REASSESSED', body: '3/10 (was 4). Comfortable this morning.', u: 'tama', mins: 3 * 60, score: 3 },
+    ] });
+  symptom({ nhi: 'ZZZ0016', service: 'svc-genmed', kind: 'BREATHLESSNESS', u: 'grace', mins: 3 * 24 * 60, score: 8, pattern: 'CONSTANT', associated: 'Productive cough',
+    state: 'CLOSED', assessment: { u: 'sam', mins: 3 * 24 * 60 - 30, note: 'From his chest infection; oxygen as charted.' },
+    close: { u: 'grace', mins: 24 * 60, outcome: 'RESOLVED', note: 'Off oxygen, walking the corridor without stopping' },
+    steps: [
+      { kind: 'RECORDED', body: 'Breathlessness: 8/10 (their own rating). All the time. Also: productive cough.', u: 'grace', mins: 3 * 24 * 60 },
+      { kind: 'ASSESSED', body: 'From his chest infection; oxygen as charted.', u: 'sam', mins: 3 * 24 * 60 - 30 },
+      { kind: 'INTERVENTION', body: 'Oxygen 2 L by nasal prongs; sitting up. Look again in 60 minutes.', u: 'grace', mins: 3 * 24 * 60 - 20 },
+      { kind: 'REASSESSED', body: '5/10 (was 8).', u: 'grace', mins: 3 * 24 * 60 - 80, score: 5 },
+      { kind: 'REASSESSED', body: '1/10 (was 5). Off oxygen.', u: 'grace', mins: 24 * 60 + 30, score: 1 },
+      { kind: 'CLOSED', body: 'Gone: off oxygen, walking the corridor without stopping', u: 'grace', mins: 24 * 60 },
+    ] });
 }
