@@ -29,6 +29,7 @@ import * as coding from '../domain/coding.ts';
 import * as reports from '../domain/reports.ts';
 import * as questionnaires from '../domain/questionnaires.ts';
 import * as functional from '../domain/functional.ts';
+import * as usual from '../domain/usual.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -213,6 +214,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/usual', (req) => usual.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/usual', (req) => usual.recordUsual(store, work(req), req.params.id, {
+    domain: str(req.body.domain), statement: str(req.body.statement), low: str(req.body.low), high: str(req.body.high), source: str(req.body.source), sourceName: str(req.body.sourceName),
+  }));
+  r.on('POST', '/api/work/usual/:id/error', (req) => usual.markError(store, work(req), req.params.id, { reason: str(req.body.reason) }));
+  r.on('POST', '/api/work/patients/:id/differences', (req) => usual.notice(store, work(req), req.params.id, { domain: str(req.body.domain), nowText: str(req.body.nowText) }));
+  r.on('POST', '/api/work/differences/:id/:action', (req) => usual.act(store, work(req), req.params.id, req.params.action, {
+    action: str(req.body.action), outcome: str(req.body.outcome), note: str(req.body.note), statement: str(req.body.statement), low: str(req.body.low), high: str(req.body.high),
+  }));
   r.on('GET', '/api/work/function', (req) => functional.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/function', (req) => functional.assess(store, work(req), req.params.id, {
     kind: str(req.body.kind), source: str(req.body.source), sourceName: str(req.body.sourceName), summary: str(req.body.summary),

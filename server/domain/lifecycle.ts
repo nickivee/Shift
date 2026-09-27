@@ -164,6 +164,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'PLANNED',
     next: { PLANNED: ['IN_PLACE', 'STOPPED'], IN_PLACE: ['STOPPED'] },
   },
+  usual: {
+    table: 'usual_state',
+    initial: 'CURRENT',
+    next: { CURRENT: ['SUPERSEDED', 'ENTERED_IN_ERROR'] },
+  },
+  difference: {
+    table: 'usual_difference',
+    initial: 'NOTICED',
+    next: { NOTICED: ['ACTING', 'CLOSED'], ACTING: ['CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

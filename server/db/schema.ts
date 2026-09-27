@@ -1710,4 +1710,52 @@ CREATE TABLE function_intervention (
 CREATE INDEX function_intervention_person ON function_intervention(person_id, state);
 `,
   },
+  {
+    version: 28,
+    name: 'baseline and usual state lifecycle',
+    sql: `
+-- Baseline / usual state (Shared Lifecycle Object 262): usual state → current difference →
+-- action → outcome. Areas are defined in server/config/usual.ts. One CURRENT usual per area;
+-- a new usual SUPERSEDES the old one and keeps it.
+CREATE TABLE usual_state (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  domain TEXT NOT NULL,
+  statement TEXT,                       -- in words
+  low REAL,                             -- usual range, for measurements
+  high REAL,
+  source TEXT NOT NULL,                 -- PERSON | WHANAU | PRIOR_RECORD | STAFF
+  source_name TEXT,
+  recorded_by TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- CURRENT | SUPERSEDED | ENTERED_IN_ERROR
+  supersedes TEXT REFERENCES usual_state(id),
+  error_reason TEXT
+);
+CREATE INDEX usual_state_person ON usual_state(person_id, domain, state);
+-- Something different from usual: noticed → acted on → closed with how it ended.
+CREATE TABLE usual_difference (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  domain TEXT NOT NULL,
+  usual_id TEXT REFERENCES usual_state(id),
+  usual_text TEXT,                      -- the usual as it stood when the difference was noticed
+  now_text TEXT NOT NULL,
+  noticed_by TEXT NOT NULL,
+  noticed_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- NOTICED | ACTING | CLOSED
+  action TEXT,
+  acted_by TEXT,
+  acted_at TEXT,
+  outcome TEXT,                         -- BACK_TO_USUAL | NEW_USUAL | ELSEWHERE
+  outcome_note TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  new_usual_id TEXT REFERENCES usual_state(id)
+);
+CREATE INDEX usual_difference_person ON usual_difference(person_id, state);
+`,
+  },
 ];
