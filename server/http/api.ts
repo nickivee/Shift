@@ -30,6 +30,7 @@ import * as reports from '../domain/reports.ts';
 import * as questionnaires from '../domain/questionnaires.ts';
 import * as functional from '../domain/functional.ts';
 import * as usual from '../domain/usual.ts';
+import * as assignments from '../domain/assignments.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -214,6 +215,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/team', (req) => assignments.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/team', (req) => assignments.propose(store, work(req), req.params.id, {
+    kind: str(req.body.kind), assigneeId: str(req.body.assigneeId), externalName: str(req.body.externalName), externalOrg: str(req.body.externalOrg),
+    teamName: str(req.body.teamName), reason: str(req.body.reason), startsAt: str(req.body.startsAt), replaces: str(req.body.replaces),
+  }));
+  r.on('POST', '/api/work/team/:id/:action', (req) => assignments.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), coverId: str(req.body.coverId), coverName: str(req.body.coverName), until: str(req.body.until),
+  }));
   r.on('GET', '/api/work/usual', (req) => usual.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/usual', (req) => usual.recordUsual(store, work(req), req.params.id, {
     domain: str(req.body.domain), statement: str(req.body.statement), low: str(req.body.low), high: str(req.body.high), source: str(req.body.source), sourceName: str(req.body.sourceName),

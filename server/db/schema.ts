@@ -1758,4 +1758,44 @@ CREATE TABLE usual_difference (
 CREATE INDEX usual_difference_person ON usual_difference(person_id, state);
 `,
   },
+  {
+    version: 29,
+    name: 'named clinician and team assignment lifecycle',
+    sql: `
+-- Named clinician / team assignment (Shared Lifecycle Object 265): assignment required →
+-- proposed → confirmed → active → changed/covered → ended. Kinds are defined in
+-- server/config/assignments.ts. A cover is its own assignment (cover_for) with an end time; a
+-- handover is a new one that replaces the old when it becomes active.
+CREATE TABLE assignment (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  assignee_id TEXT REFERENCES workforce_person(id),   -- a SHIFT worker
+  external_name TEXT,                   -- or someone outside SHIFT, e.g. a GP
+  external_org TEXT,
+  team_name TEXT,                       -- or a team
+  state TEXT NOT NULL,                  -- PROPOSED | CONFIRMED | ACTIVE | ENDED | DECLINED
+  proposed_by TEXT NOT NULL,
+  proposed_at TEXT NOT NULL,
+  reason TEXT,
+  starts_at TEXT NOT NULL,
+  ends_at TEXT,                         -- planned end, for a cover
+  confirmed_by TEXT,
+  confirmed_at TEXT,
+  confirm_note TEXT,
+  activated_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  end_reason TEXT,
+  replaces TEXT REFERENCES assignment(id),
+  cover_for TEXT REFERENCES assignment(id),
+  declined_by TEXT,
+  declined_at TEXT,
+  decline_reason TEXT
+);
+CREATE INDEX assignment_person ON assignment(person_id, kind, state);
+CREATE INDEX assignment_assignee ON assignment(assignee_id, state);
+`,
+  },
 ];

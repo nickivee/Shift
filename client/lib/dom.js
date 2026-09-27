@@ -97,6 +97,7 @@ const PATHS = {
   monitoring: 'M3 12h4l2-6 4 12 2-6h6',
   whanau: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1a5 5 0 0 1 10 0v1m0 0v-1a5 5 0 0 1 10 0v1',
   reports: 'M7 8h10M7 12h6M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4V5Z',
+  team: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM3 21v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M21 21v-1a6 6 0 0 0-4-5.6',
   usual: 'M3 12h4l3-8 4 16 3-8h4',
   function: 'M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM9 22l2-7-3-2 1-5 4 1 3 3M13 13l2 3v6M8 8l-3 3',
   instruments: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M8 11h1M11 11h5M8 15h1M11 15h5',

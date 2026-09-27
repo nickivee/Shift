@@ -549,3 +549,9 @@ fieldset.function-item .row { flex-wrap: wrap; }
 .usual-area { display: grid; gap: 4px; }
 .usual-different { border-left: 6px solid #b35c00; }
 .usual-range input[type=number] { width: 6.5em; }
+.team-line { display: flex; flex-wrap: wrap; gap: 4px 14px; background: none; border: 0; padding: 2px 0; text-align: left; font-size: 13px; color: var(--ink); cursor: pointer; }
+.team-line .team-gap { color: #c0392b; font-weight: 700; }
+.team-kind h3 { margin: 0; font-size: 15px; }
+.team-missing { border-left: 6px solid #c0392b; }
+.assignment { border-top: 1px solid var(--tint); padding-top: 6px; }
+.assignment-proposed, .assignment-confirmed { border-left: 4px solid #e0a526; padding-left: 8px; }

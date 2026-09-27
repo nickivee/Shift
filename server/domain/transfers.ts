@@ -7,6 +7,7 @@ import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 import { occupy, vacate } from './locations.ts';
 import { requireCoding } from './coding.ts';
+import { endForService } from './assignments.ts';
 
 // Admission and transfer of care (Shared Lifecycle Objects 220 and 221):
 //   requested → accepted (or declined) → bed allocated → arrived → responsibility accepted.
@@ -157,6 +158,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
           store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = ? AND state = 'ACTIVE'", now(), from.id);
           requireCoding(store, from.id, `Transferred to ${ctx.serviceName}`, who);
           vacate(store, personId, String(t.fromServiceId), `Transferred to ${ctx.serviceName}`);
+          endForService(store, personId, String(t.fromServiceId), `Transferred to ${ctx.serviceName}`, who);
           store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", now(), personId, t.fromServiceId);
         }
         store.run('UPDATE transfer SET responsible_by = ? WHERE id = ?', ctx.workerId, id);

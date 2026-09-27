@@ -46,6 +46,7 @@ export type Operation =
   | { op: 'EXTERNAL'; personId: string }
   | { op: 'INSTRUMENT'; personId: string }
   | { op: 'FUNCTION'; personId: string }
+  | { op: 'ASSIGNMENT'; personId: string; cap: 'assignment.propose' | 'assignment.confirm' }
   | { op: 'USUAL'; personId: string; cap: 'usual.record' | 'usual.act' }
   | { op: 'REPORT'; personId: string; cap: 'report.record' | 'report.review' }
   | { op: 'CODING'; organisationId: string }
@@ -226,6 +227,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record what is usual for them or act on a change`));
+    case 'ASSIGNMENT':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-007'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can name their clinicians`));
     case 'FUNCTION':
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
