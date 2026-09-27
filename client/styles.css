@@ -692,3 +692,15 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.intervention-awaiting_authorisation, .tile.intervention-considered { border-left: 6px solid var(--warn); }
 .tile.intervention-due { border-left: 6px solid var(--danger); }
 .tile.intervention-ceased, .tile.intervention-declined, .tile.intervention-entered_in_error { border-left: 6px solid var(--ink-soft); }
+
+/* Treatment plans */
+.treatment h3 { margin: 0; font-size: 17px; }
+.treatment-options, .treatment-components { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.treatment-options li, .treatment-components li { background: var(--tint); border: 2px solid transparent; border-radius: 10px; padding: 6px 10px; }
+.treatment-options li.chosen { border-color: var(--ok); }
+.treatment-options li.proposed { border-color: var(--warn); }
+.treatment-options .tag { margin-left: 8px; }
+.tile.treatment-active { border-left: 6px solid var(--ok); }
+.tile.treatment-draft, .tile.treatment-awaiting_agreement, .tile.treatment-agreed { border-left: 6px solid var(--warn); }
+.tile.treatment-off { border-left: 6px solid var(--danger); }
+.tile.treatment-completed, .tile.treatment-stopped, .tile.treatment-entered_in_error { border-left: 6px solid var(--ink-soft); }

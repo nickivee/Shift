@@ -34,6 +34,7 @@ import { forPerson as deathFor, current as deathNow } from './deaths.ts';
 import { forPerson as problemsFor, current as problemsNow } from './problems.ts';
 import { forPerson as symptomsFor, current as symptomsNow } from './symptoms.ts';
 import { forPerson as interventionsFor, current as interventionsNow } from './interventions.ts';
+import { forPerson as treatmentPlansFor } from './treatmentplans.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -412,6 +413,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'interventions':
       body = interventionsFor(store, ctx, personId);
+      break;
+    case 'treatmentplans':
+      body = treatmentPlansFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);
