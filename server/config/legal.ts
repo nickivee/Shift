@@ -315,6 +315,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-VAR-001',
+    question: 'Which variances from charted care, protocols or pathways in a New Zealand hospital or rest home must also be reported as incidents (including to HQSC or the Ministry of Health), and who may authorise an alternative to a charted medicine or protocol step.',
+    blocks: 'Treating a variance in SHIFT as an incident report or as authority to change a medicine order. SHIFT records what was expected, what happened, why, the decision, and the follow-up, and flags mistakes to report as incidents.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

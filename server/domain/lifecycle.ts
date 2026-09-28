@@ -355,6 +355,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       NOT_READY: ['ASSESSING', 'CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  variance: {
+    table: 'variance',
+    initial: 'RECORDED',
+    next: {
+      RECORDED: ['MONITORING', 'CLOSED', 'ENTERED_IN_ERROR'],
+      MONITORING: ['CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

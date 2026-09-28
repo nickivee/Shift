@@ -48,6 +48,7 @@ import { forPerson as infectionsFor, current as resistantNow } from './infection
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
+import { forPerson as variancesFor } from './variances.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -473,6 +474,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'readiness':
       body = readinessFor(store, ctx, personId);
+      break;
+    case 'variances':
+      body = variancesFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);
