@@ -321,6 +321,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-DECLINE-001',
+    question: 'When a New Zealand enduring power of attorney or welfare guardian may decline care on someone\'s behalf, what must be documented when a person declines care that could cause them serious harm, and when a refusal must be escalated or reported.',
+    blocks: 'Treating a representative\'s refusal recorded in SHIFT as legally valid without checking their authority. SHIFT records what was offered and explained, who declined, the reason, the risk, the plan, escalation and re-offers.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

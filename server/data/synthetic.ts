@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 52;
+const SET = 53;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -379,6 +379,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 50) set50(store);
     if (at < 51) set51(store);
     if (at < 52) set52(store);
+    if (at < 53) set53(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3589,4 +3590,50 @@ function set52(store: Store): void {
     decided: ['ACCEPT', null, 25 * 60, 1, 'Pain score before each walk; next dose not before 1400'] });
   add({ nhi: 'ZZZ0083', svc: 'svc-arc', u: 'kate', category: 'MONITORING', expected: 'Blood glucose before lunch', what: 'Not done', reason: 'DECLINED',
     context: 'Said her fingers are sore. Ate all her lunch; no signs of a low.', mins: 90 });
+}
+
+// Set 53: declined care. On Ward K, Aroha declined her enoxaparin and is offered it again today;
+// Wiremu, who is confused, declined a new drip, which is high risk and not yet escalated; Sione
+// declined overnight glucose checks. In Residential Care, Rua wanted a wash in bed instead of a shower,
+// and Frank's refusal of oxygen has been escalated to his GP.
+function set53(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface D { nhi: string; svc: string; u: string; category: string; offered: string; information: string; reason?: string; implications: string; risk: string;
+    plan?: string; reoffer?: number; mins: number; concern?: boolean; escalated?: [to: string, mins: number] }
+  const add = (x: D) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.escalated ? 'ESCALATED' : 'DECLINED';
+    store.insert('declined_care', {
+      id, person_id: pid, service_id: x.svc, category: x.category, offered: x.offered, information: x.information, decided_by: 'PERSON', representative: null,
+      capacity_concern: x.concern ? 1 : 0, reason: x.reason ?? null, implications: x.implications, risk: x.risk, plan: x.plan ?? null,
+      reoffer_by: x.reoffer !== undefined ? addDays(todayLocal(), x.reoffer) : null, offered_at: ago(x.mins), state, recorded_by: by, recorded_at: ago(x.mins - 5),
+      escalated_to: x.escalated?.[0] ?? null, escalated_at: x.escalated ? ago(x.escalated[1]) : null,
+    });
+    const log = (kind: string, body: string, mins: number) => store.insert('declined_log', { id: newId(), declined_id: id, kind, body, by_id: by, at: ago(mins) });
+    const move = (from: string | null, to: string, mins: number) =>
+      store.insert('state_transition', { id: newId(), object_type: 'declined', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    log('DECLINED', [`${x.offered} declined by the person.`, `Told: ${x.information}.`, x.reason ? `Reason: ${x.reason}.` : 'No reason given.',
+      `Means: ${x.implications}.`, x.plan ? `Plan: ${x.plan}.` : '', x.concern ? 'Concern about their capacity to decide.' : ''].filter(Boolean).join(' '), x.mins - 5);
+    move(null, 'DECLINED', x.mins - 5);
+    if (x.escalated) { log('ESCALATED', `To ${x.escalated[0]}.`, x.escalated[1]); move('DECLINED', 'ESCALATED', x.escalated[1]); }
+  };
+  add({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'nicki', category: 'MEDICINE', offered: 'Enoxaparin 40 mg injection',
+    information: 'Explained it prevents clots in the legs and lungs, and the risk is higher in hospital', reason: 'The injections bruise her tummy',
+    implications: 'Higher risk of a clot, though she is walking the ward', risk: 'MODERATE', plan: 'Compression stockings; walk the ward every 2 hours', reoffer: 0, mins: 14 * 60 });
+  add({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'nicki', category: 'TREATMENT', offered: 'New IV cannula for antibiotics',
+    information: 'Explained the antibiotics treat his chest infection and work best through a drip', reason: 'Says he is going home and does not need it',
+    implications: 'Chest infection with sepsis goes untreated; two IV doses due today', risk: 'HIGH', concern: true, mins: 50 });
+  add({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'nicki', category: 'TEST', offered: 'Blood glucose check at 0200',
+    information: 'Explained his sugars have been high and overnight checks catch lows too', reason: 'Wants to sleep through',
+    implications: 'A night-time low could be missed; evening reading was 9.8', risk: 'LOW', plan: 'Check at 0600 before breakfast', mins: 8 * 60 });
+  add({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'kate', category: 'CARE', offered: 'Morning shower', information: 'Offered help with a shower as planned for Mondays',
+    reason: 'Too cold today; would like a wash in bed', implications: 'None significant; skin care done with a bed wash', risk: 'LOW', plan: 'Bed wash today', reoffer: 1, mins: 3 * 60 });
+  add({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', category: 'TREATMENT', offered: 'Oxygen through nasal prongs', information: 'Explained his oxygen level is 89% and oxygen helps his breathing and thinking',
+    reason: 'Says it dries his nose and he feels fine', implications: 'Low oxygen may worsen his drowsiness and confusion', risk: 'HIGH', mins: 100,
+    escalated: ['Dr Anna Whyte (GP) by phone', 80] });
 }

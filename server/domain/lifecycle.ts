@@ -363,6 +363,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       MONITORING: ['CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  declined: {
+    table: 'declined_care',
+    initial: 'DECLINED',
+    next: {
+      DECLINED: ['ESCALATED', 'ACCEPTED', 'CLOSED', 'ENTERED_IN_ERROR'],
+      ESCALATED: ['DECLINED', 'ACCEPTED', 'CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

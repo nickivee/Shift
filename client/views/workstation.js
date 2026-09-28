@@ -49,6 +49,7 @@ import { antimicrobialsPanel } from './antimicrobials.js';
 import { sitechecksPanel } from './sitechecks.js';
 import { readinessPanel } from './readiness.js';
 import { variancesPanel } from './variances.js';
+import { declinedPanel } from './declined.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -390,6 +391,7 @@ export async function workstationView(personId, initialView) {
       case 'sitechecks': return sitechecksPanel(personId, d, () => go(`/work/patient/${personId}/sitechecks`));
       case 'readiness': return readinessPanel(personId, d, () => go(`/work/patient/${personId}/readiness`));
       case 'variances': return variancesPanel(personId, d, () => go(`/work/patient/${personId}/variances`));
+      case 'declined': return declinedPanel(personId, d, () => go(`/work/patient/${personId}/declined`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
@@ -495,6 +497,10 @@ export async function workstationView(personId, initialView) {
     if (patient.siteDiscrepancies?.length) {
       block.append(h('button', { class: 'patient-site', onclick: () => openView('sitechecks') }, icon('sitechecks'),
         h('span', {}, h('b', {}, 'SITE DOES NOT MATCH'), patient.siteDiscrepancies.join(' · '))));
+    }
+    if (patient.declinedCare?.length) {
+      block.append(h('button', { class: 'patient-declined', onclick: () => openView('declined') }, icon('declined'),
+        h('span', {}, h('b', {}, 'DECLINED CARE'), patient.declinedCare.join(' · '))));
     }
     if (patient.careOverdue?.length) {
       block.append(h('button', { class: 'patient-caredue', onclick: () => openView('caredue') }, icon('caredue'),
