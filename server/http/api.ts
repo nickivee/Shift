@@ -48,6 +48,7 @@ import * as careDue from '../domain/caredue.ts';
 import * as recalls from '../domain/recalls.ts';
 import * as followups from '../domain/followups.ts';
 import * as surveillance from '../domain/surveillance.ts';
+import * as screening from '../domain/screening.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -232,6 +233,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/screening', (req) => screening.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/screening', (req) => screening.start(store, work(req), req.params.id, {
+    kind: str(req.body.kind), what: str(req.body.what), test: str(req.body.test), eligibility: str(req.body.eligibility), dueDate: str(req.body.dueDate),
+  }));
+  r.on('POST', '/api/work/screening/:id/:action', (req) => screening.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), channel: str(req.body.channel), decision: str(req.body.decision), when: str(req.body.when), result: str(req.body.result),
+    finding: str(req.body.finding), outcome: str(req.body.outcome), nextDue: str(req.body.nextDue), reason: str(req.body.reason),
+  }));
   r.on('GET', '/api/work/surveillance', (req) => surveillance.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/surveillance', (req) => surveillance.setUp(store, work(req), req.params.id, {
     kind: str(req.body.kind), need: str(req.body.need), investigation: str(req.body.investigation), every: str(req.body.every), trigger: str(req.body.trigger), firstDue: str(req.body.firstDue),

@@ -285,6 +285,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-SCREEN-001',
+    question: 'How a New Zealand service\'s own screening (for example memory, mood or hearing screens in aged residential care) relates to the national screening programmes (bowel, breast, cervical, diabetic retinal), what information and consent an offer of screening needs, and who must tell a person an abnormal result.',
+    blocks: 'Acting as a national screening register, and closing an abnormal screen without further tests or referral. SHIFT records the offer, the person\'s decision in their words, the result, the review, and how they were told.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

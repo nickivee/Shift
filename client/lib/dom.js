@@ -101,6 +101,7 @@ const PATHS = {
   deterioration: 'M3 6l6 6 4-4 8 8M21 10v6h-6',
   interventions: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
   followups: 'M5 12h14M13 6l6 6-6 6M5 5v14',
+  screening: 'M3 5h18l-7 8v6l-4 2v-8L3 5Z',
   surveillance: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
   recalls: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 8v4l2 2',
   caredue: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
