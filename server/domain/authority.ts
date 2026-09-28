@@ -77,6 +77,7 @@ export type Operation =
   | { op: 'READINESS'; personId: string }
   | { op: 'VARIANCE'; personId: string }
   | { op: 'DECLINED_CARE'; personId: string }
+  | { op: 'PRIORITY'; personId: string }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -344,6 +345,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'declined.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-DECLINE-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record care they declined`));
+    case 'PRIORITY':
+      return need(ctx, 'priority.assign') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-TRIAGE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or set their priority`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])

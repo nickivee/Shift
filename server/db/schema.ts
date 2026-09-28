@@ -3015,4 +3015,44 @@ CREATE TABLE declined_log (
 CREATE INDEX declined_log_d ON declined_log(declined_id, at);
 `,
   },
+  {
+    version: 54,
+    name: 'clinical priority',
+    sql: `
+-- Clinical priority / triage: request or presentation → triage evidence → priority assigned →
+-- timeframe → reassessment → changed priority → service action.
+CREATE TABLE priority (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  scale TEXT NOT NULL,                  -- ATS | WARD | ARC | PHYSIO
+  source TEXT NOT NULL,
+  what TEXT NOT NULL,
+  evidence TEXT NOT NULL,
+  level TEXT NOT NULL,
+  level_at TEXT NOT NULL,
+  due_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- WAITING | ACTIONED | CANCELLED | ENTERED_IN_ERROR
+  assigned_by TEXT NOT NULL REFERENCES workforce_person(id),
+  assigned_at TEXT NOT NULL,
+  acted_by TEXT,
+  acted_at TEXT,
+  action_note TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX priority_person ON priority(person_id, state);
+CREATE INDEX priority_service ON priority(service_id, state, due_at);
+CREATE TABLE priority_log (
+  id TEXT PRIMARY KEY,
+  priority_id TEXT NOT NULL REFERENCES priority(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX priority_log_p ON priority_log(priority_id, at);
+`,
+  },
 ];

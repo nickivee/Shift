@@ -371,6 +371,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ESCALATED: ['DECLINED', 'ACCEPTED', 'CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  priority: {
+    table: 'priority',
+    initial: 'WAITING',
+    next: { WAITING: ['ACTIONED', 'CANCELLED', 'ENTERED_IN_ERROR'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
