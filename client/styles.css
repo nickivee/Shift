@@ -811,3 +811,17 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .site-check.site-ok::before { content: '✓'; color: var(--ok); }
 .site-check.site-bad::before { content: '✕'; color: var(--danger); }
 .site-check.site-todo::before { content: '○'; color: var(--ink-soft); }
+.rdy h3 { margin: 0; font-size: 17px; }
+.tile.rdy-ready { border-left: 6px solid var(--ok); }
+.tile.rdy-waiting { border-left: 6px solid var(--warn); }
+.tile.rdy-ended { border-left: 6px solid var(--ink-soft); }
+.tile.rdy-alert { border-left: 6px solid var(--danger); }
+.rdy-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rdy-item { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; font-size: 14px; }
+.rdy-item > span { padding-left: 22px; position: relative; flex: 1 1 200px; }
+.rdy-item > span::before { position: absolute; left: 0; top: 0; font-weight: 700; }
+.rdy-item.rdy-COMPLETED > span::before { content: '✓'; color: var(--ok); }
+.rdy-item.rdy-NOT_APPLICABLE > span::before { content: '–'; color: var(--ink-soft); }
+.rdy-item.rdy-OUTSTANDING > span::before { content: '○'; color: var(--ink-soft); }
+.rdy-item.rdy-OUTSTANDING.rdy-essential > span::before { color: var(--warn); }
+.rdy-conditions { border-left: 3px solid var(--warn); padding-left: 8px; }

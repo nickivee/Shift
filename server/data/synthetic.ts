@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 50;
+const SET = 51;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -377,6 +377,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 48) set48(store);
     if (at < 49) set49(store);
     if (at < 50) set50(store);
+    if (at < 51) set51(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3469,4 +3470,72 @@ function set50(store: Store): void {
   plan({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', procedure: 'Skin lesion removal', inMins: -6 * 1440, plannedMins: 8 * 1440, site: 'Forearm', side: 'RIGHT', detail: 'back of the forearm',
     state: 'DONE', verifiedMins: 6 * 1440 + 30, done: [6 * 1440, 'GP procedure note'],
     checks: [['SOURCE', 'MATCH', 8 * 1440 - 60, { source: 'REFERRAL' }], ['PATIENT', 'MATCH', 6 * 1440 + 60], ['MARK', 'MATCH', 6 * 1440 + 50], ['TEAM', 'MATCH', 6 * 1440 + 30]] });
+}
+
+// Set 51: clinical readiness. On Ward K, Wiremu's discharge home still has essentials to do, Peggy is
+// waiting for a decision on walking to the bathroom, and Sione's toe debridement was ready only with a
+// condition that is due to be reassessed today. Physiotherapy is working through Peggy's stairs
+// practice. In Residential Care, Frank was not ready to walk again after his fall and is reassessed tomorrow.
+function set51(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const TEMPLATES: Record<string, [string, boolean][]> = {
+    PROCEDURE: [['Consent recorded', true], ['Allergies confirmed', true], ['Fasting as instructed', true], ['Blood tests reviewed', true],
+      ['Blood thinners held, or a plan in place', true], ['Site and side checked', true]],
+    DISCHARGE: [['Medically stable', true], ['Medicines reconciled and supplied', true], ['Safe to move around at home', true], ['Supports at home arranged', true],
+      ['Discharge summary written', true], ['Follow-up booked', false], ['Whānau told', false]],
+    MOBILISE: [['Observations within limits', true], ['Pain controlled', true], ['Weight-bearing instructions known', true], ['Enough staff to help', true],
+      ['Walking aid available', false]],
+    THERAPY: [['Medically fit for therapy', true], ['Agreed to therapy', true], ['Goals agreed with the person', true], ['Pain controlled', false]],
+  };
+  const KIND: Record<string, string> = { PROCEDURE: 'For a procedure', DISCHARGE: 'To go home or leave', MOBILISE: 'To get up and walk', THERAPY: 'For therapy' };
+  interface R { nhi: string; svc: string; u: string; kind: string; purpose: string; neededBy?: number; raisedMins: number;
+    done: Record<string, string | [string, string]>; decision?: [state: string, mins: number, note: string | null, conditions: string | null, reassess: number | null] }
+  const raise = (x: R) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.decision?.[0] ?? 'ASSESSING';
+    store.insert('readiness', {
+      id, person_id: pid, service_id: x.svc, kind: x.kind, purpose: x.purpose, needed_by: x.neededBy !== undefined ? addDays(todayLocal(), x.neededBy) : null, state,
+      raised_by: by, raised_at: ago(x.raisedMins), decided_by: x.decision ? by : null, decided_at: x.decision ? ago(x.decision[1]) : null,
+      decision_note: x.decision?.[2] ?? null, conditions: x.decision?.[3] ?? null, reassess_by: x.decision?.[4] != null ? addDays(todayLocal(), x.decision[4]) : null,
+    });
+    const log = (kind: string, body: string, mins: number) => store.insert('readiness_log', { id: newId(), readiness_id: id, kind, body, by_id: by, at: ago(mins) });
+    const move = (from: string | null, to: string, mins: number) =>
+      store.insert('state_transition', { id: newId(), object_type: 'readiness', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    log('RAISED', `${KIND[x.kind]}: ${x.purpose}.`, x.raisedMins);
+    move(null, 'ASSESSING', x.raisedMins);
+    TEMPLATES[x.kind].forEach(([label, essential], n) => {
+      const d = x.done[label];
+      const [status, note] = d === undefined ? ['OUTSTANDING', null] : Array.isArray(d) ? d : [d, null];
+      const at = Math.round(x.raisedMins * 0.6) - n;
+      store.insert('readiness_item', {
+        id: newId(), readiness_id: id, label, essential: essential ? 1 : 0, status, note, done_by: d === undefined ? null : by, done_at: d === undefined ? null : ago(at),
+        position: n, added_by: by, added_at: ago(x.raisedMins),
+      });
+      if (d !== undefined) log('ITEM', `${label}: ${status === 'COMPLETED' ? 'done' : 'not applicable'}.${note ? ` ${note}` : ''}`, at);
+    });
+    if (x.decision) {
+      const [st, mins, note, cond, re] = x.decision;
+      log(st, [cond ? `Conditions: ${cond}.` : '', note ?? '', re != null ? `Reassess by ${addDays(todayLocal(), re)}.` : ''].filter(Boolean).join(' '), mins);
+      move('ASSESSING', st, mins);
+    }
+  };
+  const C = 'COMPLETED';
+  raise({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'nicki', kind: 'DISCHARGE', purpose: 'Home with Ana', neededBy: 3, raisedMins: 600,
+    done: { 'Medicines reconciled and supplied': C, 'Supports at home arranged': [C, 'District nurse twice a week from Monday'] } });
+  raise({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'nicki', kind: 'MOBILISE', purpose: 'Walk to the bathroom with a frame', raisedMins: 300,
+    done: { 'Observations within limits': C, 'Pain controlled': C, 'Weight-bearing instructions known': [C, 'Full weight-bearing'], 'Enough staff to help': C } });
+  raise({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', kind: 'PROCEDURE', purpose: 'Debridement of toe ulcer', raisedMins: 1500,
+    done: { 'Consent recorded': C, 'Allergies confirmed': C, 'Fasting as instructed': ['NOT_APPLICABLE', 'Local anaesthetic only'], 'Blood tests reviewed': C,
+      'Blood thinners held, or a plan in place': ['NOT_APPLICABLE', 'None charted'], 'Site and side checked': C },
+    decision: ['CONDITIONAL', 1400, 'Fit for debridement under local.', 'Only once his blood glucose is under 15 on the morning check', 0] });
+  raise({ nhi: 'ZZZ0032', svc: 'svc-physio', u: 'lena', kind: 'THERAPY', purpose: 'Stairs practice', raisedMins: 200,
+    done: { 'Goals agreed with the person': [C, 'Manage the 3 steps at her daughter\'s front door'] } });
+  raise({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', kind: 'MOBILISE', purpose: 'Walking again with his frame after the fall', raisedMins: 3200,
+    done: { 'Observations within limits': C, 'Weight-bearing instructions known': [C, 'X-ray clear; weight-bear as able'], 'Enough staff to help': C, 'Walking aid available': C },
+    decision: ['NOT_READY', 2900, 'Hip pain 7/10 on standing; hoist for transfers until pain is controlled.', null, 1] });
 }

@@ -52,6 +52,7 @@ import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
+import * as readiness from '../domain/readiness.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -236,6 +237,14 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/readiness', (req) => readiness.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/readiness', (req) => readiness.raise(store, work(req), req.params.id, {
+    kind: str(req.body.kind), purpose: str(req.body.purpose), neededBy: str(req.body.neededBy), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/readiness/:id/:action', (req) => readiness.act(store, work(req), req.params.id, req.params.action, {
+    itemId: str(req.body.itemId), status: str(req.body.status), label: str(req.body.label), essential: str(req.body.essential), decision: str(req.body.decision),
+    note: str(req.body.note), conditions: str(req.body.conditions), reassessBy: str(req.body.reassessBy), reason: str(req.body.reason),
+  }));
   r.on('GET', '/api/work/sitechecks', (req) => siteverify.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/sitechecks', (req) => siteverify.plan(store, work(req), req.params.id, {
     procedure: str(req.body.procedure), plannedFor: str(req.body.plannedFor), site: str(req.body.site), side: str(req.body.side), detail: str(req.body.detail),

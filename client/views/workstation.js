@@ -47,6 +47,7 @@ import { screeningPanel } from './screening.js';
 import { infectionsPanel } from './infections.js';
 import { antimicrobialsPanel } from './antimicrobials.js';
 import { sitechecksPanel } from './sitechecks.js';
+import { readinessPanel } from './readiness.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -386,6 +387,7 @@ export async function workstationView(personId, initialView) {
       case 'infections': return infectionsPanel(personId, d, () => go(`/work/patient/${personId}/infections`));
       case 'antimicrobials': return antimicrobialsPanel(personId, d, () => go(`/work/patient/${personId}/antimicrobials`));
       case 'sitechecks': return sitechecksPanel(personId, d, () => go(`/work/patient/${personId}/sitechecks`));
+      case 'readiness': return readinessPanel(personId, d, () => go(`/work/patient/${personId}/readiness`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
