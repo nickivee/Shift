@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 46;
+const SET = 47;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -373,6 +373,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 44) set44(store);
     if (at < 45) set45(store);
     if (at < 46) set46(store);
+    if (at < 47) set47(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3249,4 +3250,66 @@ function set46(store: Store): void {
     checks: [
       { due: -1, created: 2, state: 'REVIEWED', performed: ['tama', 1], result: ['tama', 1, '78.2 kg', 'EXPECTED'], reviewed: ['nicki', 0.9, 'CONTINUE', 'Steady.'] },
       { due: 0, created: 0.9, state: 'DUE' }] });
+}
+
+// Screening episodes (Shared Lifecycle Object 286). On Ward K: Sione's diabetic eye screen is
+// overdue to be offered; Wiremu agreed to a mood screen; Aroha's memory screen is abnormal and
+// waiting for Hannah's review. At Kōwhai: Rua has been offered a mood screen and wants to talk to
+// her moko first; Frank's hearing screen is normal and reviewed, so he needs to be told; Elsie
+// declined a memory screen last month.
+function set47(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  type Step = [kind: string, to: string | null, body: string, u: string, days: number];
+  interface S { nhi: string; svc: string; u: string; kind: string; what: string; test: string; eligibility: string; due: number; setDays: number; state: string;
+    cols?: Record<string, string | number | null>; steps?: Step[] }
+  const ep = (x: S) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('screening', {
+      id, person_id: pid, service_id: x.svc, kind: x.kind, what: x.what, test: x.test, eligibility: x.eligibility, due_date: addDays(todayLocal(), x.due),
+      state: x.state, previous_id: null, next_id: null, set_by: by, set_at: ago(x.setDays * day), ...(x.cols ?? {}),
+    });
+    let from: string | null = null;
+    for (const [kind, to, body, u, days] of [['ELIGIBLE', 'ELIGIBLE', `${x.eligibility} Due ${addDays(todayLocal(), x.due)}.`, x.u, x.setDays] as Step, ...(x.steps ?? [])]) {
+      store.insert('screening_log', { id: newId(), screening_id: id, kind, body, by_id: who(u) ?? by, at: ago(days * day) });
+      if (to) {
+        store.insert('state_transition', { id: newId(), object_type: 'screening', object_id: id, from_state: from, to_state: to, actor_id: who(u) ?? by, work_context_id: null, at: ago(days * day), reason: null, transaction_id: null });
+        from = to;
+      }
+    }
+  };
+  const nicki = who('nicki');
+  const hannah = who('hannah');
+  ep({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', kind: 'RETINAL', what: 'Diabetic eye screening', test: 'Retinal photographs',
+    eligibility: 'Type 2 diabetes on insulin; last eye screen three years ago.', due: -10, setDays: 1, state: 'ELIGIBLE' });
+  ep({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'nicki', kind: 'MOOD', what: 'Low mood', test: 'Mood screen (e.g. GDS-15)',
+    eligibility: 'New heart failure diagnosis; Ana says he has been flat and not sleeping.', due: 0, setDays: 1, state: 'ACCEPTED',
+    cols: { offered_by: nicki, offered_at: ago(0.8 * day), channel: 'IN_PERSON', offer_note: 'Explained with Ana present.', decided_by: nicki, decided_at: ago(0.8 * day), decision_note: 'Happy to do it after his shower.' },
+    steps: [['OFFERED', 'OFFERED', 'In person. Explained with Ana present.', 'nicki', 0.8], ['ACCEPTED', 'ACCEPTED', 'Happy to do it after his shower.', 'nicki', 0.8]] });
+  ep({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'hannah', kind: 'COGNITION', what: 'Memory and thinking', test: 'Cognitive screen (e.g. MoCA)',
+    eligibility: 'Her whānau have noticed she is forgetting her inhalers and appointments.', due: -1, setDays: 1.5, state: 'RESULTED',
+    cols: { offered_by: hannah, offered_at: ago(1.4 * day), channel: 'IN_PERSON', decided_by: hannah, decided_at: ago(1.4 * day), decision_note: 'Yes, I want to know.',
+      screened_by: nicki, screened_at: ago(0.3 * day), screen_note: 'Done in the whānau room, glasses on.', result_by: nicki, result_at: ago(0.3 * day), result: 'MoCA 21/30; lost points on delayed recall and clock drawing.', finding: 'ABNORMAL' },
+    steps: [['OFFERED', 'OFFERED', 'In person.', 'hannah', 1.4], ['ACCEPTED', 'ACCEPTED', 'Yes, I want to know.', 'hannah', 1.4], ['SCREENED', 'SCREENED', 'Done in the whānau room, glasses on.', 'nicki', 0.3],
+      ['RESULT', 'RESULTED', 'MoCA 21/30; lost points on delayed recall and clock drawing (abnormal).', 'nicki', 0.3]] });
+  ep({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', kind: 'MOOD', what: 'Low mood', test: 'Mood screen (e.g. GDS-15)',
+    eligibility: 'Six-monthly screen for residents; staff say she has been staying in her room.', due: -2, setDays: 5, state: 'OFFERED',
+    cols: { offered_by: nicki, offered_at: ago(2 * day), channel: 'IN_PERSON', offer_note: 'Offered during morning cares.' },
+    steps: [['OFFERED', 'OFFERED', 'In person. Offered during morning cares.', 'nicki', 2], ['LATER', 'OFFERED', 'Wants to talk to her moko Hana first.', 'nicki', 2]] });
+  ep({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', kind: 'HEARING', what: 'Hearing', test: 'Whisper test and ear check',
+    eligibility: 'Yearly screen for residents.', due: -6, setDays: 10, state: 'REVIEWED',
+    cols: { offered_by: nicki, offered_at: ago(7 * day), channel: 'IN_PERSON', decided_by: nicki, decided_at: ago(7 * day),
+      screened_by: nicki, screened_at: ago(6 * day), result_by: nicki, result_at: ago(6 * day), result: 'Heard whispered numbers both sides; ear canals clear.', finding: 'NORMAL',
+      reviewed_by: nicki, reviewed_at: ago(1 * day), review_note: 'Normal; screen again next year.' },
+    steps: [['OFFERED', 'OFFERED', 'In person.', 'nicki', 7], ['ACCEPTED', 'ACCEPTED', 'Agreed to the screen.', 'nicki', 7], ['SCREENED', 'SCREENED', 'Done. Result to follow.', 'nicki', 6],
+      ['RESULT', 'RESULTED', 'Heard whispered numbers both sides; ear canals clear (normal).', 'nicki', 6], ['REVIEWED', 'REVIEWED', 'Normal; screen again next year.', 'nicki', 1]] });
+  ep({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', kind: 'COGNITION', what: 'Memory and thinking', test: 'Cognitive screen (e.g. MoCA)',
+    eligibility: 'Yearly screen for residents.', due: -35, setDays: 40, state: 'DECLINED',
+    cols: { offered_by: nicki, offered_at: ago(33 * day), channel: 'IN_PERSON', decided_by: nicki, decided_at: ago(33 * day), decision_note: '"My memory is my business, dear."' },
+    steps: [['OFFERED', 'OFFERED', 'In person.', 'nicki', 33], ['DECLINED', 'DECLINED', '"My memory is my business, dear."', 'nicki', 33]] });
 }

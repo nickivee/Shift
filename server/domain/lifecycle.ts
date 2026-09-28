@@ -314,6 +314,15 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       RESULTED: ['REVIEWED', 'ENTERED_IN_ERROR'], NOT_DONE: ['REVIEWED', 'CANCELLED', 'ENTERED_IN_ERROR'],
     },
   },
+  screening: {
+    table: 'screening',
+    initial: 'ELIGIBLE',
+    next: {
+      ELIGIBLE: ['OFFERED', 'EXITED', 'ENTERED_IN_ERROR'], OFFERED: ['OFFERED', 'ACCEPTED', 'DECLINED', 'EXITED', 'ENTERED_IN_ERROR'],
+      ACCEPTED: ['SCREENED', 'DECLINED', 'EXITED', 'ENTERED_IN_ERROR'], SCREENED: ['RESULTED', 'ENTERED_IN_ERROR'], RESULTED: ['REVIEWED', 'ENTERED_IN_ERROR'],
+      REVIEWED: ['COMMUNICATED', 'ENTERED_IN_ERROR'], COMMUNICATED: ['CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

@@ -2670,4 +2670,67 @@ CREATE TABLE surveillance_log (
 CREATE INDEX surveillance_log_plan ON surveillance_log(plan_id, at);
 `,
   },
+  {
+    version: 47,
+    name: 'screening episode lifecycle',
+    sql: `
+-- Screening episode: eligibility → offer → decision → screen → result → review → told →
+-- recall OR further tests/referral OR exit.
+CREATE TABLE screening (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  what TEXT NOT NULL,
+  test TEXT NOT NULL,
+  eligibility TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- ELIGIBLE | OFFERED | ACCEPTED | DECLINED | SCREENED | RESULTED | REVIEWED | COMMUNICATED | CLOSED | EXITED | ENTERED_IN_ERROR
+  previous_id TEXT,
+  next_id TEXT,
+  set_by TEXT NOT NULL REFERENCES workforce_person(id),
+  set_at TEXT NOT NULL,
+  offered_by TEXT,
+  offered_at TEXT,
+  channel TEXT,
+  offer_note TEXT,
+  decided_by TEXT,
+  decided_at TEXT,
+  decision_note TEXT,
+  screened_by TEXT,
+  screened_at TEXT,
+  screen_note TEXT,
+  result_by TEXT,
+  result_at TEXT,
+  result TEXT,
+  finding TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  told_by TEXT,
+  told_at TEXT,
+  told_channel TEXT,
+  told_note TEXT,
+  outcome TEXT,
+  outcome_note TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
+  exit_reason TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX screening_person ON screening(person_id, state);
+CREATE INDEX screening_service ON screening(service_id, state, due_date);
+CREATE TABLE screening_log (
+  id TEXT PRIMARY KEY,
+  screening_id TEXT NOT NULL REFERENCES screening(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX screening_log_s ON screening_log(screening_id, at);
+`,
+  },
 ];

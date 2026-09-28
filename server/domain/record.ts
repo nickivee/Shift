@@ -43,6 +43,7 @@ import { forPerson as careDueFor, current as careDueNow } from './caredue.ts';
 import { forPerson as recallsFor } from './recalls.ts';
 import { forPerson as followupsFor } from './followups.ts';
 import { forPerson as surveillanceFor } from './surveillance.ts';
+import { forPerson as screeningFor } from './screening.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -451,6 +452,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'surveillance':
       body = surveillanceFor(store, ctx, personId);
+      break;
+    case 'screening':
+      body = screeningFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

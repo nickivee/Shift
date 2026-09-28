@@ -778,3 +778,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.surv-waiting { border-left: 6px solid var(--warn); }
 .tile.surv-ended { border-left: 6px solid var(--ink-soft); }
 .tile.surv-alert { border-left: 6px solid var(--danger); }
+
+/* Screening */
+.screen h3 { margin: 0; font-size: 17px; }
+.tile.screen-active { border-left: 6px solid var(--ok); }
+.tile.screen-waiting { border-left: 6px solid var(--warn); }
+.tile.screen-ended { border-left: 6px solid var(--ink-soft); }
+.tile.screen-alert { border-left: 6px solid var(--danger); }
