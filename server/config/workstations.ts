@@ -133,6 +133,8 @@ export interface RoleConfig {
   views: string[];
   tabs: WorkstationTab[];
   homeCards: HomeCard[];
+  ownViews?: string[];                // the department's own record screens, shown by default; the rest are added by the worker
+  ownCards?: string[];                // the department's own Home cards, shown by default
   board?: boolean;                    // list shows triage category and time in department
   escalatesTo?: string[];             // role keys, in the responsible service, this role escalates to
   consultsTo?: string[];              // role keys, in this organisation, this role can ask for advice
@@ -230,6 +232,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'review', label: 'Review' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.escalations, CARD.wounds, CARD.careplans, CARD.alerts, CARD.communications, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment, CARD.absences, CARD.preferences, CARD.whanau, CARD.interpreters, CARD.external, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.acuity, CARD.deterioration, CARD.incidents, CARD.allocation, CARD.deaths, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'nutrition', 'cares', 'behaviour', 'changes', 'assess', 'careplan', 'progress', 'notes', 'meds', 'results', 'allergies', 'tasks', 'handover', 'family', 'alerts', 'escalations', 'monitoring', 'diet', 'absence', 'preferences', 'capacity', 'support', 'infections', 'instruments', 'incidents', 'death', 'declined'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'received', 'escalations', 'wounds', 'careplans', 'alerts', 'communications', 'monitoring', 'meals', 'absences', 'preferences', 'whanau', 'instruments', 'deterioration', 'incidents', 'allocation', 'deaths', 'infections', 'declined'],
   },
   {
     roleKey: 'arc-caregiver',
@@ -252,6 +256,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'notes', label: 'Notes' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.escalations, CARD.alerts, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment, CARD.preferences, CARD.requirements, CARD.caredue],
+    ownViews: ['overview', 'careplan', 'cares', 'nutrition', 'intake', 'skin', 'behaviour', 'changes', 'obs', 'notes', 'tasks', 'allergies', 'handover', 'escalations', 'alerts', 'diet', 'preferences', 'absence', 'usual'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'escalations', 'alerts', 'meals', 'preferences', 'caredue'],
     escalatesTo: ['arc-rn'],
   },
   {
@@ -279,6 +285,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'discharge', label: 'Discharge' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.wounds, CARD.careplans, CARD.referrals, CARD.alerts, CARD.communications, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment, CARD.moves, CARD.absences, CARD.preferences, CARD.whanau, CARD.interpreters, CARD.external, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.acuity, CARD.deterioration, CARD.incidents, CARD.allocation, CARD.deaths, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'assess', 'changes', 'family', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'escalations', 'alerts', 'monitoring', 'diet', 'location', 'transfers', 'discharge', 'deterioration', 'caredue', 'checklists', 'infections', 'incidents'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'received', 'transfers', 'discharges', 'escalations', 'wounds', 'careplans', 'alerts', 'monitoring', 'meals', 'moves', 'deterioration', 'incidents', 'allocation', 'caredue', 'checklists', 'infections'],
     escalatesTo: ['genmed-physician'],
     refersTo: ['svc-physio'],
   },
@@ -304,6 +312,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'discharge', label: 'Discharge' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.absences, CARD.capacity, CARD.external, CARD.codingqueries, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.acuity, CARD.deterioration, CARD.incidents, CARD.deaths, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'history', 'problems', 'assess', 'review', 'meds', 'results', 'obs', 'progress', 'allergies', 'tasks', 'handover', 'family', 'consults', 'referrals', 'transfers', 'discharge', 'escalations', 'alerts', 'deterioration', 'treatmentplans', 'pathways', 'antimicrobials', 'capacity', 'recommendations', 'followups', 'death'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'received', 'knowledge', 'transfers', 'discharges', 'escalations', 'consults', 'referrals', 'alerts', 'codingqueries', 'deterioration', 'problems', 'treatmentplans', 'pathways', 'antimicrobials', 'followups', 'deaths'],
     consultsTo: ['physio'],
     refersTo: ['svc-physio'],
   },
@@ -330,6 +340,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'disposition', label: 'Transfer/Disposition' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.transfers, CARD.discharges, CARD.escalations, CARD.alerts, CARD.communications, CARD.monitoring, CARD.restrictions, CARD.meals, CARD.equipment, CARD.interpreters, CARD.external, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.acuity, CARD.deterioration, CARD.incidents, CARD.allocation, CARD.deaths, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'triage', 'assess', 'obs', 'bgl', 'pain', 'meds', 'procedures', 'results', 'tasks', 'notes', 'progress', 'handover', 'disposition', 'allergies', 'changes', 'family', 'escalations', 'alerts', 'deterioration', 'monitoring', 'incidents', 'declined'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'received', 'transfers', 'discharges', 'escalations', 'alerts', 'monitoring', 'deterioration', 'incidents', 'allocation', 'priorities', 'declined'],
     escalatesTo: ['ed-doctor'],
     board: true,
   },
@@ -354,6 +366,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'disposition', label: 'Disposition' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.handover, CARD.received, CARD.knowledge, CARD.transfers, CARD.discharges, CARD.escalations, CARD.consults, CARD.referrals, CARD.alerts, CARD.communications, CARD.restrictions, CARD.meals, CARD.capacity, CARD.external, CARD.codingqueries, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.acuity, CARD.deterioration, CARD.incidents, CARD.deaths, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'triage', 'medical', 'problems', 'results', 'meds', 'procedures', 'progress', 'notes', 'tasks', 'disposition', 'obs', 'allergies', 'history', 'handover', 'family', 'review', 'consults', 'referrals', 'transfers', 'escalations', 'alerts', 'deterioration', 'pathways', 'capacity', 'antimicrobials', 'death', 'declined'],
+    ownCards: ['workstation', 'tasks', 'search', 'handover', 'received', 'knowledge', 'transfers', 'discharges', 'escalations', 'consults', 'referrals', 'alerts', 'codingqueries', 'deterioration', 'pathways', 'priorities', 'declined'],
     consultsTo: ['genmed-physician'],
     refersTo: ['svc-genmed', 'svc-physio'],
     board: true,
@@ -378,6 +392,8 @@ export const ROLES: RoleConfig[] = [
       { id: 'notes', label: 'Notes' },
     ],
     homeCards: [CARD.workstation, CARD.tasks, CARD.search, CARD.received, CARD.escalations, CARD.consults, CARD.referrals, CARD.appointments, CARD.alerts, CARD.communications, CARD.restrictions, CARD.equipment, CARD.external, CARD.reports, CARD.instruments, CARD.function, CARD.usual, CARD.team, CARD.problems, CARD.symptoms, CARD.interventions, CARD.treatmentplans, CARD.pathways, CARD.checklists, CARD.recommendations, CARD.requirements, CARD.caredue, CARD.recalls, CARD.followups, CARD.surveillance, CARD.screening, CARD.infections, CARD.antimicrobials, CARD.sitechecks, CARD.readiness, CARD.variances, CARD.declined, CARD.priorities],
+    ownViews: ['overview', 'assess', 'mobility', 'goals', 'treatment', 'outcomes', 'progress', 'notes', 'tasks', 'obs', 'problems', 'allergies', 'family', 'referrals', 'appointments', 'consults', 'equipment', 'function', 'instruments', 'escalations', 'alerts', 'recommendations', 'declined'],
+    ownCards: ['workstation', 'tasks', 'search', 'received', 'escalations', 'consults', 'referrals', 'appointments', 'alerts', 'equipment', 'function', 'instruments', 'recommendations', 'priorities', 'declined'],
     escalatesTo: ['genmed-physician', 'genmed-rn'],
   },
   {

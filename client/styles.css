@@ -475,6 +475,11 @@ dialog h2 { margin-top: 0; }
   color: transparent;
 }
 .dest.active span { background: none; color: #fff; }
+.dest.extra { border-style: dashed; }
+.dest-add { border-style: dashed; background: none; }
+.dest-add span { background: none; color: var(--ink-soft); }
+.screen-row { padding: 6px 0; border-bottom: 1px solid var(--line-soft, #ddd); gap: 12px; }
+.embed { margin-top: 18px; padding-top: 12px; border-top: 2px solid var(--line); }
 
 /* Admission and transfer of care */
 .tag.paua { background: var(--paua-shade); color: #fff; text-shadow: 0 1px 2px #000a; }
