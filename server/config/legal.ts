@@ -291,6 +291,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-INF-001',
+    question: 'Which infections a New Zealand hospital or rest home must notify to the Medical Officer of Health under the Health Act 1956, and how a resistant organism (MRSA, ESBL, VRE, CPE) must be flagged and shared with the next provider when a person moves between services.',
+    blocks: 'Sending any notification from SHIFT. SHIFT records the infection, the organism and its resistance, shows resistant organisms on the record, and leaves notification to people.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

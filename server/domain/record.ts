@@ -44,6 +44,7 @@ import { forPerson as recallsFor } from './recalls.ts';
 import { forPerson as followupsFor } from './followups.ts';
 import { forPerson as surveillanceFor } from './surveillance.ts';
 import { forPerson as screeningFor } from './screening.ts';
+import { forPerson as infectionsFor, current as resistantNow } from './infections.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -226,6 +227,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     pathwaysDue: ctx.role.views.includes('pathways') ? pathwaysNow(store, personId) : null,
     checkExceptions: ctx.role.views.includes('checklists') ? checklistsNow(store, personId) : null,
     careOverdue: ctx.role.views.includes('caredue') ? careDueNow(store, personId) : null,
+    resistantOrganisms: ctx.role.views.includes('infections') ? resistantNow(store, personId) : null,
     team: teamNow(store, personId),
   };
 }
@@ -455,6 +457,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'screening':
       body = screeningFor(store, ctx, personId);
+      break;
+    case 'infections':
+      body = infectionsFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

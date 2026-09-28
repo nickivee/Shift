@@ -49,6 +49,7 @@ import * as recalls from '../domain/recalls.ts';
 import * as followups from '../domain/followups.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
+import * as infections from '../domain/infections.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -233,6 +234,13 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/infections', (req) => infections.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/infections', (req) => infections.raise(store, work(req), req.params.id, {
+    site: str(req.body.site), siteDetail: str(req.body.siteDetail), suspicion: str(req.body.suspicion),
+  }));
+  r.on('POST', '/api/work/infections/:id/:action', (req) => infections.act(store, work(req), req.params.id, req.params.action, {
+    kind: str(req.body.kind), what: str(req.body.what), value: str(req.body.value), refId: str(req.body.refId), source: str(req.body.source), note: str(req.body.note),
+  }));
   r.on('GET', '/api/work/screening', (req) => screening.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/screening', (req) => screening.start(store, work(req), req.params.id, {
     kind: str(req.body.kind), what: str(req.body.what), test: str(req.body.test), eligibility: str(req.body.eligibility), dueDate: str(req.body.dueDate),

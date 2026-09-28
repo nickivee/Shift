@@ -323,6 +323,14 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       REVIEWED: ['COMMUNICATED', 'ENTERED_IN_ERROR'], COMMUNICATED: ['CLOSED', 'ENTERED_IN_ERROR'],
     },
   },
+  infection: {
+    table: 'infection',
+    initial: 'SUSPECTED',
+    next: {
+      SUSPECTED: ['CONFIRMED', 'NOT_INFECTION', 'ENTERED_IN_ERROR'], CONFIRMED: ['ONGOING', 'RESOLVED', 'ENTERED_IN_ERROR'],
+      ONGOING: ['RESOLVED', 'ENTERED_IN_ERROR'], RESOLVED: ['RECURRED'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

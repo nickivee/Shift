@@ -44,6 +44,7 @@ import { recallsPanel } from './recalls.js';
 import { followupsPanel } from './followups.js';
 import { surveillancePanel } from './surveillance.js';
 import { screeningPanel } from './screening.js';
+import { infectionsPanel } from './infections.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -380,6 +381,7 @@ export async function workstationView(personId, initialView) {
       case 'followups': return followupsPanel(personId, d, () => go(`/work/patient/${personId}/followups`));
       case 'surveillance': return surveillancePanel(personId, d, () => go(`/work/patient/${personId}/surveillance`));
       case 'screening': return screeningPanel(personId, d, () => go(`/work/patient/${personId}/screening`));
+      case 'infections': return infectionsPanel(personId, d, () => go(`/work/patient/${personId}/infections`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
@@ -477,6 +479,10 @@ export async function workstationView(personId, initialView) {
     if (patient.checkExceptions?.length) {
       block.append(h('button', { class: 'patient-checks', onclick: () => openView('checklists') }, icon('checklists'),
         h('span', {}, h('b', {}, 'CHECK NOT MET'), patient.checkExceptions.join(' · '))));
+    }
+    if (patient.resistantOrganisms?.length) {
+      block.append(h('button', { class: 'patient-resistant', onclick: () => openView('infections') }, icon('infections'),
+        h('span', {}, h('b', {}, 'RESISTANT ORGANISM'), patient.resistantOrganisms.join(' · '))));
     }
     if (patient.careOverdue?.length) {
       block.append(h('button', { class: 'patient-caredue', onclick: () => openView('caredue') }, icon('caredue'),
