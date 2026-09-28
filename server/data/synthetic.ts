@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 47;
+const SET = 48;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -374,6 +374,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 45) set45(store);
     if (at < 46) set46(store);
     if (at < 47) set47(store);
+    if (at < 48) set48(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3312,4 +3313,56 @@ function set47(store: Store): void {
     eligibility: 'Yearly screen for residents.', due: -35, setDays: 40, state: 'DECLINED',
     cols: { offered_by: nicki, offered_at: ago(33 * day), channel: 'IN_PERSON', decided_by: nicki, decided_at: ago(33 * day), decision_note: '"My memory is my business, dear."' },
     steps: [['OFFERED', 'OFFERED', 'In person.', 'nicki', 33], ['DECLINED', 'DECLINED', '"My memory is my business, dear."', 'nicki', 33]] });
+}
+
+// Infection episodes (Shared Lifecycle Object 289). On Ward K: Aroha's pneumonia, confirmed and
+// improving on antibiotics; Sione's diabetic foot ulcer growing MRSA, getting worse, debridement
+// planned; Wiremu's cannula site suspected. At Kōwhai: Frank has a suspected urine infection; Elsie's
+// ESBL urine infection resolved last month and still shows as a resistant organism.
+function set48(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  type E = [kind: string, what: string, value: string | null, u: string, days: number];
+  interface I { nhi: string; svc: string; u: string; site: string; detail?: string; why: string; days: number; state: string;
+    confirm?: [source: string, note: string, u: string, days: number]; end?: [note: string, u: string, days: number]; entries?: E[] }
+  const inf = (x: I) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    store.insert('infection', {
+      id, person_id: pid, service_id: x.svc, site: x.site, site_detail: x.detail ?? null, suspicion: x.why, state: x.state, previous_id: null, recurrence_id: null,
+      raised_by: by, raised_at: ago(x.days * day), source: x.confirm?.[0] ?? null, confirmed_by: x.confirm ? who(x.confirm[2]) : null,
+      confirmed_at: x.confirm ? ago(x.confirm[3] * day) : null, confirm_note: x.confirm?.[1] ?? null,
+      ended_by: x.end ? who(x.end[1]) : null, ended_at: x.end ? ago(x.end[2] * day) : null, outcome_note: x.end?.[0] ?? null,
+    });
+    const entry = (kind: string, what: string, value: string | null, u: string, days: number) =>
+      store.insert('infection_entry', { id: newId(), infection_id: id, kind, what, value, ref_id: null, by_id: who(u) ?? by, at: ago(days * day) });
+    const move = (from: string | null, to: string, u: string, days: number) =>
+      store.insert('state_transition', { id: newId(), object_type: 'infection', object_id: id, from_state: from, to_state: to, actor_id: who(u) ?? by, work_context_id: null, at: ago(days * day), reason: null, transaction_id: null });
+    entry('RAISED', `${x.why}`, null, x.u, x.days);
+    move(null, 'SUSPECTED', x.u, x.days);
+    for (const [kind, what, value, u, days] of x.entries ?? []) entry(kind, what, value, u, days);
+    if (x.confirm) { entry('CONFIRMED', `${x.confirm[0]}. ${x.confirm[1]}`, null, x.confirm[2], x.confirm[3]); move('SUSPECTED', 'CONFIRMED', x.confirm[2], x.confirm[3]); }
+    if (x.end) { entry(x.state, x.end[0], null, x.end[1], x.end[2]); move('CONFIRMED', x.state, x.end[1], x.end[2]); }
+  };
+  inf({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'hannah', site: 'CHEST', why: 'Temp 38.4, new cough with green sputum, crackles right base.', days: 2, state: 'CONFIRMED',
+    confirm: ['Right lower lobe community-acquired pneumonia', 'Dr Li: clinical and chest X-ray findings.', 'hannah', 1.9],
+    entries: [['EVIDENCE', 'CRP 142; chest X-ray: right lower lobe consolidation', null, 'hannah', 1.95], ['TREATMENT', 'IV amoxicillin and clavulanic acid started', null, 'hannah', 1.9],
+      ['ORGANISM', 'Streptococcus pneumoniae (sputum)', 'NONE', 'hannah', 1], ['RESPONSE', 'Afebrile since last night; still coughing', 'IMPROVING', 'nicki', 0.2]] });
+  inf({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', site: 'WOUND', detail: 'Right big toe ulcer', why: 'Red and swollen around the ulcer, pus on the dressing, temp 38.1.', days: 1, state: 'CONFIRMED',
+    confirm: ['Infected diabetic foot ulcer, right big toe', 'Dr Li: clinical; X-ray shows no bone change yet.', 'hannah', 0.9],
+    entries: [['EVIDENCE', 'CRP 96, white cells 14; X-ray: soft tissue swelling only', null, 'hannah', 0.95], ['TREATMENT', 'Oral doxycycline started', null, 'hannah', 0.9],
+      ['ORGANISM', 'Staphylococcus aureus (wound swab)', 'MRSA', 'nicki', 0.4], ['SUSCEPTIBILITY', 'Doxycycline', 'S', 'nicki', 0.4], ['SUSCEPTIBILITY', 'Flucloxacillin', 'R', 'nicki', 0.4],
+      ['SOURCE_CONTROL', 'Surgical debridement of the ulcer', 'PLANNED', 'hannah', 0.3], ['RESPONSE', 'Redness spreading past the pen line', 'WORSE', 'nicki', 0.1]] });
+  inf({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'nicki', site: 'LINE', detail: 'Left forearm cannula', why: 'Red, tender track above the cannula; temp 37.9.', days: 0.1, state: 'SUSPECTED' });
+  inf({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', site: 'URINE', why: 'Newly confused this morning, going to the toilet often, urine cloudy and smelly.', days: 0.2, state: 'SUSPECTED',
+    entries: [['EVIDENCE', 'Temp 37.8; urine dipstick: leucocytes and nitrites positive; sample sent', null, 'nicki', 0.15]] });
+  inf({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', site: 'URINE', why: 'Burning passing urine and new incontinence.', days: 40, state: 'RESOLVED',
+    confirm: ['Lower urinary tract infection', 'Dr Priya Nair (GP) by phone: symptoms and urine culture.', 'nicki', 38],
+    end: ['Symptoms gone; antibiotics finished.', 'nicki', 30],
+    entries: [['EVIDENCE', 'Urine culture: E. coli >10^8', null, 'nicki', 38], ['ORGANISM', 'Escherichia coli (urine)', 'ESBL', 'nicki', 38],
+      ['SUSCEPTIBILITY', 'Nitrofurantoin', 'S', 'nicki', 38], ['TREATMENT', 'Nitrofurantoin for 5 days (GP)', null, 'nicki', 38]] });
 }

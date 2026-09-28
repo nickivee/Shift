@@ -2733,4 +2733,45 @@ CREATE TABLE screening_log (
 CREATE INDEX screening_log_s ON screening_log(screening_id, at);
 `,
   },
+  {
+    version: 48,
+    name: 'infection episode lifecycle',
+    sql: `
+-- Infection: suspected → evidence → source → organism → sensitivities/resistance → treatment →
+-- response → source control → complications → resolved/ongoing/recurrence.
+CREATE TABLE infection (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  site TEXT NOT NULL,
+  site_detail TEXT,
+  suspicion TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- SUSPECTED | CONFIRMED | NOT_INFECTION | ONGOING | RESOLVED | RECURRED | ENTERED_IN_ERROR
+  previous_id TEXT,
+  recurrence_id TEXT,
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL,
+  source TEXT,
+  confirmed_by TEXT,
+  confirmed_at TEXT,
+  confirm_note TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  outcome_note TEXT
+);
+CREATE INDEX infection_person ON infection(person_id, state);
+CREATE INDEX infection_service ON infection(service_id, state);
+CREATE TABLE infection_entry (
+  id TEXT PRIMARY KEY,
+  infection_id TEXT NOT NULL REFERENCES infection(id),
+  kind TEXT NOT NULL,                   -- EVIDENCE | ORGANISM | SUSCEPTIBILITY | TREATMENT | RESPONSE | SOURCE_CONTROL | COMPLICATION, and state steps
+  what TEXT NOT NULL,
+  value TEXT,
+  ref_id TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX infection_entry_i ON infection_entry(infection_id, at);
+`,
+  },
 ];
