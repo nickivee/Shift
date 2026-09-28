@@ -2925,4 +2925,47 @@ CREATE TABLE readiness_log (
 CREATE INDEX readiness_log_r ON readiness_log(readiness_id, at);
 `,
   },
+  {
+    version: 52,
+    name: 'clinical exceptions and variances',
+    sql: `
+-- Clinical exception / variance: expected state or action → variance → reason → clinical context →
+-- authorised decision → alternative action → monitoring and follow-up.
+CREATE TABLE variance (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  category TEXT NOT NULL,
+  expected TEXT NOT NULL,
+  what_happened TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  context TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- RECORDED | MONITORING | CLOSED | ENTERED_IN_ERROR
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  decision TEXT,
+  action TEXT,
+  decided_by TEXT,
+  decided_at TEXT,
+  decision_note TEXT,
+  follow_up_by TEXT,
+  watch TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX variance_person ON variance(person_id, state);
+CREATE INDEX variance_service ON variance(service_id, state);
+CREATE TABLE variance_log (
+  id TEXT PRIMARY KEY,
+  variance_id TEXT NOT NULL REFERENCES variance(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX variance_log_v ON variance_log(variance_id, at);
+`,
+  },
 ];

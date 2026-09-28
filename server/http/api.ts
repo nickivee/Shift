@@ -53,6 +53,7 @@ import * as infections from '../domain/infections.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
+import * as variances from '../domain/variances.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -237,6 +238,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/variances', (req) => variances.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/variances', (req) => variances.record(store, work(req), req.params.id, {
+    category: str(req.body.category), expected: str(req.body.expected), whatHappened: str(req.body.whatHappened), reason: str(req.body.reason),
+    context: str(req.body.context), occurredAt: str(req.body.occurredAt),
+  }));
+  r.on('POST', '/api/work/variances/:id/:action', (req) => variances.act(store, work(req), req.params.id, req.params.action, {
+    decision: str(req.body.decision), action: str(req.body.action), note: str(req.body.note), followUp: str(req.body.followUp),
+    followUpBy: str(req.body.followUpBy), watch: str(req.body.watch),
+  }));
   r.on('GET', '/api/work/readiness', (req) => readiness.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/readiness', (req) => readiness.raise(store, work(req), req.params.id, {
     kind: str(req.body.kind), purpose: str(req.body.purpose), neededBy: str(req.body.neededBy), note: str(req.body.note),

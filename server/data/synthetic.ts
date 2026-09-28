@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 51;
+const SET = 52;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -378,6 +378,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 49) set49(store);
     if (at < 50) set50(store);
     if (at < 51) set51(store);
+    if (at < 52) set52(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3538,4 +3539,54 @@ function set51(store: Store): void {
   raise({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', kind: 'MOBILISE', purpose: 'Walking again with his frame after the fall', raisedMins: 3200,
     done: { 'Observations within limits': C, 'Weight-bearing instructions known': [C, 'X-ray clear; weight-bear as able'], 'Enough staff to help': C, 'Walking aid available': C },
     decision: ['NOT_READY', 2900, 'Hip pain 7/10 on standing; hoist for transfers until pain is controlled.', null, 1] });
+}
+
+// Set 52: clinical exceptions and variances. On Ward K, Aroha declined her enoxaparin and Peggy was
+// not turned for four hours overnight, both waiting for a decision; Wiremu missed his daily weight
+// while at X-ray and is weighed on return today. In Residential Care, Frank's paracetamol was two hours
+// late (a mistake) and his pain is being watched, and Losa declined her lunchtime glucose check.
+function set52(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const DECISIONS: Record<string, string> = { ACCEPT: 'Accept: no change needed', ALTERNATIVE: 'Do something else instead', RESCHEDULE: 'Do it later', ESCALATE: 'Escalate for review' };
+  const REASONS: Record<string, string> = { DECLINED: 'the person declined', NOT_POSSIBLE: 'the person was not available (away, asleep, fasting)', UNAVAILABLE: 'staff, stock or equipment not available', ERROR: 'a mistake or omission' };
+  interface V { nhi: string; svc: string; u: string; decider?: string; category: string; expected: string; what: string; reason: string; context: string; mins: number;
+    decided?: [decision: string, action: string | null, mins: number, followUpDays: number, watch: string] }
+  const add = (x: V) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    const dby = x.decider ? who(x.decider) : by;
+    if (!pid || !by || !dby) return;
+    const id = newId();
+    const state = x.decided ? 'MONITORING' : 'RECORDED';
+    store.insert('variance', {
+      id, person_id: pid, service_id: x.svc, category: x.category, expected: x.expected, what_happened: x.what, reason: x.reason, context: x.context,
+      occurred_at: ago(x.mins), state, recorded_by: by, recorded_at: ago(x.mins - 10),
+      decision: x.decided?.[0] ?? null, action: x.decided?.[1] ?? null, decided_by: x.decided ? dby : null, decided_at: x.decided ? ago(x.decided[2]) : null,
+      follow_up_by: x.decided ? addDays(todayLocal(), x.decided[3]) : null, watch: x.decided?.[4] ?? null,
+    });
+    const log = (kind: string, body: string, mins: number, b: string) => store.insert('variance_log', { id: newId(), variance_id: id, kind, body, by_id: b, at: ago(mins) });
+    const move = (from: string | null, to: string, mins: number, b: string) =>
+      store.insert('state_transition', { id: newId(), object_type: 'variance', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    log('RECORDED', `Expected: ${x.expected}. Instead: ${x.what}. Why: ${REASONS[x.reason]}. ${x.context}`, x.mins - 10, by);
+    move(null, 'RECORDED', x.mins - 10, by);
+    if (x.decided) {
+      const [d, act, mins, days, watch] = x.decided;
+      log('DECIDED', [`${DECISIONS[d]}.`, act, `Follow up by ${addDays(todayLocal(), days)}: ${watch}.`].filter(Boolean).join(' '), mins, dby);
+      move('RECORDED', 'MONITORING', mins, dby);
+    }
+  };
+  add({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'nicki', category: 'MEDICATION', expected: 'Enoxaparin 40 mg at 1800', what: 'Not given', reason: 'DECLINED',
+    context: 'Says the injections bruise her and she is walking the ward now. Platelets normal.', mins: 14 * 60 });
+  add({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'nicki', category: 'CARE', expected: 'Turn every 2 hours overnight', what: 'Not turned from 0200 to 0600', reason: 'UNAVAILABLE',
+    context: 'One nurse short overnight and two admissions. Skin intact over sacrum and heels this morning.', mins: 5 * 60 });
+  add({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'nicki', decider: 'hannah', category: 'MONITORING', expected: 'Daily weight before breakfast', what: 'Not weighed', reason: 'NOT_POSSIBLE',
+    context: 'Went to X-ray at 0700. Heart failure on furosemide; fluid restricted.', mins: 3 * 60,
+    decided: ['RESCHEDULE', 'Weigh on return from X-ray, same scales', 2 * 60, 0, 'A gain of more than 1 kg since yesterday'] });
+  add({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', category: 'MEDICATION', expected: 'Paracetamol 1 g at 0800', what: 'Given at 1000', reason: 'ERROR',
+    context: 'Missed on the morning round. Hip pain after his fall.', mins: 26 * 60,
+    decided: ['ACCEPT', null, 25 * 60, 1, 'Pain score before each walk; next dose not before 1400'] });
+  add({ nhi: 'ZZZ0083', svc: 'svc-arc', u: 'kate', category: 'MONITORING', expected: 'Blood glucose before lunch', what: 'Not done', reason: 'DECLINED',
+    context: 'Said her fingers are sore. Ate all her lunch; no signs of a low.', mins: 90 });
 }

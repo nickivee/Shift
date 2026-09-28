@@ -825,3 +825,11 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .rdy-item.rdy-OUTSTANDING > span::before { content: '○'; color: var(--ink-soft); }
 .rdy-item.rdy-OUTSTANDING.rdy-essential > span::before { color: var(--warn); }
 .rdy-conditions { border-left: 3px solid var(--warn); padding-left: 8px; }
+.var h3 { margin: 0; font-size: 17px; }
+.tile.var-waiting { border-left: 6px solid var(--warn); }
+.tile.var-active { border-left: 6px solid var(--ok); }
+.tile.var-ended { border-left: 6px solid var(--ink-soft); }
+.tile.var-alert { border-left: 6px solid var(--danger); }
+.var-pair { display: grid; grid-template-columns: minmax(80px, max-content) 1fr; gap: 2px 10px; font-size: 14px; margin: 0; }
+.var-pair dt { font-weight: 700; color: var(--ink-soft); }
+.var-pair dd { margin: 0; }
