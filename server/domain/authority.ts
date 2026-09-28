@@ -72,6 +72,7 @@ export type Operation =
   | { op: 'SURVEILLANCE'; personId: string }
   | { op: 'SCREENING'; personId: string }
   | { op: 'INFECTION'; personId: string }
+  | { op: 'ANTIMICROBIAL'; personId: string }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -319,6 +320,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'infection.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-INF-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record their infections`));
+    case 'ANTIMICROBIAL':
+      return need(ctx, 'antimicrobial.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-AMS-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or act on their antimicrobials`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])

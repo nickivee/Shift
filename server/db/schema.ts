@@ -2774,4 +2774,56 @@ CREATE TABLE infection_entry (
 CREATE INDEX infection_entry_i ON infection_entry(infection_id, at);
 `,
   },
+  {
+    version: 49,
+    name: 'antimicrobial course lifecycle',
+    sql: `
+-- Antimicrobial course: indication → decision → agent/order reference → duration → lab results →
+-- review → change → completed/stopped → outcome. SHIFT references the order; it does not prescribe.
+CREATE TABLE antimicrobial_course (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  infection_id TEXT REFERENCES infection(id),
+  indication TEXT NOT NULL,
+  intent TEXT NOT NULL,                 -- EMPIRICAL | TARGETED | PROPHYLAXIS
+  agent TEXT NOT NULL,
+  route TEXT NOT NULL,
+  dose TEXT NOT NULL,
+  order_ref TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  planned_days INTEGER NOT NULL,
+  end_date TEXT NOT NULL,
+  review_by TEXT NOT NULL,
+  micro TEXT,
+  micro_note TEXT,
+  state TEXT NOT NULL,                  -- ACTIVE | CHANGED | COMPLETED | STOPPED | ENTERED_IN_ERROR
+  previous_id TEXT,
+  next_id TEXT,
+  change_type TEXT,
+  decided_by TEXT NOT NULL REFERENCES workforce_person(id),
+  decided_at TEXT NOT NULL,
+  decision_note TEXT,
+  stop_reason TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT,
+  outcome TEXT,
+  outcome_note TEXT,
+  outcome_by TEXT,
+  outcome_at TEXT
+);
+CREATE INDEX antimicrobial_person ON antimicrobial_course(person_id, state);
+CREATE INDEX antimicrobial_service ON antimicrobial_course(service_id, state);
+CREATE TABLE antimicrobial_log (
+  id TEXT PRIMARY KEY,
+  course_id TEXT NOT NULL REFERENCES antimicrobial_course(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX antimicrobial_log_c ON antimicrobial_log(course_id, at);
+`,
+  },
 ];

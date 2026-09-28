@@ -50,6 +50,7 @@ import * as followups from '../domain/followups.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
+import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -234,6 +235,16 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/antimicrobials', (req) => antimicrobials.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/antimicrobials', (req) => antimicrobials.start(store, work(req), req.params.id, {
+    infectionId: str(req.body.infectionId), indication: str(req.body.indication), agent: str(req.body.agent), route: str(req.body.route), dose: str(req.body.dose),
+    orderRef: str(req.body.orderRef), days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/antimicrobials/:id/:action', (req) => antimicrobials.act(store, work(req), req.params.id, req.params.action, {
+    micro: str(req.body.micro), note: str(req.body.note), decision: str(req.body.decision), change: str(req.body.change), reason: str(req.body.reason),
+    outcome: str(req.body.outcome), agent: str(req.body.agent), route: str(req.body.route), dose: str(req.body.dose), orderRef: str(req.body.orderRef),
+    days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
+  }));
   r.on('GET', '/api/work/infections', (req) => infections.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/infections', (req) => infections.raise(store, work(req), req.params.id, {
     site: str(req.body.site), siteDetail: str(req.body.siteDetail), suspicion: str(req.body.suspicion),
