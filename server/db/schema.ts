@@ -2968,4 +2968,51 @@ CREATE TABLE variance_log (
 CREATE INDEX variance_log_v ON variance_log(variance_id, at);
 `,
   },
+  {
+    version: 53,
+    name: 'declined care',
+    sql: `
+-- Refusal / declined care: care offered → information and decision → declined → reason → clinical
+-- implications → alternative plan → escalation → re-offer.
+CREATE TABLE declined_care (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  category TEXT NOT NULL,
+  offered TEXT NOT NULL,
+  information TEXT NOT NULL,
+  decided_by TEXT NOT NULL,             -- PERSON | REPRESENTATIVE
+  representative TEXT,
+  capacity_concern INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
+  implications TEXT NOT NULL,
+  risk TEXT NOT NULL,                   -- LOW | MODERATE | HIGH
+  plan TEXT,
+  reoffer_by TEXT,
+  offered_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- DECLINED | ESCALATED | ACCEPTED | CLOSED | ENTERED_IN_ERROR
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  escalated_to TEXT,
+  escalated_at TEXT,
+  response TEXT,
+  responded_by TEXT,
+  responded_at TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX declined_person ON declined_care(person_id, state);
+CREATE INDEX declined_service ON declined_care(service_id, state);
+CREATE TABLE declined_log (
+  id TEXT PRIMARY KEY,
+  declined_id TEXT NOT NULL REFERENCES declined_care(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX declined_log_d ON declined_log(declined_id, at);
+`,
+  },
 ];

@@ -54,6 +54,7 @@ import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
 import * as variances from '../domain/variances.ts';
+import * as declined from '../domain/declined.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -238,6 +239,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/declined', (req) => declined.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/declined', (req) => declined.record(store, work(req), req.params.id, {
+    category: str(req.body.category), offered: str(req.body.offered), information: str(req.body.information), decidedBy: str(req.body.decidedBy),
+    representative: str(req.body.representative), capacityConcern: str(req.body.capacityConcern), reason: str(req.body.reason),
+    implications: str(req.body.implications), risk: str(req.body.risk), plan: str(req.body.plan), reofferBy: str(req.body.reofferBy), offeredAt: str(req.body.offeredAt),
+  }));
+  r.on('POST', '/api/work/declined/:id/:action', (req) => declined.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), to: str(req.body.to), outcome: str(req.body.outcome), plan: str(req.body.plan), reofferBy: str(req.body.reofferBy),
+  }));
   r.on('GET', '/api/work/variances', (req) => variances.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/variances', (req) => variances.record(store, work(req), req.params.id, {
     category: str(req.body.category), expected: str(req.body.expected), whatHappened: str(req.body.whatHappened), reason: str(req.body.reason),
