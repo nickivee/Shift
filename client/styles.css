@@ -770,3 +770,11 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.followup-accepted, .tile.followup-arranged, .tile.followup-scheduled { border-left: 6px solid var(--ok); }
 .tile.followup-closed, .tile.followup-cancelled, .tile.followup-entered_in_error { border-left: 6px solid var(--ink-soft); }
 .tile.followup-declined, .tile.followup-overdue { border-left: 6px solid var(--danger); }
+
+/* Surveillance */
+.surv h3 { margin: 0; font-size: 17px; }
+.surv-check { padding: 8px 10px; border-radius: 8px; background: var(--tint); }
+.tile.surv-active { border-left: 6px solid var(--ok); }
+.tile.surv-waiting { border-left: 6px solid var(--warn); }
+.tile.surv-ended { border-left: 6px solid var(--ink-soft); }
+.tile.surv-alert { border-left: 6px solid var(--danger); }

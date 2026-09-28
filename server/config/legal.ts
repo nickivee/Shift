@@ -279,6 +279,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-SURV-001',
+    question: 'Which New Zealand clinicians may decide to continue, change or stop a surveillance plan (for example potassium checks after starting spironolactone, or lithium levels), how quickly a concerning surveillance result must be reviewed, and who is accountable when a check is missed.',
+    blocks: 'Leaving a missed check or a concerning result unreviewed. SHIFT records every check, its result or why it was not done, and who reviewed it and decided what next.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

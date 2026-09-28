@@ -276,7 +276,7 @@ export const KEY_BY_CODE = new Map(KEYS.map((k) => [k.code, k]));
 export interface RetrieveView {
   code: string;
   label: string;
-  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups';
+  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups' | 'surveillance';
   categories?: string[];
   key?: string;   // the .key a worker would use to add to this view
 }
@@ -298,6 +298,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'caredue', label: 'Care due', kind: 'caredue' },
   { code: 'recalls', label: 'Recalls', kind: 'recalls' },
   { code: 'followups', label: 'Follow-ups', kind: 'followups' },
+  { code: 'surveillance', label: 'Surveillance', kind: 'surveillance' },
   { code: 'wounds', label: 'Wounds', kind: 'wounds', categories: ['WOUND'] },
   { code: 'skin', label: 'Skin', kind: 'events', categories: ['SKIN', 'WOUND'], key: '.skin' },
   { code: 'falls', label: 'Falls', kind: 'events', categories: ['FALL'], key: '.fall' },
