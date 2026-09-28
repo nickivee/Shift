@@ -57,6 +57,7 @@ import { screeningView } from './views/screening.js';
 import { infectionsView } from './views/infections.js';
 import { antimicrobialsView } from './views/antimicrobials.js';
 import { sitechecksView } from './views/sitechecks.js';
+import { readinessView } from './views/readiness.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -151,6 +152,7 @@ const routes = [
   [/^\/work\/infections$/, () => infectionsView(), { work: true }],
   [/^\/work\/antimicrobials$/, () => antimicrobialsView(), { work: true }],
   [/^\/work\/sitechecks$/, () => sitechecksView(), { work: true }],
+  [/^\/work\/readiness$/, () => readinessView(), { work: true }],
   [/^\/work\/deterioration$/, () => deteriorationView(), { work: true }],
   [/^\/work\/acuity$/, () => acuityView(), { work: true }],
   [/^\/work\/allocation$/, () => allocationView(), { work: true }],

@@ -2872,4 +2872,57 @@ CREATE TABLE site_check (
 CREATE INDEX site_check_v ON site_check(verification_id, at);
 `,
   },
+  {
+    version: 51,
+    name: 'clinical readiness',
+    sql: `
+-- Clinical readiness: assessment required → prerequisites → completed/outstanding/not applicable →
+-- authorised assessment → ready/not ready/conditional → reassessment.
+CREATE TABLE readiness (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  needed_by TEXT,
+  state TEXT NOT NULL,                  -- ASSESSING | READY | CONDITIONAL | NOT_READY | CLOSED | ENTERED_IN_ERROR
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL,
+  decided_by TEXT,
+  decided_at TEXT,
+  decision_note TEXT,
+  conditions TEXT,
+  reassess_by TEXT,
+  end_reason TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX readiness_person ON readiness(person_id, state);
+CREATE INDEX readiness_service ON readiness(service_id, state);
+CREATE TABLE readiness_item (
+  id TEXT PRIMARY KEY,
+  readiness_id TEXT NOT NULL REFERENCES readiness(id),
+  label TEXT NOT NULL,
+  essential INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL,                 -- OUTSTANDING | COMPLETED | NOT_APPLICABLE
+  note TEXT,
+  done_by TEXT,
+  done_at TEXT,
+  position INTEGER NOT NULL,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  added_at TEXT NOT NULL
+);
+CREATE INDEX readiness_item_r ON readiness_item(readiness_id, position);
+CREATE TABLE readiness_log (
+  id TEXT PRIMARY KEY,
+  readiness_id TEXT NOT NULL REFERENCES readiness(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX readiness_log_r ON readiness_log(readiness_id, at);
+`,
+  },
 ];

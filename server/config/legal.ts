@@ -309,6 +309,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-READY-001',
+    question: 'Who may decide in each New Zealand setting that a person is ready for a procedure, discharge, a transfer between services, mobilising or therapy (medical, nursing and allied health scopes of practice), and what must be recorded when someone is ready only with conditions.',
+    blocks: 'Treating SHIFT\'s readiness decision as clinical sign-off beyond the synthetic organisation\'s own list of who may decide. SHIFT records what must be done first, who decided, the conditions, and when to reassess.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

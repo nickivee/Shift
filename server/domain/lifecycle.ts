@@ -345,6 +345,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       VERIFIED: ['DONE', 'DISCREPANCY', 'CANCELLED', 'ENTERED_IN_ERROR'],
     },
   },
+  readiness: {
+    table: 'readiness',
+    initial: 'ASSESSING',
+    next: {
+      ASSESSING: ['READY', 'CONDITIONAL', 'NOT_READY', 'CLOSED', 'ENTERED_IN_ERROR'],
+      READY: ['ASSESSING', 'CLOSED', 'ENTERED_IN_ERROR'],
+      CONDITIONAL: ['ASSESSING', 'CLOSED', 'ENTERED_IN_ERROR'],
+      NOT_READY: ['ASSESSING', 'CLOSED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
