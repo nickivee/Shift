@@ -838,3 +838,11 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.dcl-ended { border-left: 6px solid var(--ink-soft); }
 .tile.dcl-alert { border-left: 6px solid var(--danger); }
 .tile.dcl-ok { border-left: 6px solid var(--ok); }
+.pri h3 { margin: 0; font-size: 17px; }
+.tile.pri-l0 { border-left: 6px solid var(--danger); }
+.tile.pri-l1 { border-left: 6px solid var(--warn); }
+.tile.pri-l2, .tile.pri-l3, .tile.pri-l4 { border-left: 6px solid var(--ok); }
+.tile.pri-ended { border-left: 6px solid var(--ink-soft); }
+.pri-level { font-size: 18px; font-weight: 700; }
+.pri-clock { font-variant-numeric: tabular-nums; font-weight: 700; }
+.pri-clock.late { color: var(--danger); }

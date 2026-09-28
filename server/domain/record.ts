@@ -50,6 +50,7 @@ import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts'
 import { forPerson as readinessFor } from './readiness.ts';
 import { forPerson as variancesFor } from './variances.ts';
 import { forPerson as declinedFor, current as declinedNow } from './declined.ts';
+import { forPerson as prioritiesFor } from './priorities.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -99,6 +100,8 @@ export function patientList(store: Store, ctx: WorkContext) {
             (SELECT count(*) FROM task t WHERE t.person_id = p.id AND t.service_id = ? AND t.state NOT IN ('COMPLETED','CLOSED','CANCELLED')) AS open_tasks,
             (SELECT count(*) FROM allergy g WHERE g.person_id = p.id AND g.state = 'ACTIVE' AND g.kind <> 'NO_KNOWN_ALLERGIES') AS allergies,
             (SELECT fields_json FROM clinical_event c WHERE c.person_id = p.id AND c.service_id = ? AND c.category = 'TRIAGE' AND c.state = 'CURRENT' ORDER BY c.effective_at DESC LIMIT 1) AS triage,
+            (SELECT q.level || '|' || q.what FROM priority q WHERE q.person_id = p.id AND q.service_id = ? AND q.scale = 'ATS' AND q.state IN ('WAITING', 'ACTIONED')
+              ORDER BY q.assigned_at DESC LIMIT 1) AS priority,
             (SELECT t.state || '|' || s.name FROM transfer t JOIN service s ON s.id = t.to_service_id
               WHERE t.person_id = p.id AND t.state IN ('REQUESTED','ACCEPTED','BED_ALLOCATED','ARRIVED') LIMIT 1) AS transfer,
             (SELECT x.urgency FROM escalation x WHERE x.person_id = p.id AND x.state IN ('RAISED','RECEIVED','ACKNOWLEDGED','RESPONDED')
@@ -110,11 +113,13 @@ export function patientList(store: Store, ctx: WorkContext) {
       WHERE e.id IS NOT NULL
          OR EXISTS (SELECT 1 FROM care_relationship r WHERE r.person_id = p.id AND r.service_id = ? AND r.ended_at IS NULL)
       ORDER BY location, p.family_name`,
-    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId,
+    ctx.workerId, ctx.serviceId, today, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId, ctx.serviceId,
   );
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_LIST', objectType: 'service', objectId: ctx.serviceId, decision: 'ALLOW', outcome: 'VIEWED', engines: [28, 266] });
   const list = rows.map((r) => {
-    const triage = r.triage ? (JSON.parse(String(r.triage)) as Record<string, string>) : null;
+    const event = r.triage ? (JSON.parse(String(r.triage)) as Record<string, string>) : null;
+    const [level, what] = r.priority ? String(r.priority).split('|') : [];
+    const triage = level ? { category: level, complaint: event?.complaint ?? what } : event;
     return {
       id: r.id, name: `${r.given_name} ${r.family_name}`, preferredName: r.preferred_name, nhi: r.nhi,
       age: ageOn(r.date_of_birth as string), gender: r.gender, location: r.location,
@@ -482,6 +487,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'declined':
       body = declinedFor(store, ctx, personId);
+      break;
+    case 'priorities':
+      body = prioritiesFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

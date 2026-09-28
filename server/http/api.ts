@@ -55,6 +55,7 @@ import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
 import * as variances from '../domain/variances.ts';
 import * as declined from '../domain/declined.ts';
+import * as priorities from '../domain/priorities.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -239,6 +240,13 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/priorities', (req) => priorities.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/priorities', (req) => priorities.assign(store, work(req), req.params.id, {
+    source: str(req.body.source), what: str(req.body.what), evidence: str(req.body.evidence), level: str(req.body.level),
+  }));
+  r.on('POST', '/api/work/priorities/:id/:action', (req) => priorities.act(store, work(req), req.params.id, req.params.action, {
+    level: str(req.body.level), evidence: str(req.body.evidence), note: str(req.body.note),
+  }));
   r.on('GET', '/api/work/declined', (req) => declined.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/declined', (req) => declined.record(store, work(req), req.params.id, {
     category: str(req.body.category), offered: str(req.body.offered), information: str(req.body.information), decidedBy: str(req.body.decidedBy),

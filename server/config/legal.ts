@@ -327,6 +327,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-TRIAGE-001',
+    question: 'Which triage or priority scale each New Zealand setting must use (the Australasian Triage Scale in emergency departments, and any national scale for ward review, rest home GP review or allied health waiting lists), the current ACEM timeframes, and who may assign or lower a priority.',
+    blocks: 'Using SHIFT\'s ward, rest home and physiotherapy scales as national standards. They are the synthetic organisation\'s own. SHIFT records the evidence, the priority a clinician assigned, reassessments and whether the timeframe was met; it never assigns a priority itself.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

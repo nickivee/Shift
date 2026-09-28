@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 53;
+const SET = 54;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -380,6 +380,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 51) set51(store);
     if (at < 52) set52(store);
     if (at < 53) set53(store);
+    if (at < 54) set54(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3636,4 +3637,60 @@ function set53(store: Store): void {
   add({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', category: 'TREATMENT', offered: 'Oxygen through nasal prongs', information: 'Explained his oxygen level is 89% and oxygen helps his breathing and thinking',
     reason: 'Says it dries his nose and he feels fine', implications: 'Low oxygen may worsen his drowsiness and confusion', risk: 'HIGH', mins: 100,
     escalated: ['Dr Anna Whyte (GP) by phone', 80] });
+}
+
+// Set 54: clinical priority. In ED, Kiri (ATS 2) and Tom (ATS 3) were seen within their timeframes
+// and Ana's ankle (ATS 4) is past hers. On Ward K, Wiremu needs an urgent review and Peggy a routine
+// medicines review; physiotherapy has Peggy's stairs practice as P2. In Residential Care, Frank needs
+// a GP review today and Rua a routine one.
+function set54(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const LEVELS: Record<string, [string, number]> = {
+    'ATS 2': ['ATS 2: within 10 minutes', 10], 'ATS 3': ['ATS 3: within 30 minutes', 30], 'ATS 4': ['ATS 4: within 60 minutes', 60],
+    URGENT: ['Urgent: within 1 hour', 60], ROUTINE: ['Routine: within 24 hours', 1440], TODAY: ['Today: within 8 hours', 480],
+    ARC_ROUTINE: ['Routine: next GP visit, within 2 weeks', 20160], P2: ['P2: within 2 days', 2880],
+  };
+  const SOURCES: Record<string, string> = { PRESENTATION: 'Arrived or presented', REQUEST: 'Asked for a review', REFERRAL: 'Referral', CHANGE: 'Change in condition' };
+  interface P { nhi: string; svc: string; scale: string; u: string; source: string; what: string; evidence: string; level: string; mins: number; acted?: [u: string, mins: number, note: string] }
+  const add = (x: P) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const [label, minutes] = LEVELS[x.level];
+    const level = x.level === 'ARC_ROUTINE' ? 'ROUTINE' : x.level;
+    const actor = x.acted ? who(x.acted[0]) : null;
+    store.insert('priority', {
+      id, person_id: pid, service_id: x.svc, scale: x.scale, source: x.source, what: x.what, evidence: x.evidence, level, level_at: ago(x.mins),
+      due_at: ago(x.mins - minutes), state: x.acted ? 'ACTIONED' : 'WAITING', assigned_by: by, assigned_at: ago(x.mins),
+      acted_by: actor, acted_at: x.acted ? ago(x.acted[1]) : null, action_note: x.acted?.[2] ?? null,
+    });
+    const log = (kind: string, body: string, mins: number, b: string) => store.insert('priority_log', { id: newId(), priority_id: id, kind, body, by_id: b, at: ago(mins) });
+    const move = (from: string | null, to: string, mins: number, b: string) =>
+      store.insert('state_transition', { id: newId(), object_type: 'priority', object_id: id, from_state: from, to_state: to, actor_id: b, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    log('ASSIGNED', `${label}. ${SOURCES[x.source]}: ${x.what}. Evidence: ${x.evidence}`, x.mins, by);
+    move(null, 'WAITING', x.mins, by);
+    if (x.acted && actor) {
+      log('ACTIONED', `${x.acted[2]} ${x.acted[1] >= x.mins - minutes ? 'Within the timeframe.' : 'Later than the timeframe.'}`, x.acted[1], actor);
+      move('WAITING', 'ACTIONED', x.acted[1], actor);
+    }
+  };
+  add({ nhi: 'ZZZ0105', svc: 'svc-ed', scale: 'ATS', u: 'mere', source: 'PRESENTATION', what: 'Central chest pain for 2 hours, radiating to left arm',
+    evidence: 'Pain 8/10, sweaty, HR 98, BP 148/92', level: 'ATS 2', mins: 90, acted: ['ravi', 84, 'Seen by Dr Singh; ECG and troponin done.'] });
+  add({ nhi: 'ZZZ0121', svc: 'svc-ed', scale: 'ATS', u: 'mere', source: 'PRESENTATION', what: 'Right ankle inversion injury playing netball',
+    evidence: 'Can weight-bear 4 steps; swelling over lateral malleolus; pain 5/10', level: 'ATS 4', mins: 135 });
+  add({ nhi: 'ZZZ0148', svc: 'svc-ed', scale: 'ATS', u: 'mere', source: 'PRESENTATION', what: 'Fall at home, on apixaban, small scalp laceration',
+    evidence: 'GCS 15, 2 cm scalp laceration, on apixaban, no loss of consciousness', level: 'ATS 3', mins: 50, acted: ['ravi', 28, 'Seen by Dr Singh; CT head requested.'] });
+  add({ nhi: 'ZZZ0016', svc: 'svc-genmed', scale: 'WARD', u: 'nicki', source: 'CHANGE', what: 'Doctor review: more confused, pulling at his drip',
+    evidence: 'New confusion since morning, RR 22, not drinking, NEWS 5', level: 'URGENT', mins: 30 });
+  add({ nhi: 'ZZZ0032', svc: 'svc-genmed', scale: 'WARD', u: 'nicki', source: 'REQUEST', what: 'Medicines review before discharge',
+    evidence: 'Daughter asked about her 11 regular medicines; discharge planned this week', level: 'ROUTINE', mins: 180 });
+  add({ nhi: 'ZZZ0032', svc: 'svc-physio', scale: 'PHYSIO', u: 'lena', source: 'REFERRAL', what: 'Stairs practice before discharge',
+    evidence: 'Three steps at her daughter\'s front door; walks 20 m with a frame', level: 'P2', mins: 1440 });
+  add({ nhi: 'ZZZ0075', svc: 'svc-arc', scale: 'ARC', u: 'nicki', source: 'CHANGE', what: 'GP review: drowsy, oxygen 89%',
+    evidence: 'Drowsy but rousable, SpO2 89% on air, declining oxygen, hip pain after fall', level: 'TODAY', mins: 120 });
+  add({ nhi: 'ZZZ0059', svc: 'svc-arc', scale: 'ARC', u: 'kate', source: 'REQUEST', what: 'GP to check her left ear after irrigation',
+    evidence: 'Hearing still reduced on the left after wax softening drops', level: 'ARC_ROUTINE', mins: 1440 });
 }
