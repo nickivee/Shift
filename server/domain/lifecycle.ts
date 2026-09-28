@@ -331,6 +331,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
       ONGOING: ['RESOLVED', 'ENTERED_IN_ERROR'], RESOLVED: ['RECURRED'],
     },
   },
+  antimicrobial: {
+    table: 'antimicrobial_course',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ACTIVE', 'CHANGED', 'COMPLETED', 'STOPPED', 'ENTERED_IN_ERROR'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

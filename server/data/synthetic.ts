@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 48;
+const SET = 49;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -375,6 +375,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 46) set46(store);
     if (at < 47) set47(store);
     if (at < 48) set48(store);
+    if (at < 49) set49(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3365,4 +3366,55 @@ function set48(store: Store): void {
     end: ['Symptoms gone; antibiotics finished.', 'nicki', 30],
     entries: [['EVIDENCE', 'Urine culture: E. coli >10^8', null, 'nicki', 38], ['ORGANISM', 'Escherichia coli (urine)', 'ESBL', 'nicki', 38],
       ['SUSCEPTIBILITY', 'Nitrofurantoin', 'S', 'nicki', 38], ['TREATMENT', 'Nitrofurantoin for 5 days (GP)', null, 'nicki', 38]] });
+}
+
+// Antimicrobial courses (Shared Lifecycle Object 290), for the infections in set 48. On Ward K:
+// Aroha's IV amoxicillin and clavulanic acid, day 3 with the 48-hour review due today and a
+// sputum result that allows a narrower agent; Sione's doxycycline for MRSA, review also due today. At
+// Kōwhai: Frank's trimethoprim started on the GP's advice, urine culture pending; Elsie's
+// nitrofurantoin last month, completed with its outcome recorded; Losa's cefalexin for cellulitis,
+// due to finish today.
+function set49(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  interface C { nhi: string; svc: string; u: string; site: string; agent: string; route: string; dose: string; order: string; intent: string; startDays: number; days: number; review: number;
+    note?: string; micro?: [string, string, number]; state?: string; ended?: [number, string]; outcome?: [string, string]; indication?: string }
+  const course = (x: C) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const inf = store.get<{ id: string; source: string | null }>('SELECT id, source FROM infection WHERE person_id = ? AND site = ? ORDER BY raised_at DESC', pid, x.site);
+    const id = newId();
+    const start = addDays(todayLocal(), -x.startDays);
+    const state = x.state ?? 'ACTIVE';
+    store.insert('antimicrobial_course', {
+      id, person_id: pid, service_id: x.svc, infection_id: inf?.id ?? null, indication: x.indication ?? inf?.source ?? 'Suspected infection', intent: x.intent, agent: x.agent, route: x.route,
+      dose: x.dose, order_ref: x.order, start_date: start, planned_days: x.days, end_date: addDays(start, x.days), review_by: addDays(todayLocal(), x.review),
+      micro: x.micro?.[0] ?? null, micro_note: x.micro?.[1] ?? null, state, previous_id: null, next_id: null, change_type: null,
+      decided_by: by, decided_at: ago(x.startDays * day), decision_note: x.note ?? null,
+      stop_reason: null, ended_by: x.ended ? by : null, ended_at: x.ended ? ago(x.ended[0] * day) : null, ended_note: x.ended?.[1] ?? null,
+      outcome: x.outcome?.[0] ?? null, outcome_note: x.outcome?.[1] ?? null, outcome_by: x.outcome ? by : null, outcome_at: x.outcome ? ago((x.ended?.[0] ?? 0) * day - 60) : null,
+    });
+    const log = (kind: string, body: string, days: number) => store.insert('antimicrobial_log', { id: newId(), course_id: id, kind, body, by_id: by, at: ago(days * day) });
+    const move = (from: string | null, to: string, days: number) =>
+      store.insert('state_transition', { id: newId(), object_type: 'antimicrobial', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(days * day), reason: null, transaction_id: null });
+    log('STARTED', `${x.agent} ${x.route === 'IV' ? 'IV' : x.route === 'ORAL' ? 'Oral' : x.route} ${x.dose} for ${x.days} days (${x.order}).${x.note ? ` ${x.note}` : ''}`, x.startDays);
+    move(null, 'ACTIVE', x.startDays);
+    if (x.micro) log('MICRO', `${x.micro[1]}.`, x.micro[2]);
+    if (x.ended) { log(state, x.ended[1], x.ended[0]); move('ACTIVE', state, x.ended[0]); }
+    if (x.outcome) log('OUTCOME', `${x.outcome[1]}`, x.ended?.[0] ?? 0);
+  };
+  course({ nhi: 'ZZZ9999', svc: 'svc-genmed', u: 'hannah', site: 'CHEST', agent: 'Amoxicillin and clavulanic acid', route: 'IV', dose: '1.2 g every 8 hours', order: 'Medication chart',
+    intent: 'EMPIRICAL', startDays: 2, days: 7, review: 0, micro: ['COVERED', 'Sputum: Streptococcus pneumoniae, sensitive to amoxicillin and penicillin', 1] });
+  course({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', site: 'WOUND', agent: 'Doxycycline', route: 'ORAL', dose: '100 mg twice a day', order: 'Medication chart',
+    intent: 'EMPIRICAL', startDays: 1, days: 14, review: 0, micro: ['COVERED', 'Wound swab: MRSA, sensitive to doxycycline, resistant to flucloxacillin', 0.4] });
+  course({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', site: 'URINE', agent: 'Trimethoprim', route: 'ORAL', dose: '300 mg at night', order: 'GP prescription',
+    intent: 'EMPIRICAL', startDays: 0, days: 3, review: 2, note: 'Dr Nair (GP) by phone.', micro: ['PENDING', 'Urine sent for culture', 0.1] });
+  course({ nhi: 'ZZZ0067', svc: 'svc-arc', u: 'nicki', site: 'URINE', agent: 'Nitrofurantoin', route: 'ORAL', dose: '50 mg four times a day', order: 'GP prescription',
+    intent: 'TARGETED', startDays: 38, days: 5, review: -36, note: 'Dr Nair (GP) after the culture.', micro: ['COVERED', 'Urine: ESBL E. coli, sensitive to nitrofurantoin', 38],
+    state: 'COMPLETED', ended: [33, 'Last dose given.'], outcome: ['CURED', 'Infection cured.'] });
+  course({ nhi: 'ZZZ0083', svc: 'svc-arc', u: 'nicki', site: 'NONE', indication: 'Cellulitis of the left shin (GP diagnosis)', agent: 'Cefalexin', route: 'ORAL', dose: '500 mg four times a day',
+    order: 'GP prescription', intent: 'EMPIRICAL', startDays: 5, days: 5, review: -3, note: 'Dr Nair (GP) at her visit.' });
 }

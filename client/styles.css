@@ -792,3 +792,10 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.inf-waiting { border-left: 6px solid var(--warn); }
 .tile.inf-ended { border-left: 6px solid var(--ink-soft); }
 .tile.inf-alert { border-left: 6px solid var(--danger); }
+
+/* Antimicrobials */
+.amc h3 { margin: 0; font-size: 17px; }
+.tile.amc-active { border-left: 6px solid var(--ok); }
+.tile.amc-waiting { border-left: 6px solid var(--warn); }
+.tile.amc-ended { border-left: 6px solid var(--ink-soft); }
+.tile.amc-alert { border-left: 6px solid var(--danger); }

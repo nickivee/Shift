@@ -297,6 +297,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-AMS-001',
+    question: 'Which New Zealand antimicrobial stewardship rules apply to a hospital or rest home: local guideline adherence, approval for restricted antimicrobials, the 48 to 72 hour review, and who may authorise an IV to oral switch or a change of agent.',
+    blocks: 'Prescribing or approving restricted antimicrobials in SHIFT. SHIFT references the medication order, records reviews, changes and the outcome, and shows courses overdue for review.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',
