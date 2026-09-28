@@ -1,5 +1,5 @@
 import { h, icon, mount } from '../lib/dom.js';
-import { get, post, requestKey } from '../lib/api.js';
+import { get, post, put, requestKey } from '../lib/api.js';
 import { showError, toast, ask, fmtDate, fmtDateTime, stateTag, titleCase } from '../lib/ui.js';
 import { transfersPanel } from './transfers.js';
 import { dischargePanel } from './discharges.js';
@@ -68,6 +68,7 @@ export async function workstationView(personId, initialView) {
   const ws = {
     view: null,          // current retrieve code
     data: null,          // current retrieve payload
+    embeds: [],          // screens shown inside this one ({ code, label, data })
     form: null,          // { template, values, amendOf, idem }
     selected: null,      // selected canonical event
     handover: false,
@@ -91,10 +92,47 @@ export async function workstationView(personId, initialView) {
   const destLabel = (v) => (v.code === 'overview' ? `${subject} Overview` : v.label.replaceAll('/', '/\u200b'));
   const drawDestinations = () => {
     mount(destCol,
-      config.views.map((v) => h('button', { class: `dest${ws.view === v.code ? ' active' : ''}`, onclick: () => openView(v.code) }, h('span', {}, destLabel(v)))),
-      h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.form = null; ws.selected = null; draw(); input.focus(); } }, h('span', {}, 'Live Workstation')),
+      config.views.filter((v) => v.shown || ws.view === v.code).map((v) => h('button', { class: `dest${ws.view === v.code ? ' active' : ''}${v.shown ? '' : ' extra'}`, onclick: () => openView(v.code) }, h('span', {}, destLabel(v)))),
+      h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.embeds = []; ws.form = null; ws.selected = null; draw(); input.focus(); } }, h('span', {}, 'Live Workstation')),
+      config.views.some((v) => !v.shown) ? h('button', { class: 'dest dest-add', onclick: screensDialog }, h('span', {}, '+ Add a screen')) : null,
     );
   };
+  // Add a screen this workstation is authorised for but the department does not show by default,
+  // or take an added one away again. This only changes the side list, never authority.
+  const saveScreen = async (body) => {
+    const { views: order } = await put('/api/work/screens', body);
+    const byCode = new Map(config.views.map((v) => [v.code, v]));
+    config.views = order.flatMap(({ id, hidden }) => (byCode.has(id) ? [{ ...byCode.get(id), shown: !hidden }] : []));
+    drawDestinations();
+  };
+  function screensDialog() {
+    const list = h('div', { class: 'stack' });
+    const close = () => { dlg.close(); dlg.remove(); };
+    const row = (v, label, body) => h('div', { class: 'spread screen-row' }, h('span', {}, destLabel(v)),
+      h('button', { class: 'btn small', onclick: async () => { try { await saveScreen(body); fill(); } catch (err) { showError(err); } } }, label));
+    const fill = () => {
+      const hidden = config.views.filter((v) => !v.shown);
+      const added = config.views.filter((v) => v.shown && !v.own);
+      mount(list,
+        hidden.length ? hidden.map((v) => row(v, 'Add', { code: v.code, shown: true })) : h('div', { class: 'empty' }, 'Every screen you can use is already showing.'),
+        added.length ? h('h3', {}, 'Screens you added') : null,
+        added.map((v) => row(v, 'Remove', { code: v.code, shown: false })),
+      );
+    };
+    const dlg = h('dialog', {}, h('div', { class: 'stack' },
+      h('h2', {}, 'Add a screen'),
+      h('p', { class: 'small muted' }, `Your ${state.me.context.roleLabel} workstation shows your department's own screens. Add any other screen you need here. You can also type ?name to open one without adding it.`),
+      list,
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', onclick: close }, 'Done'),
+        h('button', { class: 'btn', onclick: async () => { try { await saveScreen({ reset: true }); fill(); } catch (err) { showError(err); } } }, 'Back to department default')),
+    ));
+    dlg.addEventListener('cancel', () => dlg.remove());
+    fill();
+    document.body.append(dlg);
+    dlg.showModal();
+  }
+
   const keepActiveVisible = () => {
     const active = destCol.querySelector('.active');
     if (active && destCol.scrollHeight > destCol.clientHeight) active.scrollIntoView({ block: 'nearest' });
@@ -103,7 +141,10 @@ export async function workstationView(personId, initialView) {
   async function openView(code) {
     if (!views.has(code)) return toast(`?${code} is not part of your workstation.`, 'error');
     try {
-      ws.data = await get(`/api/work/patients/${personId}/views/${code}`);
+      const inner = (config.embeds?.[code] ?? []).filter((c) => views.has(c));
+      const [data, ...embedded] = await Promise.all([code, ...inner].map((c) => get(`/api/work/patients/${personId}/views/${c}`)));
+      ws.data = data;
+      ws.embeds = inner.map((c, i) => ({ code: c, label: views.get(c).label, data: embedded[i] }));
       ws.view = code;
       ws.selected = null;
       history.replaceState(null, '', `#/work/patient/${personId}/${code}`);
@@ -247,7 +288,7 @@ export async function workstationView(personId, initialView) {
     title.textContent = ws.form ? (ws.form.amendOf ? `Amend ${ws.form.template.label}` : ws.form.template.label) : ws.view ? views.get(ws.view).label : 'Live Workstation';
     const content = [];
     if (ws.form) content.push(keyForm());
-    if (ws.view && ws.data) content.push(renderView());
+    if (ws.view && ws.data) content.push(renderView(), ws.embeds.map((x) => h('section', { class: 'stack embed' }, h('h3', { class: 'section-title' }, x.label), renderView(x.data))));
     if (!content.length) content.push(h('div', { class: 'live-hint' }, 'Choose a destination, or type a command below.'));
     mount(body, content);
   };
@@ -334,8 +375,7 @@ export async function workstationView(personId, initialView) {
     ? h('button', { class: 'btn', onclick: () => { input.value = `${ws.data.canAdd} `; onInput(); } }, `Add with ${ws.data.canAdd}`)
     : null;
 
-  const renderView = () => {
-    const d = ws.data;
+  const renderView = (d = ws.data) => {
     switch (d.view.kind) {
       case 'events':
       case 'history':
@@ -389,11 +429,11 @@ export async function workstationView(personId, initialView) {
       case 'screening': return screeningPanel(personId, d, () => go(`/work/patient/${personId}/screening`));
       case 'infections': return infectionsPanel(personId, d, () => go(`/work/patient/${personId}/infections`));
       case 'antimicrobials': return antimicrobialsPanel(personId, d, () => go(`/work/patient/${personId}/antimicrobials`));
-      case 'sitechecks': return sitechecksPanel(personId, d, () => go(`/work/patient/${personId}/sitechecks`));
-      case 'readiness': return readinessPanel(personId, d, () => go(`/work/patient/${personId}/readiness`));
+      case 'sitechecks': return sitechecksPanel(personId, d, () => go(`/work/patient/${personId}/${ws.view}`));
+      case 'readiness': return readinessPanel(personId, d, () => go(`/work/patient/${personId}/${ws.view}`));
       case 'variances': return variancesPanel(personId, d, () => go(`/work/patient/${personId}/variances`));
       case 'declined': return declinedPanel(personId, d, () => go(`/work/patient/${personId}/declined`));
-      case 'priorities': return prioritiesPanel(personId, d, () => go(`/work/patient/${personId}/priorities`));
+      case 'priorities': return prioritiesPanel(personId, d, () => go(`/work/patient/${personId}/${ws.view}`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));

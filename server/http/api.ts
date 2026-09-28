@@ -61,7 +61,7 @@ import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
 import * as wounds from '../domain/wounds.ts';
 import * as careplans from '../domain/careplans.ts';
-import { KEYS, VIEWS } from '../config/keys.ts';
+import { KEYS, VIEWS, EMBEDS } from '../config/keys.ts';
 import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/legal.ts';
 
 const COOKIE = 'shift_session';
@@ -116,7 +116,12 @@ export function buildApi(store: Store): Router {
     const ctx = work(req);
     return {
       keys: KEYS.filter((k) => ctx.role.keys.includes(k.code)),
-      views: VIEWS.filter((v) => ctx.role.views.includes(v.code)).map((v) => ({ code: v.code, label: v.label, key: v.key ?? null })),
+      views: workspace.shownViews(store, ctx).flatMap(({ id, hidden }) => {
+        const v = VIEWS.find((x) => x.code === id);
+        return !v ? [] : [{ code: v.code, label: v.label, key: v.key ?? null, shown: !hidden, own: !ctx.role.ownViews || ctx.role.ownViews.includes(v.code) }];
+      }),
+      // Screens that also show inside another screen, where the role has both.
+      embeds: Object.fromEntries(Object.entries(EMBEDS).map(([host, inner]) => [host, inner.filter((c) => ctx.role.views.includes(c))]).filter(([, inner]) => inner.length)),
       tabs: ctx.role.tabs,
       destinations: commands.destinationsFor(store, ctx),
       restrictions: commands.capabilitiesSummary(store, ctx),
@@ -125,6 +130,7 @@ export function buildApi(store: Store): Router {
   r.on('GET', '/api/work/home', (req) => workspace.homeFor(store, work(req)));
   r.on('PUT', '/api/work/home', (req) => workspace.saveHome(store, work(req), req.body as never));
   r.on('DELETE', '/api/work/home', (req) => workspace.saveHome(store, work(req), null));
+  r.on('PUT', '/api/work/screens', (req) => workspace.saveViews(store, work(req), req.body as never));
 
   // Patient records ----------------------------------------------------------------------
   r.on('GET', '/api/work/patients', (req) => record.patientList(store, work(req)));

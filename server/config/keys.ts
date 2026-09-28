@@ -281,6 +281,12 @@ export interface RetrieveView {
   key?: string;   // the .key a worker would use to add to this view
 }
 
+// Screens that also appear inside a department's own screen, so the work sits where it is done:
+// ED priorities under Triage, site checks under Procedures, readiness under Disposition or Discharge.
+export const EMBEDS: Record<string, string[]> = {
+  triage: ['priorities'], procedures: ['sitechecks'], disposition: ['readiness'], discharge: ['readiness'],
+};
+
 export const VIEWS: RetrieveView[] = [
   { code: 'overview', label: 'Overview', kind: 'overview' },
   { code: 'history', label: 'History', kind: 'history' },

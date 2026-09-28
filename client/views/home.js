@@ -174,33 +174,49 @@ export async function homeView() {
     );
   };
 
-  // Customise: reorder and hide within the authorised set. Organisation-required cards can
-  // be moved but not hidden. Nothing here changes what you are authorised to do.
+  // Customise: reorder, hide and add within the authorised set. Each department shows its own
+  // cards by default; the rest can be added. Organisation-required cards can be moved but not
+  // hidden. Nothing here changes what you are authorised to do.
   let customising = false;
   const customise = () => {
     customising = true;
     const draft = { cards: home.cards.map((c) => ({ ...c })), tabs: home.tabs.map((t) => ({ ...t })) };
-    const cardList = sortableList(draft.cards, 'card');
+    const shown = draft.cards.filter((c) => !c.hidden);
+    const spare = draft.cards.filter((c) => c.hidden);
+    const addList = h('div', { class: 'stack' });
+    const addSummary = h('summary', {});
+    let cardList;
+    const drawCards = () => {
+      const fresh = sortableList(shown, 'card', (it) => { shown.splice(shown.indexOf(it), 1); it.hidden = true; spare.unshift(it); drawCards(); });
+      if (cardList) cardList.replaceWith(fresh);
+      cardList = fresh;
+      addSummary.textContent = `Add a card (${spare.length})`;
+      mount(addList, spare.length ? spare.map((it) => h('div', { class: 'spread screen-row' }, h('span', {}, it.label),
+        h('button', { class: 'btn small', onclick: () => { spare.splice(spare.indexOf(it), 1); it.hidden = false; shown.push(it); drawCards(); } }, 'Add'))) : h('div', { class: 'small muted' }, 'Every card you can use is on your Home.'));
+    };
+    drawCards();
     const tabList = sortableList(draft.tabs, 'tab');
     mount(root,
       workHeader(),
       h('div', { class: 'banner' },
         h('strong', {}, 'Customise Home'),
-        'Drag to reorder, or use the arrows. Hiding a card or tab only changes your screen, never your authority.',
+        'Drag to reorder, or use the arrows. Adding or hiding a card only changes your screen, never your authority.',
       ),
-      h('h3', {}, 'Cards'), cardList,
+      h('h3', {}, 'Cards on your Home'), cardList,
+      h('details', {}, addSummary, addList),
       draft.tabs.length ? h('h3', {}, 'Workstation tabs') : null, draft.tabs.length ? tabList : null,
       h('div', { class: 'row' },
         h('button', { class: 'btn primary', onclick: async () => {
           try {
-            Object.assign(home, await put('/api/work/home', { cards: draft.cards.map(({ id, hidden }) => ({ id, hidden })), tabs: draft.tabs.map(({ id, hidden }) => ({ id, hidden })) }));
+            const cards = [...shown, ...spare];
+            Object.assign(home, await put('/api/work/home', { cards: cards.map(({ id, hidden }) => ({ id, hidden })), tabs: draft.tabs.map(({ id, hidden }) => ({ id, hidden })) }));
             toast('Home saved.');
             draw();
           } catch (err) { showError(err); }
         } }, 'Save'),
         h('button', { class: 'btn', onclick: draw }, 'Cancel'),
         h('button', { class: 'btn', onclick: async () => {
-          try { Object.assign(home, await del('/api/work/home')); toast('Home reset to your service default.'); draw(); } catch (err) { showError(err); }
+          try { Object.assign(home, await del('/api/work/home')); toast('Home reset to your department default.'); draw(); } catch (err) { showError(err); }
         } }, 'Reset to default'),
       ),
     );
@@ -211,7 +227,7 @@ export async function homeView() {
   return root;
 }
 
-function sortableList(items, kind) {
+function sortableList(items, kind, onHide) {
   const list = h('div', { class: 'sortable', role: 'list' });
   const redraw = () => {
     mount(list, items.map((it, i) => {
@@ -221,7 +237,7 @@ function sortableList(items, kind) {
         it.required ? h('span', { class: 'tag' }, 'Required') : null,
         h('button', { class: 'btn small', 'aria-label': `Move ${it.label} up`, disabled: i === 0, onclick: () => move(i, i - 1) }, '↑'),
         h('button', { class: 'btn small', 'aria-label': `Move ${it.label} down`, disabled: i === items.length - 1, onclick: () => move(i, i + 1) }, '↓'),
-        it.required ? null : h('button', { class: 'btn small', onclick: () => { it.hidden = !it.hidden; redraw(); } }, it.hidden ? 'Show' : 'Hide'),
+        it.required ? null : h('button', { class: 'btn small', onclick: () => { if (onHide) onHide(it); else { it.hidden = !it.hidden; redraw(); } } }, it.hidden ? 'Show' : 'Hide'),
       );
       return row;
     }));
