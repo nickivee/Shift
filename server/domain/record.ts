@@ -46,6 +46,7 @@ import { forPerson as surveillanceFor } from './surveillance.ts';
 import { forPerson as screeningFor } from './screening.ts';
 import { forPerson as infectionsFor, current as resistantNow } from './infections.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
+import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -229,6 +230,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     checkExceptions: ctx.role.views.includes('checklists') ? checklistsNow(store, personId) : null,
     careOverdue: ctx.role.views.includes('caredue') ? careDueNow(store, personId) : null,
     resistantOrganisms: ctx.role.views.includes('infections') ? resistantNow(store, personId) : null,
+    siteDiscrepancies: ctx.role.views.includes('sitechecks') ? siteNow(store, personId) : null,
     team: teamNow(store, personId),
   };
 }
@@ -464,6 +466,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'antimicrobials':
       body = antimicrobialsFor(store, ctx, personId);
+      break;
+    case 'sitechecks':
+      body = sitechecksFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

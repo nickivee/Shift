@@ -2826,4 +2826,50 @@ CREATE TABLE antimicrobial_log (
 CREATE INDEX antimicrobial_log_c ON antimicrobial_log(course_id, at);
 `,
   },
+  {
+    version: 50,
+    name: 'procedure site and side verification',
+    sql: `
+-- Procedure site / laterality verification: procedure planned → intended site/side → source evidence →
+-- patient/team verification → discrepancy → resolution → verified → procedure linkage.
+CREATE TABLE site_verification (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  procedure TEXT NOT NULL,
+  planned_for TEXT NOT NULL,
+  site TEXT NOT NULL,
+  side TEXT NOT NULL,
+  detail TEXT,
+  state TEXT NOT NULL,                  -- PLANNED | DISCREPANCY | VERIFIED | DONE | CANCELLED | ENTERED_IN_ERROR
+  planned_by TEXT NOT NULL REFERENCES workforce_person(id),
+  planned_at TEXT NOT NULL,
+  verified_by TEXT,
+  verified_at TEXT,
+  done_by TEXT,
+  done_at TEXT,
+  done_ref TEXT,
+  done_mismatch INTEGER NOT NULL DEFAULT 0,
+  done_note TEXT,
+  ended_by TEXT,
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX site_verification_person ON site_verification(person_id, state);
+CREATE INDEX site_verification_service ON site_verification(service_id, state);
+CREATE TABLE site_check (
+  id TEXT PRIMARY KEY,
+  verification_id TEXT NOT NULL REFERENCES site_verification(id),
+  kind TEXT NOT NULL,
+  source TEXT,
+  outcome TEXT,
+  stated TEXT,
+  note TEXT,
+  superseded INTEGER NOT NULL DEFAULT 0,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX site_check_v ON site_check(verification_id, at);
+`,
+  },
 ];

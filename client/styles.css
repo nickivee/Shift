@@ -706,13 +706,13 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.treatment-completed, .tile.treatment-stopped, .tile.treatment-entered_in_error { border-left: 6px solid var(--ink-soft); }
 
 /* Pathways */
-.patient-pathways, .patient-checks, .patient-caredue, .patient-resistant {
+.patient-pathways, .patient-checks, .patient-caredue, .patient-resistant, .patient-site {
   display: flex; align-items: center; gap: 10px;
   background: #fff; color: var(--ink); border: 2px solid var(--danger);
   border-radius: 14px; padding: 8px 14px; text-align: left; width: 100%; font-size: 14px;
 }
-.patient-pathways svg, .patient-checks svg, .patient-caredue svg, .patient-resistant svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
-.patient-pathways b, .patient-checks b, .patient-caredue b, .patient-resistant b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.patient-pathways svg, .patient-checks svg, .patient-caredue svg, .patient-resistant svg, .patient-site svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-pathways b, .patient-checks b, .patient-caredue b, .patient-resistant b, .patient-site b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
 .pathway h3 { margin: 0; font-size: 17px; }
 .pathway-steps, .pathway-deviations { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .pathway-steps li, .pathway-deviations li { background: var(--tint); border: 2px solid transparent; border-radius: 10px; padding: 6px 10px; }
@@ -799,3 +799,15 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .tile.amc-waiting { border-left: 6px solid var(--warn); }
 .tile.amc-ended { border-left: 6px solid var(--ink-soft); }
 .tile.amc-alert { border-left: 6px solid var(--danger); }
+.site h3 { margin: 0; font-size: 17px; }
+.site-where { font-size: 18px; font-weight: 700; letter-spacing: .2px; }
+.tile.site-card-active { border-left: 6px solid var(--ok); }
+.tile.site-card-waiting { border-left: 6px solid var(--warn); }
+.tile.site-card-ended { border-left: 6px solid var(--ink-soft); }
+.tile.site-card-alert { border-left: 6px solid var(--danger); }
+.site-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.site-check { padding-left: 22px; position: relative; }
+.site-check::before { position: absolute; left: 0; top: 0; font-weight: 700; }
+.site-check.site-ok::before { content: '✓'; color: var(--ok); }
+.site-check.site-bad::before { content: '✕'; color: var(--danger); }
+.site-check.site-todo::before { content: '○'; color: var(--ink-soft); }

@@ -303,6 +303,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-SITE-001',
+    question: 'Which New Zealand requirements apply to verifying the site and side of a procedure outside the operating theatre (ward and emergency procedures, rest home procedures): which procedures need a site mark and a team time-out, which documents count as a source, and how a wrong-site procedure must be reported.',
+    blocks: 'Treating SHIFT\'s site check as the formal surgical safety checklist. SHIFT records the planned site and side, each check, any mismatch and how it was resolved, and links the done procedure.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

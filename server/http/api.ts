@@ -51,6 +51,7 @@ import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
+import * as siteverify from '../domain/siteverify.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -235,6 +236,15 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/sitechecks', (req) => siteverify.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/sitechecks', (req) => siteverify.plan(store, work(req), req.params.id, {
+    procedure: str(req.body.procedure), plannedFor: str(req.body.plannedFor), site: str(req.body.site), side: str(req.body.side), detail: str(req.body.detail),
+  }));
+  r.on('POST', '/api/work/sitechecks/:id/:action', (req) => siteverify.act(store, work(req), req.params.id, req.params.action, {
+    kind: str(req.body.kind), source: str(req.body.source), outcome: str(req.body.outcome), stated: str(req.body.stated), note: str(req.body.note),
+    keep: str(req.body.keep), site: str(req.body.site), side: str(req.body.side), detail: str(req.body.detail), when: str(req.body.when),
+    ref: str(req.body.ref), matched: str(req.body.matched),
+  }));
   r.on('GET', '/api/work/antimicrobials', (req) => antimicrobials.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/antimicrobials', (req) => antimicrobials.start(store, work(req), req.params.id, {
     infectionId: str(req.body.infectionId), indication: str(req.body.indication), agent: str(req.body.agent), route: str(req.body.route), dose: str(req.body.dose),
