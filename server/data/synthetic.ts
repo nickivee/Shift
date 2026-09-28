@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 49;
+const SET = 50;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -376,6 +376,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 47) set47(store);
     if (at < 48) set48(store);
     if (at < 49) set49(store);
+    if (at < 50) set50(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3417,4 +3418,55 @@ function set49(store: Store): void {
     state: 'COMPLETED', ended: [33, 'Last dose given.'], outcome: ['CURED', 'Infection cured.'] });
   course({ nhi: 'ZZZ0083', svc: 'svc-arc', u: 'nicki', site: 'NONE', indication: 'Cellulitis of the left shin (GP diagnosis)', agent: 'Cefalexin', route: 'ORAL', dose: '500 mg four times a day',
     order: 'GP prescription', intent: 'EMPIRICAL', startDays: 5, days: 5, review: -3, note: 'Dr Nair (GP) at her visit.' });
+}
+
+// Set 50: procedure site and side checks. Peggy's left knee aspiration is part-checked; Wiremu's
+// pleural tap is stopped because the imaging report says left, not right; Sione's toe debridement is
+// verified and ready. In Residential Care, Rua's ear irrigation is part-checked and Frank's skin
+// lesion removal was done last week on the verified site.
+function set50(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  type K = [kind: string, outcome: string | null, mins: number, extra?: { source?: string; stated?: string; note?: string }];
+  interface V { nhi: string; svc: string; u: string; procedure: string; inMins: number; plannedMins: number; site: string; side: string; detail?: string; checks: K[];
+    state?: string; verifiedMins?: number; done?: [mins: number, ref: string] }
+  const plan = (x: V) => {
+    const pid = person(x.nhi);
+    const by = who(x.u);
+    if (!pid || !by) return;
+    const id = newId();
+    const state = x.state ?? 'PLANNED';
+    const where = `${x.side !== 'NOT_APPLICABLE' ? `${({ LEFT: 'Left', RIGHT: 'Right', BILATERAL: 'Both sides', MIDLINE: 'Midline' } as Record<string, string>)[x.side]} ` : ''}${x.site.toLowerCase()}${x.detail ? ` (${x.detail})` : ''}`;
+    store.insert('site_verification', {
+      id, person_id: pid, service_id: x.svc, procedure: x.procedure, planned_for: ago(-x.inMins), site: x.site, side: x.side, detail: x.detail ?? null, state,
+      planned_by: by, planned_at: ago(x.plannedMins), verified_by: x.verifiedMins !== undefined ? by : null, verified_at: x.verifiedMins !== undefined ? ago(x.verifiedMins) : null,
+      done_by: x.done ? by : null, done_at: x.done ? ago(x.done[0]) : null, done_ref: x.done?.[1] ?? null, done_mismatch: 0, done_note: null,
+    });
+    const check = (kind: string, outcome: string | null, mins: number, e: K[3] = {}) => store.insert('site_check', {
+      id: newId(), verification_id: id, kind, source: e.source ?? null, outcome, stated: e.stated ?? null, note: e.note ?? null, superseded: 0, by_id: by, at: ago(mins),
+    });
+    const move = (from: string | null, to: string, mins: number) =>
+      store.insert('state_transition', { id: newId(), object_type: 'sitecheck', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+    check('PLANNED', null, x.plannedMins, { note: `${x.procedure}: ${where}.` });
+    move(null, 'PLANNED', x.plannedMins);
+    for (const [kind, outcome, mins, e] of x.checks) {
+      check(kind, outcome, mins, e);
+      if (outcome === 'MISMATCH') move('PLANNED', 'DISCREPANCY', mins);
+    }
+    if (x.verifiedMins !== undefined) { check('VERIFIED', null, x.verifiedMins, { note: `${where}.` }); move('PLANNED', 'VERIFIED', x.verifiedMins); }
+    if (x.done) { check('DONE', 'MATCH', x.done[0], { note: `${x.done[1]}. Done on the verified site.` }); move('VERIFIED', 'DONE', x.done[0]); }
+  };
+  plan({ nhi: 'ZZZ0032', svc: 'svc-genmed', u: 'hannah', procedure: 'Knee aspiration', inMins: 150, plannedMins: 180, site: 'Knee', side: 'LEFT', detail: 'suprapatellar approach',
+    checks: [['SOURCE', 'MATCH', 170, { source: 'NOTES', note: 'Ward round note: hot swollen left knee.' }], ['PATIENT', 'MATCH', 60, { note: 'Peggy pointed to her left knee.' }]] });
+  plan({ nhi: 'ZZZ0016', svc: 'svc-genmed', u: 'hannah', procedure: 'Pleural tap', inMins: 90, plannedMins: 240, site: 'Chest', side: 'RIGHT', detail: 'posterior, below the scapula',
+    state: 'DISCREPANCY',
+    checks: [['SOURCE', 'MATCH', 230, { source: 'NOTES' }], ['SOURCE', 'MISMATCH', 40, { source: 'IMAGING', stated: 'Left pleural effusion', note: 'Chest X-ray report from this morning.' }]] });
+  plan({ nhi: 'ZZZ0024', svc: 'svc-genmed', u: 'hannah', procedure: 'Debridement of toe ulcer', inMins: 60, plannedMins: 300, site: 'Big toe', side: 'RIGHT', state: 'VERIFIED', verifiedMins: 20,
+    checks: [['SOURCE', 'MATCH', 290, { source: 'CONSENT' }], ['PATIENT', 'MATCH', 45], ['MARK', 'MATCH', 40, { note: 'Arrow marked on the right foot.' }], ['TEAM', 'MATCH', 20, { note: 'Time-out with Nicki.' }]] });
+  plan({ nhi: 'ZZZ0059', svc: 'svc-arc', u: 'nicki', procedure: 'Ear irrigation', inMins: 240, plannedMins: 600, site: 'Ear', side: 'LEFT',
+    checks: [['SOURCE', 'MATCH', 590, { source: 'REFERRAL', note: 'GP request: wax in the left ear.' }]] });
+  plan({ nhi: 'ZZZ0075', svc: 'svc-arc', u: 'nicki', procedure: 'Skin lesion removal', inMins: -6 * 1440, plannedMins: 8 * 1440, site: 'Forearm', side: 'RIGHT', detail: 'back of the forearm',
+    state: 'DONE', verifiedMins: 6 * 1440 + 30, done: [6 * 1440, 'GP procedure note'],
+    checks: [['SOURCE', 'MATCH', 8 * 1440 - 60, { source: 'REFERRAL' }], ['PATIENT', 'MATCH', 6 * 1440 + 60], ['MARK', 'MATCH', 6 * 1440 + 50], ['TEAM', 'MATCH', 6 * 1440 + 30]] });
 }

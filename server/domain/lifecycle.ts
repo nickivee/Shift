@@ -336,6 +336,15 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['ACTIVE', 'CHANGED', 'COMPLETED', 'STOPPED', 'ENTERED_IN_ERROR'] },
   },
+  sitecheck: {
+    table: 'site_verification',
+    initial: 'PLANNED',
+    next: {
+      PLANNED: ['DISCREPANCY', 'VERIFIED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      DISCREPANCY: ['PLANNED', 'CANCELLED', 'ENTERED_IN_ERROR'],
+      VERIFIED: ['DONE', 'DISCREPANCY', 'CANCELLED', 'ENTERED_IN_ERROR'],
+    },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

@@ -103,6 +103,7 @@ const PATHS = {
   followups: 'M5 12h14M13 6l6 6-6 6M5 5v14',
   screening: 'M3 5h18l-7 8v6l-4 2v-8L3 5Z',
   antimicrobials: 'M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7ZM7 10l7 7',
+  sitechecks: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11ZM9.5 10l2 2 3.5-3.5',
   infections: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3',
   surveillance: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
   recalls: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 8v4l2 2',
