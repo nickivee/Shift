@@ -63,6 +63,7 @@ import { declinedView } from './views/declined.js';
 import { prioritiesView } from './views/priorities.js';
 import { arrivalsView, duplicatesView } from './views/identity.js';
 import { breakGlassView } from './views/breakglass.js';
+import { delegationView } from './views/delegation.js';
 import { personalView, personalFunctionView } from './views/personal.js';
 
 // Application state shared by views. The server is the source of truth for authority;
@@ -164,6 +165,7 @@ const routes = [
   [/^\/work\/arrivals$/, () => arrivalsView(), { work: true }],
   [/^\/work\/duplicates$/, () => duplicatesView(), { work: true }],
   [/^\/work\/breakglass$/, () => breakGlassView(), { work: true }],
+  [/^\/work\/delegation$/, () => delegationView(), { work: true }],
   [/^\/work\/deterioration$/, () => deteriorationView(), { work: true }],
   [/^\/work\/acuity$/, () => acuityView(), { work: true }],
   [/^\/work\/allocation$/, () => allocationView(), { work: true }],

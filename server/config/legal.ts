@@ -351,6 +351,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-DELEG-001',
+    question: 'The New Zealand rules for delegating care: Nursing Council guidance on direction and delegation to enrolled nurses and health care assistants, Medical Council guidance on delegating to nurses and others, which activities may be delegated in each setting, and what supervision each needs.',
+    blocks: 'Treating SHIFT\'s list of delegable activities, who may take them on and which need checking as a national standard. SHIFT lets only the listed roles delegate and receive each activity, records the delegator\'s check of competence, needs the delegate to accept, and keeps the delegator responsible for the person throughout.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

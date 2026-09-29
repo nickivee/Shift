@@ -59,6 +59,7 @@ import * as priorities from '../domain/priorities.ts';
 import * as identitymatch from '../domain/identitymatch.ts';
 import * as duplicates from '../domain/duplicates.ts';
 import * as breakglass from '../domain/breakglass.ts';
+import * as delegation from '../domain/delegation.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -251,6 +252,13 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/delegation', (req) => delegation.list(store, work(req)));
+  r.on('GET', '/api/work/delegation/options', (req) => delegation.options(store, work(req), req.query.get('activity') ?? undefined));
+  r.on('POST', '/api/work/delegation', (req) => delegation.give(store, work(req), {
+    personId: str(req.body.personId), activity: str(req.body.activity), delegateId: str(req.body.delegateId), instructions: str(req.body.instructions),
+    reportIf: str(req.body.reportIf), hours: Number(req.body.hours), competent: req.body.competent === true,
+  }));
+  r.on('POST', '/api/work/delegation/:id/:action', (req) => delegation.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), outcome: str(req.body.outcome) }));
   r.on('GET', '/api/work/breakglass', (req) => breakglass.list(store, work(req)));
   r.on('GET', '/api/work/breakglass/options', (req) => breakglass.options(store, work(req)));
   r.on('POST', '/api/work/breakglass/:id/:action', (req) => breakglass.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), outcome: str(req.body.outcome) }));
