@@ -3141,4 +3141,36 @@ CREATE TABLE duplicate_log (
 CREATE INDEX duplicate_log_c ON duplicate_log(case_id, at);
 `,
   },
+  {
+    version: 57,
+    name: 'break-glass access',
+    sql: `
+-- Break-glass / exceptional access: no ordinary authority → clinical need → pathway → reason →
+-- agreement or approval → time-limited access → activity audit → review.
+ALTER TABLE exceptional_access ADD COLUMN kind TEXT NOT NULL DEFAULT 'EMERGENCY';   -- EMERGENCY | PRESENT | APPROVAL
+ALTER TABLE exceptional_access ADD COLUMN consent TEXT;                             -- AGREED | CANNOT (PRESENT only)
+ALTER TABLE exceptional_access ADD COLUMN service_id TEXT REFERENCES service(id);
+ALTER TABLE exceptional_access ADD COLUMN state TEXT NOT NULL DEFAULT 'ACTIVE';     -- REQUESTED | ACTIVE | DECLINED | WITHDRAWN | ENDED | REVIEWED
+ALTER TABLE exceptional_access ADD COLUMN approver_id TEXT REFERENCES workforce_person(id);
+ALTER TABLE exceptional_access ADD COLUMN decided_at TEXT;
+ALTER TABLE exceptional_access ADD COLUMN decided_note TEXT;
+ALTER TABLE exceptional_access ADD COLUMN ended_at TEXT;
+ALTER TABLE exceptional_access ADD COLUMN ended_by TEXT REFERENCES workforce_person(id);
+ALTER TABLE exceptional_access ADD COLUMN ended_note TEXT;
+ALTER TABLE exceptional_access ADD COLUMN review_by TEXT REFERENCES workforce_person(id);
+ALTER TABLE exceptional_access ADD COLUMN review_note TEXT;
+UPDATE exceptional_access SET service_id = (SELECT service_id FROM work_context WHERE work_context.id = exceptional_access.work_context_id);
+UPDATE exceptional_access SET state = 'ENDED', ended_at = expires_at WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now');
+CREATE INDEX exceptional_access_state ON exceptional_access(service_id, state);
+CREATE TABLE exceptional_access_log (
+  id TEXT PRIMARY KEY,
+  access_id TEXT NOT NULL REFERENCES exceptional_access(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+CREATE INDEX exceptional_access_log_a ON exceptional_access_log(access_id, at);
+`,
+  },
 ];

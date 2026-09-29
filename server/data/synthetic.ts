@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 56;
+const SET = 57;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -383,6 +383,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 54) set54(store);
     if (at < 55) set55(store);
     if (at < 56) set56(store);
+    if (at < 57) set57(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3783,4 +3784,41 @@ function set56(store: Store): void {
   });
   store.insert('state_transition', { id: newId(), object_type: 'duplicate_case', object_id: id, from_state: null, to_state: 'POSSIBLE', actor_id: lena, work_context_id: null, at: ago(day), reason: 'Spotted by SHIFT', transaction_id: null });
   store.insert('duplicate_log', { id: newId(), case_id: id, kind: 'DETECTED', body: 'Two records agree on Date of birth, Family name, Given name, Gender.', by_id: null, at: ago(day) });
+}
+
+// Set 57: break-glass access. In the last hour Mere, in ED, opened Rua Hēnare's residential care
+// record in an emergency. The hour has passed, so the use is waiting for Dr Ravi Singh to review,
+// with what she looked at listed from the audit trail.
+function set57(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const mere = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'mere'")?.id;
+  const rua = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0059'")?.id;
+  const pos = store.get<{ id: string }>(
+    "SELECT p.id FROM position p JOIN employment e ON e.id = p.employment_id WHERE e.workforce_person_id = ? AND p.service_id = 'svc-ed'", mere ?? '',
+  )?.id;
+  if (!mere || !rua || !pos) return;
+  const session = newId();
+  const ctx = newId();
+  store.insert('session', { id: session, token_hash: `seed-${newId()}`, workforce_person_id: mere, created_at: ago(65), last_seen_at: ago(1), ended_at: ago(1), end_reason: 'SIGNED_OUT' });
+  store.insert('work_context', { id: ctx, session_id: session, workforce_person_id: mere, position_id: pos, service_id: 'svc-ed', established_at: ago(65), ended_at: ago(1) });
+  const id = newId();
+  const reason = 'Brought in by ambulance unresponsive from the rest home; need her allergies, medicines and goals of care.';
+  // What she looked at is written to the audit trail first, so it falls inside the hour of access.
+  const base = { actorId: mere, sessionId: session, workContextId: ctx, space: 'WORK' as const, subjectPersonId: rua, purpose: 'DIRECT_CARE', decision: 'ALLOW' };
+  audit(store, { ...base, operation: 'BREAK_GLASS_OPEN', objectType: 'exceptional_access', objectId: id, outcome: 'COMMITTED', reason: reason.slice(0, 200), ruleRefs: ['ORG-SYN-001 v1', 'LAW-NZ-002', 'RR-BREAKGLASS-001'], engines: [26] });
+  audit(store, { ...base, operation: 'VIEW_RECORD', objectType: 'person', outcome: 'VIEWED' });
+  for (const code of ['allergies', 'meds', 'goals', 'careplan']) audit(store, { ...base, operation: 'RETRIEVE', objectType: `?${code}`, outcome: 'VIEWED' });
+  const end = new Date(Date.now() + 1000).toISOString();
+  const start = ago(59);
+  store.insert('exceptional_access', {
+    id, work_context_id: ctx, workforce_person_id: mere, person_id: rua, reason, granted_at: start, expires_at: end, kind: 'EMERGENCY',
+    service_id: 'svc-ed', state: 'ENDED', decided_at: start, ended_at: end,
+  });
+  const step = (from: string | null, to: string, at: string, why: string) => store.insert('state_transition', {
+    id: newId(), object_type: 'exceptional_access', object_id: id, from_state: from, to_state: to, actor_id: mere, work_context_id: from ? null : ctx, at, reason: why, transaction_id: null,
+  });
+  step(null, 'ACTIVE', start, reason);
+  step('ACTIVE', 'ENDED', end, 'Time limit reached');
+  store.insert('exceptional_access_log', { id: newId(), access_id: id, kind: 'OPENED', body: `Emergency: life or serious harm at risk now. ${reason} Open for 60 minutes.`, by_id: mere, at: start });
+  store.insert('exceptional_access_log', { id: newId(), access_id: id, kind: 'EXPIRED', body: 'Access closed at the end of its time limit.', by_id: mere, at: end });
 }

@@ -483,8 +483,8 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
   );
   if (dd) return 'AFTER_DEATH';
   const ex = store.get(
-    'SELECT 1 FROM exceptional_access WHERE work_context_id = ? AND person_id = ? AND expires_at > ?',
-    ctx.id, personId, now(),
+    "SELECT 1 FROM exceptional_access WHERE workforce_person_id = ? AND service_id = ? AND person_id = ? AND state = 'ACTIVE' AND expires_at > ?",
+    ctx.workerId, ctx.serviceId, personId, now(),
   );
   return ex ? 'EXCEPTIONAL' : null;
 }

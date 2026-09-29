@@ -386,6 +386,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'POSSIBLE',
     next: { POSSIBLE: ['NOT_DUPLICATE', 'RECONCILED'], NOT_DUPLICATE: ['POSSIBLE'], RECONCILED: ['POSSIBLE'] },
   },
+  exceptional_access: {
+    table: 'exceptional_access',
+    initial: 'REQUESTED',
+    next: { REQUESTED: ['ACTIVE', 'DECLINED', 'WITHDRAWN'], ACTIVE: ['ENDED'], ENDED: ['REVIEWED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

@@ -345,6 +345,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-BREAKGLASS-001',
+    question: 'The New Zealand rules for break-glass access to health information: when a clinician outside the care team may open a record, what must be recorded, how long access may last, who reviews each use and what happens when a use was not appropriate.',
+    blocks: 'Treating SHIFT\'s pathways (emergency, the person present, or a senior\'s approval), time limits and review outcomes as a national standard. SHIFT records the reason and agreement, closes access on its own, lists everything opened under it, and a senior clinician in the service reviews every use.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

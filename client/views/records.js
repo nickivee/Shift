@@ -1,6 +1,7 @@
 import { h, icon, mount } from '../lib/dom.js';
 import { get, post } from '../lib/api.js';
-import { showError, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
+import { showError, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
+import { breakGlassDialog } from './breakglass.js';
 import { state, go } from '../app.js';
 import { workHeader } from './entry.js';
 
@@ -78,25 +79,14 @@ export function searchView() {
           h('div', { class: 'grow' },
             h('h3', {}, r.name),
             h('p', {}, [r.nhi ? `NHI ${r.nhi}` : null, r.dateOfBirth ? `DOB ${fmtDate(r.dateOfBirth)}` : null].filter(Boolean).join(' · ')),
-            r.relationship ? h('span', { class: 'tag ok' }, r.relationship === 'EXCEPTIONAL' ? 'Exceptional access active' : r.relationship === 'AFTER_DEATH' ? `Died in ${state.me.context.service}` : `In ${state.me.context.service}`) : h('span', { class: 'tag warn' }, 'No care relationship in your service'),
+            r.relationship ? h('span', { class: 'tag ok' }, r.relationship === 'EXCEPTIONAL' ? 'Break-glass access open' : r.relationship === 'AFTER_DEATH' ? `Died in ${state.me.context.service}` : `In ${state.me.context.service}`) : r.pending ? h('span', { class: 'tag warn' }, `Waiting for ${r.pending.approver} to approve`) : h('span', { class: 'tag warn' }, 'No care relationship in your service'),
           ),
           r.relationship
             ? h('button', { class: 'btn', onclick: () => go(`/work/patient/${r.id}`) }, 'Open')
-            : h('button', { class: 'btn danger', onclick: () => exceptional(r) }, 'Exceptional access'),
+            : r.pending ? h('button', { class: 'btn', onclick: () => go('/work/breakglass') }, 'See request')
+              : h('button', { class: 'btn danger', onclick: () => breakGlassDialog(r, run).catch(showError) }, 'Break-glass access'),
         ),
       ) : h('div', { class: 'card empty' }, 'No matches.'));
-    } catch (err) { showError(err); }
-  };
-  const exceptional = async (r) => {
-    const reason = await ask({
-      title: 'Exceptional access',
-      message: `${r.name} has no care relationship with ${state.me.context.service}. Access is recorded with your reason, limited to one hour, and reviewed.`,
-      label: 'Why do you need this record?', multiline: true, minLength: 10, confirm: 'Record reason and open',
-    });
-    if (!reason) return;
-    try {
-      await post(`/api/work/patients/${r.id}/exceptional-access`, { reason });
-      go(`/work/patient/${r.id}`);
     } catch (err) { showError(err); }
   };
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); });
