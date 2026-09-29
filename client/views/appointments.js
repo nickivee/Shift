@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, pageTitle, fmtDateTime, titleCase } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Appointment: requested (the waitlist) → offered → booked → confirmed → arrived → started →
 // completed, or cancelled / did not attend / unable to complete, each with a follow-up
@@ -23,25 +24,6 @@ function steps(a) {
     .filter((s) => s !== 'CONFIRMED' || a.state === 'CONFIRMED' || a.history.some((x) => x.to_state === 'CONFIRMED') || ['REQUESTED', 'OFFERED', 'BOOKED'].includes(a.state));
   const at = list.indexOf(a.state);
   return h('ol', { class: 'steps' }, list.map((s, i) => h('li', { class: i < at || a.state === 'COMPLETED' ? 'done' : i === at ? 'now' : '' }, LABEL[s])));
-}
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
 }
 
 const select = (options, value) => {

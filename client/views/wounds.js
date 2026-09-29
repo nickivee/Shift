@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime, titleCase } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Wounds: identified → assessed → treatment plan → serial reassessment → healed or closed.
 // Area is shown for reference; whether a wound is improving is the assessor's judgement.
@@ -11,25 +12,6 @@ const TONE = { IDENTIFIED: 'danger', ASSESSED: 'warn', PLANNED: '', HEALED: 'ok'
 const TREND = { FIRST: ['First assessment', ''], IMPROVING: ['Improving', 'ok'], STATIC: ['Static', 'warn'], DETERIORATING: ['Deteriorating', 'danger'] };
 const area = (a) => (a.lengthMm && a.widthMm ? `${((a.lengthMm * a.widthMm) / 100).toFixed(1)} cm²` : '—');
 const size = (a) => `${a.lengthMm} × ${a.widthMm}${a.depthMm !== null ? ` × ${a.depthMm}` : ''} mm`;
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const select = (label, list, blank = true) => {
   const el = h('select', { 'aria-label': label }, blank ? h('option', { value: '' }, 'Choose') : null, list.map((o) => h('option', { value: o }, titleCase(o).replace(/^./, (c) => c.toUpperCase()))));

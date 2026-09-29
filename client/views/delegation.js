@@ -3,7 +3,7 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
-import { dialog, field, select } from './identity.js';
+import { dialog, field, select } from '../lib/forms.js';
 
 // Delegation: an activity for one person → a named, competent colleague → what exactly and what to
 // report back → how long → they accept → they do it → the delegator checks where needed → done.

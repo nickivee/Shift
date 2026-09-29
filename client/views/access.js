@@ -3,30 +3,12 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go, state } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Interpreters and communication needs: need identified → requirement recorded → interpreter or
 // support arranged → booked → provided → outcome → the need reviewed.
 const RIGHT = 'Everyone has the right to effective communication, and to a competent interpreter where necessary and reasonably practicable (Code of Rights, Right 5).';
 const BOOKING_TONE = { REQUESTED: 'danger', BOOKED: 'warn', PROVIDED: 'ok', NOT_PROVIDED: 'danger', CANCELLED: 'muted' };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const select = (options, value) => {
   const s = h('select', {}, Object.entries(options).map(([k, v]) => h('option', { value: k }, v)));

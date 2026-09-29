@@ -3,29 +3,13 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go, state } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog } from '../lib/forms.js';
+
+const dialog = (title, body, submitLabel, onSubmit) => formDialog(title, body, submitLabel, onSubmit, { wide: true });
 
 // Questionnaires: asked for → the version used → done with the person → score and band →
 // what it means → what was done → repeated when due.
 const STATE_TONE = { REQUESTED: 'warn', COMPLETED: 'danger', INTERPRETED: 'ok', DECLINED: 'muted', CANCELLED: 'muted' };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', { class: 'wide' },
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const select = (options, value) => {
   const s = h('select', {}, Object.entries(options).map(([k, v]) => h('option', { value: k }, v)));

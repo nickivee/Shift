@@ -3,7 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDateTime, stateTag } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
-import { dialog, field, select } from './identity.js';
+import { dialog, field, select } from '../lib/forms.js';
 
 // Tasks: responsibility is taken on explicitly (Accept), never by routing or by viewing.
 // Work queue: missed work goes one step up the service's ladder, and the next person

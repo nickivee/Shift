@@ -3,32 +3,13 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog, field, select } from '../lib/forms.js';
 
 // Checklists: required → each item checked yes, no or not applicable → a "no" is an exception, fixed or escalated → completed.
 const TONE = { REQUIRED: 'warn', IN_PROGRESS: 'ok', COMPLETED: 'muted', CANCELLED: 'muted', ENTERED_IN_ERROR: 'muted' };
 const ITEM_TONE = { DUE: 'muted', DONE: 'ok', NOT_APPLICABLE: 'muted', EXCEPTION: 'danger', RESOLVED: 'ok', ESCALATED: 'warn' };
 const URGENCY = { IMMEDIATE: 'Immediate', URGENT: 'Urgent', ROUTINE: 'Routine' };
 
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel')),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
-
-const field = (label, el) => h('label', { class: 'field' }, label, el);
-const select = (entries, label, blank = 'Choose…') => h('select', { 'aria-label': label }, blank === null ? null : h('option', { value: '' }, blank), entries.map(([k, v]) => h('option', { value: k }, v)));
 const send = (x, action, body) => post(`/api/work/checklists/${x.id}/${action}`, body);
 
 function requireDialog(personId, o, reload) {

@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog, field, select } from '../lib/forms.js';
 
 // Site checks: procedure planned → intended site and side → checked against a document → with the
 // person → site marked → team time-out → any mismatch stops it until resolved → verified → done.
@@ -10,26 +11,6 @@ const TONE = { PLANNED: 'warn', DISCREPANCY: 'danger', VERIFIED: 'ok', DONE: 'mu
 const KINDS = ['SOURCE', 'PATIENT', 'MARK', 'TEAM'];
 const SHORT = { MATCH: 'Matches', MISMATCH: 'Does not match', UNABLE: 'Person cannot confirm', NOT_REQUIRED: 'Not required' };
 
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel')),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
-
-const field = (label, el) => h('label', { class: 'field' }, label, el);
-const select = (entries, label, blank = 'Choose…') => h('select', { 'aria-label': label }, blank === null ? null : h('option', { value: '' }, blank), entries.map(([k, v]) => h('option', { value: k }, v)));
 const pad = (n) => String(n).padStart(2, '0');
 const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const send = (x, action, body) => post(`/api/work/sitechecks/${x.id}/${action}`, body);

@@ -3,30 +3,10 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog, field, select } from '../lib/forms.js';
 
 // Symptoms: recorded with how bad → assessed → something done → looked at again → gone, controlled or a problem.
 const TONE = { RECORDED: 'warn', ASSESSED: 'muted', INTERVENTION: 'warn', REASSESSED: 'muted', CLOSED: 'muted', ENTERED_IN_ERROR: 'muted' };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel')),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
-
-const field = (label, el) => h('label', { class: 'field' }, label, el);
-const select = (entries, label, blank = 'Choose…') => h('select', { 'aria-label': label }, blank === null ? null : h('option', { value: '' }, blank), entries.map(([k, v]) => h('option', { value: k }, v)));
 
 // A 0 to 10 scale as eleven buttons, so it works by touch and says what each end means.
 function scale(name) {

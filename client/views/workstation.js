@@ -55,6 +55,7 @@ import { identityPanel } from './identity.js';
 import { endBreakGlass } from './breakglass.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
+import { groupViews } from '../lib/groups.js';
 
 // Live Workstation: the primary surface after opening a record. It stays uncluttered;
 // information appears only when invoked, by touch (left column) or by command:
@@ -94,7 +95,10 @@ export async function workstationView(personId, initialView) {
   const destLabel = (v) => (v.code === 'overview' ? `${subject} Overview` : v.label.replaceAll('/', '/\u200b'));
   const drawDestinations = () => {
     mount(destCol,
-      config.views.filter((v) => v.shown || ws.view === v.code).map((v) => h('button', { class: `dest${ws.view === v.code ? ' active' : ''}${v.shown ? '' : ' extra'}`, onclick: () => openView(v.code) }, h('span', {}, destLabel(v)))),
+      groupViews(config.views.filter((v) => v.shown || ws.view === v.code), (v) => v.code).map((g) => [
+        h('div', { class: 'dest-group' }, g.title),
+        g.items.map((v) => h('button', { class: `dest${ws.view === v.code ? ' active' : ''}${v.shown ? '' : ' extra'}`, onclick: () => openView(v.code) }, h('span', {}, destLabel(v)))),
+      ]),
       h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.embeds = []; ws.form = null; ws.selected = null; draw(); input.focus(); } }, h('span', {}, 'Live Workstation')),
       config.views.some((v) => !v.shown) ? h('button', { class: 'dest dest-add', onclick: screensDialog }, h('span', {}, '+ Add a screen')) : null,
     );

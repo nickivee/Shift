@@ -3,30 +3,14 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { dialog, field, select } from '../lib/forms.js';
 
 // Identity: an arrival's details and where they came from → possible matches with the evidence →
 // matched, a new record, or a temporary identity → identified later → corrected if wrong.
 const TONE = { CONFIRMED: 'ok', NEW: 'ok', RESOLVED: 'ok', UNRESOLVED: 'danger' };
 
-export const field = (label, el) => h('label', { class: 'field' }, label, el);
-export const select = (entries, label, blank = 'Choose…') => h('select', { 'aria-label': label }, blank === null ? null : h('option', { value: '' }, blank), entries.map(([k, v]) => h('option', { value: k }, v)));
 const input = (label, placeholder, type = 'text') => h('input', { type, 'aria-label': label, placeholder });
 
-// A dialog with several ways out: each action button runs its own handler.
-export function dialog(title, body) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const close = () => { dlg.close(); dlg.remove(); };
-  const run = (fn) => async () => {
-    error.hidden = true;
-    try { await fn(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; error.scrollIntoView({ block: 'nearest' }); }
-  };
-  const dlg = h('dialog', { class: 'idm-dialog wide' }, h('div', { class: 'stack' }, h('h2', {}, title), body(run, close), error,
-    h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: close }, 'Cancel'))));
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-  return close;
-}
 
 // The details fields shared by registering and identifying.
 function detailsForm(o, sourceLabel) {

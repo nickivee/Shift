@@ -3,6 +3,7 @@ import { get, put, del } from '../lib/api.js';
 import { showError, toast } from '../lib/ui.js';
 import { state, go } from '../app.js';
 import { workHeader } from './entry.js';
+import { groupCards } from '../lib/groups.js';
 
 const DESCRIPTIONS = {
   workstation: (s) => `Select a ${s} and open the active documentation workspace.`,
@@ -161,20 +162,22 @@ export async function homeView() {
 
   const draw = () => {
     customising = false;
-    const cards = home.cards.filter((c) => !c.hidden).map((c) =>
+    const card = (c) =>
       h('button', { class: 'card home-card', onclick: () => go(TARGET[c.id]) },
         counts[c.id] ? h('span', { class: 'count paua' }, String(counts[c.id])) : null,
         h('div', { class: 'icon-tile' }, icon(c.id)),
         h('h2', {}, c.label),
         h('p', {}, DESCRIPTIONS[c.id]?.(subject) ?? ''),
-      ),
-    );
+      );
+    const groups = groupCards(home.cards.filter((c) => !c.hidden), (c) => c.id);
     const tabs = home.tabs.filter((t) => !t.hidden).map((t) => h('button', { class: 'pill', onclick: () => openTab(t.id) }, t.label));
     mount(root,
       workHeader(),
       tabs.length ? h('h2', { class: 'section-title paua' }, 'Workstation tabs') : null,
       tabs.length ? h('div', { class: 'strip', role: 'list' }, tabs) : null,
-      h('div', { class: 'grid-cards' }, cards),
+      groups.map((g) => h('section', { class: 'home-group' },
+        groups.length > 1 ? h('h2', { class: 'section-title paua' }, g.title) : null,
+        h('div', { class: 'grid-cards' }, g.items.map(card)))),
       h('div', { class: 'customise-bar' },
         h('button', { class: 'link-btn', onclick: customise }, 'Customise Home'),
         h('span', { class: 'small muted' }, `${state.me.context.roleLabel} · ${state.me.context.matrixRow}`),
@@ -208,7 +211,7 @@ export async function homeView() {
       workHeader(),
       h('div', { class: 'banner' },
         h('strong', {}, 'Customise Home'),
-        'Drag to reorder, or use the arrows. Adding or hiding a card only changes your screen, never your authority.',
+        'Drag to reorder, or use the arrows. Cards stay grouped by kind of work, in your order within each group. Adding or hiding a card only changes your screen, never your authority.',
       ),
       h('h3', {}, 'Cards on your Home'), cardList,
       h('details', {}, addSummary, addList),

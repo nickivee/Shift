@@ -3,7 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
-import { dialog, field, select } from './identity.js';
+import { dialog, field, select } from '../lib/forms.js';
 
 // Alert: trigger → generated → visible to its recipient → acknowledged → action → resolved
 // or expired. Alerts generated from the record close themselves when the record changes;
