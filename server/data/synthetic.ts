@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 62;
+const SET = 63;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -389,6 +389,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 59) set59(store);
     if (at < 60) set60(store);
     if (at < 62) set62(store);
+    if (at < 63) set63(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3958,4 +3959,33 @@ function set62(store: Store): void {
   }
   // Emergency Department, last week: laboratory results down for an hour, closed with a lesson learned.
   add('svc-ed', 'RESULTS', 'Laboratory results not arriving in SHIFT', mere, 6 * 1440, 6 * 1440 - 60, 'CLOSED', 'Phoning results worked; keep a spare results sheet in the resus bay.');
+}
+
+// Data reconciliation: a GP's current medicines and allergies for Wiremu, sent as a structured
+// message and matched, waiting for a nurse or doctor to compare it with his record.
+function set63(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const nicki = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'nicki'")?.id;
+  const wiremu = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0016'")?.id;
+  if (!nicki || !wiremu) return;
+  const content = 'Current medicines\nFurosemide 40 mg mane\nBisoprolol 5 mg daily (increased 2 September)\nCilazapril 2.5 mg daily\nAmlodipine 5 mg daily\n\nAllergies\nCodeine: vomiting (mild)\nAspirin: wheeze (moderate)';
+  const id = newId();
+  store.insert('external_info', {
+    id, service_id: 'svc-genmed', person_id: wiremu, source_org: 'Ōtāhuhu Health Centre', source_author: 'Dr Mereana Hohaia, GP', source_kind: 'MEDICINES', channel: 'ELECTRONIC',
+    written_at: ago(60 * 24 * 2).slice(0, 10), title: 'Current medicines and allergies from GP', content, content_hash: sha256(content),
+    stated_name: 'Wiremu Te Whare', stated_nhi: 'ZZZ0016', stated_dob: '1951-11-02', state: 'MATCHED', received_by: nicki, received_at: ago(180),
+    matched_by: nicki, matched_at: ago(175), match_checks: 'NHI,DOB,NAME',
+  });
+  const step = (from: string | null, to: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'external', object_id: id, from_state: from, to_state: to, actor_id: nicki, work_context_id: null, at, reason, transaction_id: null });
+  step(null, 'RECEIVED', ago(180), 'Ōtāhuhu Health Centre: Current medicines and allergies from GP');
+  step('RECEIVED', 'MATCHED', ago(175), 'Matched on NHI,DOB,NAME');
+  const fact = (kind: string, name: string | null, detail: string | null, severity: string | null) =>
+    store.insert('external_fact', { id: newId(), external_id: id, kind, name, detail, severity, transcribed_by: null, transcribed_at: null });
+  fact('MEDICINE', 'Furosemide', '40 mg Mane', null);
+  fact('MEDICINE', 'Bisoprolol', '5 mg Daily', null);
+  fact('MEDICINE', 'Cilazapril', '2.5 mg Daily', null);
+  fact('MEDICINE', 'Amlodipine', '5 mg Daily', null);
+  fact('ALLERGY', 'Codeine', 'Vomiting', 'Mild');
+  fact('ALLERGY', 'Aspirin', 'Wheeze', 'Moderate');
 }

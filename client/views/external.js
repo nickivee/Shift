@@ -98,6 +98,104 @@ async function doAction(x, action, reload, personId) {
 
 const ACTION = { review: ['Review', true], update: ['Newer version', false], notOurs: ['Not ours', false] };
 
+// Compare with the record: each allergy or medicine they list against what this record holds,
+// and a clinician's decision on every difference before the information is signed off.
+const DIFF_TONE = { SAME: 'ok', NEW: 'warn', DIFFERENT: 'warn', CONFLICT: 'danger', OURS_ONLY: 'muted' };
+const DECIDE_HINT = {
+  ADD: 'It is added to their record, marked as coming from this information.',
+  UPDATE: 'Our record is changed to theirs. What it said before is kept.',
+  KEEP_OURS: 'Nothing in their record changes. Say why, so the sender can be told.',
+  PRESCRIBER: 'A task goes to your service for a prescriber. SHIFT does not change medicines here.',
+  NO_CHANGE: 'Nothing changes. Say why.',
+};
+
+function decideDialog(x, it, options, reload) {
+  const choice = select(Object.fromEntries(it.choices), it.choices[0][0]);
+  const hint = h('p', { class: 'small muted' }, DECIDE_HINT[choice.value]);
+  const certainty = select(options.certainty, 'CONFIRMED');
+  const certaintyField = h('label', { class: 'field' }, 'Has it been confirmed?', certainty);
+  const note = h('textarea', { rows: 2, placeholder: 'e.g. Checked with him: he stopped it in August' });
+  const sync = () => {
+    hint.textContent = DECIDE_HINT[choice.value];
+    certaintyField.hidden = !(choice.value === 'ADD' && it.kind === 'ALLERGY');
+  };
+  choice.addEventListener('change', sync);
+  sync();
+  dialog(`${it.kindLabel}: ${it.differenceLabel.toLowerCase()}`, h('div', { class: 'stack' },
+    h('div', { class: 'rec-compare' },
+      h('div', {}, h('div', { class: 'small muted' }, `${x.sourceOrg} says`), h('b', {}, it.theirs ?? 'Not listed')),
+      h('div', {}, h('div', { class: 'small muted' }, 'Our record says'), h('b', {}, it.ours ?? 'Not recorded'))),
+    h('label', { class: 'field' }, 'What to do', choice), hint, certaintyField,
+    h('label', { class: 'field' }, 'Note', note),
+  ), 'Save decision', async () => {
+    await post(`/api/work/external/${x.id}/reconcile`, { key: it.key, decision: choice.value, note: note.value, certainty: certainty.value });
+    toast('Decided.');
+    reload();
+  });
+}
+
+function factDialog(x, options, reload) {
+  const kind = select(options.kinds, 'MEDICINE');
+  const name = h('input', { type: 'text', placeholder: 'e.g. Donepezil' });
+  const detail = h('input', { type: 'text', placeholder: 'e.g. 5 mg at night' });
+  const severity = h('input', { type: 'text', placeholder: 'e.g. Moderate' });
+  const nameF = h('label', { class: 'field grow' }, 'Medicine', name);
+  const detailF = h('label', { class: 'field grow' }, 'Dose and how often', detail);
+  const sevF = h('label', { class: 'field grow' }, 'How bad', severity);
+  const sync = () => {
+    const k = kind.value;
+    nameF.hidden = detailF.hidden = k === 'NO_KNOWN_ALLERGIES';
+    sevF.hidden = k !== 'ALLERGY';
+    nameF.firstChild.textContent = k === 'MEDICINE' ? 'Medicine' : 'Allergic to';
+    detailF.firstChild.textContent = k === 'MEDICINE' ? 'Dose and how often' : 'Reaction';
+    name.placeholder = k === 'MEDICINE' ? 'e.g. Donepezil' : 'e.g. Penicillin';
+    detail.placeholder = k === 'MEDICINE' ? 'e.g. 5 mg at night' : 'e.g. Rash';
+  };
+  kind.addEventListener('change', sync);
+  sync();
+  dialog('Write down what it lists', h('div', { class: 'stack' },
+    h('p', { class: 'small muted' }, 'Copy one line exactly as it is written, so it can be compared with the record. It is marked as written down by you.'),
+    h('label', { class: 'field' }, 'What it lists', kind),
+    h('div', { class: 'row' }, nameF, detailF, sevF),
+  ), 'Add line', async () => {
+    await post(`/api/work/external/${x.id}/facts`, { kind: kind.value, name: name.value, detail: detail.value, severity: severity.value });
+    toast('Added. Compare it below.');
+    reload();
+  });
+}
+
+async function removeFact(x, it, reload) {
+  try {
+    await post(`/api/work/external/${x.id}/facts/${it.factId}/remove`, {});
+    toast('Taken out.');
+    reload();
+  } catch (err) { showError(err); }
+}
+
+function reconcileSection(x, reload) {
+  const c = x.reconcile;
+  if (!c) return null;
+  const rows = c.items.map((it) => h('li', { class: `rec-item${it.decided ? ' rec-decided' : ''}` },
+    h('div', { class: 'spread' },
+      h('b', {}, `${it.kindLabel}: ${it.theirs ?? it.ours}`),
+      h('span', { class: `tag ${it.decided ? 'ok' : DIFF_TONE[it.difference] ?? ''}` }, it.decided ? it.decisionLabel : it.differenceLabel)),
+    it.difference !== 'SAME' ? h('div', { class: 'small' }, `Theirs: ${it.theirs ?? 'not listed'} · Ours: ${it.ours ?? 'not recorded'}`) : null,
+    it.decided ? h('div', { class: 'small muted' }, `${it.differenceLabel} · ${it.decidedBy} ${fmtDateTime(it.decidedAt)}${it.taskId ? ' · task sent to a prescriber' : ''}${it.note ? ` · ${it.note}` : ''}`) : null,
+    it.transcribedBy && !it.decided ? h('div', { class: 'small muted' }, `Written down from it by ${it.transcribedBy}`) : null,
+    !it.decided && c.canReconcile && (it.choices?.length || it.transcribedBy) ? h('div', { class: 'row' },
+      it.choices?.length ? h('button', { class: 'btn small primary', onclick: () => decideDialog(x, it, c.options, reload) }, 'Decide') : null,
+      it.transcribedBy ? h('button', { class: 'btn small', onclick: () => removeFact(x, it, reload) }, 'Take out') : null) : null,
+  ));
+  return h('div', { class: 'stack rec' },
+    h('div', { class: 'spread' }, h('b', {}, 'Compare with the record'),
+      c.live ? h('span', { class: `tag ${c.open ? 'warn' : 'ok'}` }, c.open ? `${c.open} to decide` : c.items.length ? 'All decided' : 'Nothing listed') : null),
+    c.live && !c.items.length ? h('p', { class: 'small muted' }, 'If it lists allergies or medicines, write them down to compare them with the record.') : null,
+    rows.length ? h('ul', { class: 'stack rec-list' }, rows) : null,
+    c.live && c.open ? h('p', { class: 'small muted' }, 'Every difference needs a decision before this can be reviewed. What is decided here, and by whom, stays with it.') : null,
+    c.live && c.canReconcile ? h('div', {}, h('button', { class: 'btn small', onclick: () => factDialog(x, c.options, reload) }, 'Write down what it lists')) : null,
+  );
+}
+
 function candidateRow(x, c, reload) {
   return h('div', { class: 'candidate spread' },
     h('div', { class: 'small' }, h('b', {}, c.name), ` · NHI ${c.nhi ?? 'none'} · born ${fmtDate(c.dob)}`,
@@ -121,6 +219,7 @@ export function itemCard(x, reload, showPatient) {
     x.reviewSummary ? h('div', { class: 'small' }, h('b', {}, `Reviewed by ${x.reviewedBy}: `), x.reviewSummary) : null,
     x.outcomeNote ? h('div', { class: 'small' }, h('b', {}, 'Changed: '), x.outcomeNote) : null,
     x.notOursReason ? h('div', { class: 'small' }, h('b', {}, `Not ours (${x.notOursBy}): `), x.notOursReason, h('div', { class: 'muted' }, NOT_OURS)) : null,
+    reconcileSection(x, reload),
     h('details', {}, h('summary', { class: 'small' }, 'Read it as received'), h('div', { class: 'summary small' }, x.content)),
     h('div', { class: `small ${x.intact ? 'muted' : 'notice'}` }, x.intact
       ? `Unchanged since received by ${x.receivedBy} ${fmtDateTime(x.receivedAt)} (check ${x.hashShort})`

@@ -3354,4 +3354,46 @@ ALTER TABLE clinical_event ADD COLUMN paper_by TEXT;
 ALTER TABLE clinical_event ADD COLUMN paper_ref TEXT;
 `,
   },
+  {
+    version: 63,
+    name: 'data reconciliation',
+    sql: `
+-- Data reconciliation: incoming data → matching → comparison → conflict/duplicate detection →
+-- authorised reconciliation → canonical linkage/state → provenance retained.
+-- What information from another provider lists, as structured lines: sent that way, or written
+-- down from a letter or fax by the person reviewing it (transcribed_by set).
+CREATE TABLE external_fact (
+  id TEXT PRIMARY KEY,
+  external_id TEXT NOT NULL REFERENCES external_info(id),
+  kind TEXT NOT NULL,                   -- ALLERGY | NO_KNOWN_ALLERGIES | MEDICINE
+  name TEXT,                            -- the substance or medicine, as they wrote it
+  detail TEXT,                          -- the reaction, or the dose and how often
+  severity TEXT,
+  transcribed_by TEXT REFERENCES workforce_person(id),
+  transcribed_at TEXT
+);
+CREATE INDEX external_fact_x ON external_fact(external_id);
+-- One decision per difference, keeping what both sides said at the time.
+CREATE TABLE reconciliation (
+  id TEXT PRIMARY KEY,
+  external_id TEXT NOT NULL REFERENCES external_info(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  item_key TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  difference TEXT NOT NULL,             -- NEW | DIFFERENT | CONFLICT | OURS_ONLY
+  theirs TEXT,
+  ours TEXT,
+  decision TEXT NOT NULL,               -- ADD | UPDATE | KEEP_OURS | PRESCRIBER | NO_CHANGE
+  note TEXT,
+  record_type TEXT,                     -- what in the record it changed
+  record_id TEXT,
+  task_id TEXT REFERENCES task(id),     -- the prescriber's task, for a medicine
+  decided_by TEXT NOT NULL REFERENCES workforce_person(id),
+  decided_at TEXT NOT NULL,
+  UNIQUE (external_id, item_key)
+);
+CREATE INDEX reconciliation_person ON reconciliation(person_id, decided_at);
+ALTER TABLE allergy ADD COLUMN reconciliation_id TEXT REFERENCES reconciliation(id);
+`,
+  },
 ];

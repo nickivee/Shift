@@ -24,6 +24,7 @@ export type Operation =
   | { op: 'KNOWLEDGE' }
   | { op: 'ROSTER_DECIDE'; serviceId: string }
   | { op: 'DOWNTIME'; serviceId: string }
+  | { op: 'RECONCILE'; personId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
   | { op: 'TRANSFER_REQUEST'; personId: string }
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
@@ -378,6 +379,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'RECONCILE':
+      return need(ctx, 'record.reconcile') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-RECONCILE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can reconcile their record with information from other providers`));
     case 'EXTERNAL':
       return need(ctx, 'external.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002'])

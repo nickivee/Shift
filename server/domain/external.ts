@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { newId, now, sha256, HttpError } from '../lib/util.ts';
+import { comparison, openDifferences } from './reconcile.ts';
 
 // External / imported clinical information (Shared Lifecycle Object 254):
 //   external information received → patient matching → source identified → integrity/provenance
@@ -96,6 +97,7 @@ function shape(store: Store, ctx: WorkContext, r: Row, manage: boolean) {
     matchLabel: r.matchChecks ? String(r.matchChecks).split(',').map((k) => CHECKS[k] ?? k).join(', ') : null,
     candidates: r.state === 'RECEIVED' && manage ? candidates(store, ctx, r) : [],
     actions, history: history(store, 'external', String(r.id)),
+    reconcile: comparison(store, ctx, r),
   };
 }
 
@@ -219,6 +221,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
       if (!outcome) throw new HttpError(400, 'OUTCOME_REQUIRED', 'Choose whether you acted on it or are keeping it for reference.');
       const note = text(b.outcomeNote, 500);
       if (outcome === 'INCORPORATED' && note.length < 5) throw new HttpError(400, 'ACTION_REQUIRED', 'Write what you changed because of it, e.g. "Medicines chart updated to the new doses".');
+      const left = openDifferences(store, ctx, r);
+      if (left) throw new HttpError(409, 'NOT_RECONCILED', `${left} difference${left === 1 ? '' : 's'} with the record still to decide. Decide each one under "Compare with the record" first.`);
       store.tx(() => {
         transition(store, 'external', id, outcome, who, summary);
         store.run('UPDATE external_info SET reviewed_by = ?, reviewed_at = ?, review_summary = ?, outcome_note = ? WHERE id = ?', ctx.workerId, at, summary, note || null, id);

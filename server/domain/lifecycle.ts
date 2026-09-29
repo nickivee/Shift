@@ -453,6 +453,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'DECLARED',
     next: { DECLARED: ['RESTORED', 'CANCELLED'], RESTORED: ['CLOSED'] },
   },
+  allergy: {
+    table: 'allergy',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['INACTIVE', 'ENTERED_IN_ERROR'], INACTIVE: ['ACTIVE'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
