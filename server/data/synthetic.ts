@@ -4,6 +4,7 @@ import type { Store } from '../db/database.ts';
 import { hashPassword } from '../domain/identity.ts';
 import { audit } from '../domain/audit.ts';
 import { recordInitial } from '../domain/lifecycle.ts';
+import { parseDue } from '../domain/workqueue.ts';
 import { KEY_BY_CODE } from '../config/keys.ts';
 import { INSTRUMENT_BY_CODE } from '../config/instruments.ts';
 import { render } from '../domain/commands.ts';
@@ -29,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 59;
+const SET = 60;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -386,6 +387,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 57) set57(store);
     if (at < 58) set58(store);
     if (at < 59) set59(store);
+    if (at < 60) set60(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3878,4 +3880,31 @@ function set59(store: Store): void {
     id: newId(), person_id: wiremu, medicine: 'Paracetamol and codeine', dose: '1 g / 30 mg', route: 'Oral', frequency: 'Four times a day as needed', indication: 'Pain',
     state: 'ORDERED', prescriber: 'Dr Sam Patel', started_at: new Date(Date.now() - 15 * 60_000).toISOString(), source: 'Ward K medication chart', data_source: 'SYNTHETIC',
   });
+}
+
+// Set 60: the work queue. Every task whose due words name a time gets that time as its due
+// threshold. In Residential Care, Kate asked any caregiver to reposition Frank and check his heels
+// by 50 minutes ago and no one has accepted it; in ED, Mere accepted a repeat ECG for Tom that was
+// due 80 minutes ago and it is not done. Both go up the ladder when the queue is next looked at.
+function set60(store: Store): void {
+  for (const t of store.all<{ id: string; due_at: string | null; created_at: string }>('SELECT id, due_at, created_at FROM task WHERE due_by IS NULL AND due_at IS NOT NULL')) {
+    const due = parseDue(t.due_at, new Date(t.created_at));
+    if (due) store.run('UPDATE task SET due_by = ? WHERE id = ?', due, t.id);
+  }
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000);
+  const hm = (d: Date) => d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const pid = (nhiOrName: [string, string]) => store.get<{ id: string }>('SELECT id FROM person WHERE given_name = ? AND family_name = ? AND merged_into IS NULL ORDER BY created_at LIMIT 1', ...nhiOrName)?.id ?? null;
+  const [kate, mere, ravi] = [who('kate'), who('mere'), who('ravi')];
+  const [frank, tom] = [pid(['Frank', 'Dawson']), pid(['Tom', 'Harris'])];
+  const add = (person: string, service: string, description: string, dueMins: number, assigned: string, state: string, by: string, created: number) => {
+    const id = newId();
+    const due = ago(dueMins);
+    store.insert('task', { id, person_id: person, description, due_at: hm(due), due_by: due.toISOString(), service_id: service, assigned_to: assigned, state, created_by: by, created_at: ago(created).toISOString() });
+    store.insert('state_transition', { id: newId(), object_type: 'task', object_id: id, from_state: null, to_state: 'CREATED', actor_id: by, work_context_id: null, at: ago(created).toISOString(), reason: null, transaction_id: null });
+    store.insert('state_transition', { id: newId(), object_type: 'task', object_id: id, from_state: 'CREATED', to_state: 'ASSIGNED', actor_id: by, work_context_id: null, at: ago(created).toISOString(), reason: 'Assigned at creation', transaction_id: null });
+    if (state === 'ACCEPTED') store.insert('state_transition', { id: newId(), object_type: 'task', object_id: id, from_state: 'ASSIGNED', to_state: 'ACCEPTED', actor_id: assigned.slice(7), work_context_id: null, at: ago(created - 5).toISOString(), reason: null, transaction_id: null });
+  };
+  if (kate && frank) add(frank, 'svc-arc', 'Reposition Frank and check both heels', 50, 'role:arc-caregiver', 'ASSIGNED', kate, 120);
+  if (ravi && mere && tom) add(tom, 'svc-ed', 'Repeat ECG', 80, `worker:${mere}`, 'ACCEPTED', ravi, 100);
 }

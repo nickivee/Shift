@@ -4,6 +4,7 @@ import { evaluate } from './authority.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { recordInitial, transition } from './lifecycle.ts';
+import { parseDue } from './workqueue.ts';
 import { KEY_BY_CODE, type KeyTemplate } from '../config/keys.ts';
 import { fromEntry as problemFromEntry } from './problems.ts';
 import { fromPainEntry } from './symptoms.ts';
@@ -145,7 +146,7 @@ export function execute(store: Store, ctx: WorkContext, input: CommandInput) {
       const id = newId();
       const serviceId = d?.service_id ?? ctx.serviceId;
       store.insert('task', {
-        id, person_id: person.id, source_event_id: input.eventId ?? null, description: String(fields.task), due_at: fields.due ? String(fields.due) : null,
+        id, person_id: person.id, source_event_id: input.eventId ?? null, description: String(fields.task), due_at: fields.due ? String(fields.due) : null, due_by: parseDue(fields.due ? String(fields.due) : null),
         service_id: serviceId, assigned_to: d?.role_key ? `role:${d.role_key}` : null, state: 'CREATED', created_by: ctx.workerId, created_at: now(), transaction_id: txId,
       });
       recordInitial(store, 'task', id, 'CREATED', actor);
