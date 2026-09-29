@@ -381,6 +381,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'UNRESOLVED',
     next: { CONFIRMED: ['UNRESOLVED'], UNRESOLVED: ['RESOLVED'], RESOLVED: ['UNRESOLVED'] },
   },
+  duplicate_case: {
+    table: 'duplicate_case',
+    initial: 'POSSIBLE',
+    next: { POSSIBLE: ['NOT_DUPLICATE', 'RECONCILED'], NOT_DUPLICATE: ['POSSIBLE'], RECONCILED: ['POSSIBLE'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

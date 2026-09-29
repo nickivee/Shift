@@ -59,7 +59,7 @@ const log = (store: Store, ctx: WorkContext, id: string, kind: string, body: str
   store.insert('identity_match_log', { id: newId(), match_id: id, kind, body, by_id: ctx.workerId, at: now() });
 
 // What an arrival or a later identification said about the person.
-interface Stated { given: string; family: string; nhi: string; dob: string; gender: string }
+export interface Stated { given: string; family: string; nhi: string; dob: string; gender: string }
 function stated(b: Record<string, unknown>, needName: boolean): Stated {
   const given = text(b.given, 100);
   const family = text(b.family, 100);
@@ -73,7 +73,7 @@ function stated(b: Record<string, unknown>, needName: boolean): Stated {
 }
 
 // Which identifiers agree with a person in SHIFT and which differ. Blank details are not compared.
-function compare(store: Store, personId: string, s: Stated) {
+export function compare(store: Store, personId: string, s: Stated) {
   const p = store.get<Row>('SELECT id, given_name, family_name, preferred_name, date_of_birth, gender FROM person WHERE id = ?', personId)!;
   const nhi = store.get<{ v: string }>("SELECT value AS v FROM external_identifier WHERE person_id = ? AND system = 'NHI'", personId)?.v ?? null;
   const agree: string[] = [];
@@ -121,15 +121,15 @@ function checkEnough(store: Store, personId: string, s: Stated) {
 }
 
 // Rows about a person, table by table, for moving between records and moving back.
-function personTables(store: Store) {
+export function personTables(store: Store, fixed = FIXED) {
   return store.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-    .map((t) => t.name).filter((t) => !FIXED.has(t))
+    .map((t) => t.name).filter((t) => !fixed.has(t))
     .map((t) => ({ table: t, cols: store.all<{ name: string }>(`PRAGMA table_info(${t})`).map((c) => c.name) }))
     .filter((t) => t.cols.includes('person_id'));
 }
-function moveAll(store: Store, from: string, to: string) {
+export function moveAll(store: Store, from: string, to: string, fixed = FIXED) {
   const manifest: Record<string, number[]> = {};
-  for (const { table } of personTables(store)) {
+  for (const { table } of personTables(store, fixed)) {
     const rows = store.all<{ r: number }>(`SELECT rowid AS r FROM ${table} WHERE person_id = ?`, from).map((x) => x.r);
     if (!rows.length) continue;
     store.run(`UPDATE ${table} SET person_id = ? WHERE person_id = ?`, to, from);
@@ -137,7 +137,7 @@ function moveAll(store: Store, from: string, to: string) {
   }
   return manifest;
 }
-function moveBack(store: Store, manifest: Record<string, number[]>, to: string) {
+export function moveBack(store: Store, manifest: Record<string, number[]>, to: string) {
   for (const [table, rows] of Object.entries(manifest)) {
     for (const r of rows) store.run(`UPDATE ${table} SET person_id = ? WHERE rowid = ?`, to, r);
   }
@@ -148,7 +148,7 @@ function snapshot(store: Store) {
   for (const { table } of personTables(store)) out[table] = store.get<{ m: number | null }>(`SELECT max(rowid) AS m FROM ${table}`)?.m ?? 0;
   return out;
 }
-const counted = (m: Record<string, number[]>) => Object.values(m).reduce((n, r) => n + r.length, 0);
+export const counted = (m: Record<string, number[]>) => Object.values(m).reduce((n, r) => n + r.length, 0);
 
 function shape(store: Store, ctx: WorkContext, r: Row) {
   const id = String(r.id);

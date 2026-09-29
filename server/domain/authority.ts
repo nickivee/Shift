@@ -79,6 +79,7 @@ export type Operation =
   | { op: 'DECLINED_CARE'; personId: string }
   | { op: 'PRIORITY'; personId: string }
   | { op: 'IDENTITY'; personId: string }
+  | { op: 'DUPLICATE'; personId: string }
   | { op: 'CHECKLIST'; personId: string; cap: 'checklist.record' | 'checklist.manage' }
   | { op: 'PATHWAY'; personId: string; cap: 'pathway.record' | 'pathway.manage' }
   | { op: 'TREATMENT_PLAN'; personId: string; cap: 'treatmentplan.record' | 'treatmentplan.plan' | 'treatmentplan.authorise' }
@@ -354,6 +355,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'identity.register') ?? professional(ctx) ?? (rel === 'ENCOUNTER'
         ? allow([ORG, 'LAW-NZ-002', 'RR-IDENT-001'])
         : block(`Only the service this ${ctx.subjectLabel.toLowerCase()} arrived at can identify them`));
+    case 'DUPLICATE':
+      return need(ctx, 'duplicate.flag') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-DUP-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can look at their duplicate records`));
     case 'ACUITY':
       return need(ctx, 'acuity.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-007'])

@@ -548,7 +548,11 @@ export async function workstationView(personId, initialView) {
     }
     if (patient.mergedInto) {
       block.append(h('button', { class: 'patient-identity', onclick: () => go(`/work/patient/${patient.mergedInto.id}/identity`) }, icon('arrivals'),
-        h('span', {}, h('b', {}, 'MERGED'), `This temporary record was merged into ${patient.mergedInto.name}. Open their record.`)));
+        h('span', {}, h('b', {}, 'MERGED'), `This record was merged into ${patient.mergedInto.name}'s. Open their record.`)));
+    }
+    if (patient.possibleDuplicate) {
+      block.append(h('button', { class: 'patient-identity', onclick: () => openView('identity') }, icon('duplicates'),
+        h('span', {}, h('b', {}, 'POSSIBLE DUPLICATE RECORD'), 'Another record may be the same person. Check both before relying on either.')));
     }
     if (patient.identityUnresolved) {
       block.append(h('button', { class: 'patient-identity', onclick: () => openView('identity') }, icon('arrivals'),

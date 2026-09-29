@@ -57,6 +57,7 @@ import * as variances from '../domain/variances.ts';
 import * as declined from '../domain/declined.ts';
 import * as priorities from '../domain/priorities.ts';
 import * as identitymatch from '../domain/identitymatch.ts';
+import * as duplicates from '../domain/duplicates.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -247,6 +248,11 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/duplicates', (req) => duplicates.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/duplicates', (req) => duplicates.flag(store, work(req), req.params.id, { otherId: str(req.body.otherId), reason: str(req.body.reason) }));
+  r.on('POST', '/api/work/duplicates/:id/:action', (req) => duplicates.act(store, work(req), req.params.id, req.params.action, {
+    keep: str(req.body.keep), note: str(req.body.note), from: str(req.body.from),
+  }));
   r.on('GET', '/api/work/arrivals', (req) => identitymatch.list(store, work(req)));
   r.on('POST', '/api/work/arrivals/find', (req) => identitymatch.find(store, work(req), req.body as Record<string, unknown>));
   r.on('POST', '/api/work/arrivals', (req) => identitymatch.register(store, work(req), req.body as Record<string, unknown>));
