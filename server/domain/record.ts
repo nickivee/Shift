@@ -59,6 +59,7 @@ import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
 import { VIEW_BY_CODE, KEY_BY_CODE } from '../config/keys.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
+import { ROLE_BY_KEY } from '../config/workstations.ts';
 
 // Enforce an authority decision: anything other than ALLOW is refused and audited.
 export function enforce(store: Store, ctx: WorkContext | null, o: Operation, personId?: string | null): void {
@@ -568,7 +569,7 @@ export function tasksFor(store: Store, ctx: WorkContext, f: { personId?: string;
   );
   return rows.map((r) => ({
     id: r.id, personId: r.person_id, patient: r.patient, location: r.location, description: r.description, dueAt: r.due_at,
-    assignedTo: r.assigned_to?.startsWith('worker:') ? (r.assigned_to === `worker:${ctx.workerId}` ? 'You' : r.assignee_name) : r.assigned_to?.startsWith('role:') ? 'Your role' : 'Unassigned',
+    assignedTo: r.assigned_to?.startsWith('worker:') ? (r.assigned_to === `worker:${ctx.workerId}` ? 'You' : r.assignee_name) : r.assigned_to === `role:${ctx.role.roleKey}` ? 'Your role' : r.assigned_to?.startsWith('role:') ? `Any ${ROLE_BY_KEY.get(r.assigned_to.slice(5))?.label ?? r.assigned_to.slice(5)}` : 'Unassigned',
     mine: r.assigned_to === `worker:${ctx.workerId}`, state: r.state as string, createdAt: r.created_at, createdBy: r.created_by, outcome: r.outcome,
   }));
 }

@@ -396,6 +396,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OFFERED',
     next: { OFFERED: ['ACCEPTED', 'DECLINED', 'WITHDRAWN', 'EXPIRED'], ACCEPTED: ['TO_REVIEW', 'COMPLETED', 'WITHDRAWN', 'EXPIRED'], TO_REVIEW: ['COMPLETED', 'ACCEPTED'] },
   },
+  work_escalation: {
+    table: 'work_escalation',
+    initial: 'OPEN',
+    next: { OPEN: ['ACKNOWLEDGED', 'RESOLVED', 'SUPERSEDED'], ACKNOWLEDGED: ['RESOLVED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

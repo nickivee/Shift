@@ -363,6 +363,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-QUEUE-001',
+    question: 'What New Zealand settings require when work is missed: who must be told when a task is not accepted or not done by its due time, how quickly, and who is accountable at each step (for example a caregiver to the registered nurse on duty, a nurse to the doctor).',
+    blocks: 'Treating SHIFT\'s escalation ladders and waiting times as a standard. SHIFT sends missed work one step up the service\'s ladder, needs the next person to acknowledge it and record what they did, sends it further up if no one does, and never reassigns work silently.',
+    category: 'ORGANISATIONAL CONFIGURATION',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

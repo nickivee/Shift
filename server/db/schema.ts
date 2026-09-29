@@ -3227,4 +3227,44 @@ ALTER TABLE alert ADD COLUMN evidence TEXT;             -- JSON: the facts that 
 ALTER TABLE alert ADD COLUMN outcome TEXT;              -- the decision, for clinical decision alerts
 `,
   },
+  {
+    version: 60,
+    name: 'work queue engine',
+    sql: `
+-- Work queue engine: requirement → responsible recipient → due threshold → escalation condition →
+-- next authorised recipient → acknowledgement → action → resolution.
+ALTER TABLE task ADD COLUMN due_by TEXT;                 -- the due time as a moment, when the words name one
+CREATE TABLE work_escalation (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES task(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  level INTEGER NOT NULL,               -- step on the service's ladder
+  to_role TEXT NOT NULL,
+  reason TEXT NOT NULL,                 -- NOT_ACCEPTED | NOT_DONE | NOT_ACKNOWLEDGED
+  due_by TEXT,
+  escalated_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- OPEN | ACKNOWLEDGED | RESOLVED | SUPERSEDED
+  acknowledged_by TEXT REFERENCES workforce_person(id),
+  acknowledged_at TEXT,
+  action TEXT,                          -- TAKEN | EXTENDED | NOTED
+  action_note TEXT,
+  action_by TEXT REFERENCES workforce_person(id),
+  action_at TEXT,
+  resolved_at TEXT,
+  resolution TEXT
+);
+CREATE INDEX work_escalation_task ON work_escalation(task_id, state);
+CREATE INDEX work_escalation_role ON work_escalation(service_id, to_role, state);
+CREATE TABLE work_escalation_log (
+  id TEXT PRIMARY KEY,
+  escalation_id TEXT NOT NULL REFERENCES work_escalation(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT,                           -- null when SHIFT escalated it
+  at TEXT NOT NULL
+);
+CREATE INDEX work_escalation_log_e ON work_escalation_log(escalation_id, at);
+`,
+  },
 ];

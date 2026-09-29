@@ -60,6 +60,7 @@ import * as identitymatch from '../domain/identitymatch.ts';
 import * as duplicates from '../domain/duplicates.ts';
 import * as breakglass from '../domain/breakglass.ts';
 import * as delegation from '../domain/delegation.ts';
+import * as workqueue from '../domain/workqueue.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -168,6 +169,8 @@ export function buildApi(store: Store): Router {
   r.on('GET', '/api/work/received', (req) => coordination.received(store, work(req)));
   r.on('POST', '/api/work/routes/:id/:action', (req) => coordination.routeAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
   r.on('GET', '/api/work/tasks', (req) => coordination.taskList(store, work(req)));
+  r.on('GET', '/api/work/queue', (req) => workqueue.queue(store, work(req)));
+  r.on('POST', '/api/work/queue/:id/:action', (req) => workqueue.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), minutes: Number(req.body.minutes) }));
   r.on('POST', '/api/work/tasks/:id/:action', (req) => coordination.taskAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
   r.on('GET', '/api/work/handover', (req) => coordination.handoverBoard(store, work(req)));
   r.on('POST', '/api/work/handover/:id/:action', (req) => {
