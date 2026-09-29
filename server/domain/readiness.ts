@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, recordInitial, history, revise } from './lifecycle.ts';
 import { KINDS, ASSESSORS, TEMPLATES, ITEM_STATUS, END_REASONS } from '../config/readiness.ts';
 import { newId, now, todayLocal, addDays, HttpError } from '../lib/util.ts';
 
@@ -205,9 +205,11 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
       inState(...DECIDED);
       need(5, 'Say why you are reassessing, e.g. "Oxygen now off; walking the stairs with the physio".');
       store.tx(() => {
+        const before = store.get<Record<string, unknown>>('SELECT decision_note, conditions, reassess_by FROM readiness WHERE id = ?', id)!;
+        revise(store, 'readiness', id, before, {}, { decision_note: 'Decision note', conditions: 'Conditions', reassess_by: 'Reassess by' }, who, note);
         transition(store, 'readiness', id, 'ASSESSING', who, note.slice(0, 200));
         store.run('UPDATE readiness SET decided_by = NULL, decided_at = NULL, decision_note = NULL, conditions = NULL, reassess_by = NULL WHERE id = ?', id);
-        log(store, ctx, id, 'REASSESS', `Was ${STATES[state].toLowerCase()}. ${note}`);
+        log(store, ctx, id, 'REASSESS', `Was ${STATES[state].toLowerCase()}${before.conditions ? ` with conditions: ${before.conditions}` : ''}${before.decision_note ? ` (${before.decision_note})` : ''}. ${note}`);
         logged(store, ctx, 'READINESS_REASSESS', personId, id, note.slice(0, 200));
       });
       break;

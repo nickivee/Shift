@@ -1,6 +1,7 @@
 import type { Store } from '../db/database.ts';
 import type { WorkContext } from './identity.ts';
 import { audit } from './audit.ts';
+import { enforce } from './record.ts';
 import { transition, recordInitial } from './lifecycle.ts';
 import { LADDERS, NOT_ACCEPTED_MINUTES, NOT_DONE_MINUTES, NOT_ACKNOWLEDGED_MINUTES, REASONS, EXTEND_MINUTES } from '../config/workqueue.ts';
 import { ROLE_BY_KEY } from '../config/workstations.ts';
@@ -120,7 +121,7 @@ export function sweep(store: Store, serviceId: string) {
 }
 
 const Q = `
-  SELECT e.id, e.task_id AS taskId, e.person_id AS personId, p.given_name || ' ' || p.family_name AS patient, e.level, e.to_role AS toRole,
+  SELECT e.id, e.task_id AS taskId, e.person_id AS personId, e.service_id AS serviceId, p.given_name || ' ' || p.family_name AS patient, e.level, e.to_role AS toRole,
          e.reason, e.escalated_at AS escalatedAt, e.state, ak.display_name AS acknowledgedBy, e.acknowledged_at AS acknowledgedAt,
          e.action, e.action_note AS actionNote, ab.display_name AS actionBy, e.action_at AS actionAt, e.resolved_at AS resolvedAt, e.resolution,
          t.description, t.due_at AS dueAt, t.due_by AS dueBy, t.state AS taskState, t.assigned_to AS assignedTo, aw.display_name AS assignee,
@@ -167,6 +168,9 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
   const e = store.get<Row>(`${Q} WHERE e.id = ?`, id);
   if (!e) throw new HttpError(404, 'NOT_FOUND', 'That escalation is no longer in SHIFT.');
   if (e.toRole !== ctx.role.roleKey || e.personId === null) throw new HttpError(403, 'BLOCK', `This was escalated to ${roleLabel(String(e.toRole))}.`);
+  // Being the role it was sent to is not enough: the worker needs task authority in that service and a relationship with the person.
+  enforce(store, ctx, { op: 'TASK', serviceId: String(e.serviceId) }, String(e.personId));
+  enforce(store, ctx, { op: 'VIEW_RECORD', personId: String(e.personId) }, String(e.personId));
   const state = String(e.state);
   const note = String(b.note ?? '').trim().slice(0, 1000);
   const who = { actorId: ctx.workerId, workContextId: ctx.id };

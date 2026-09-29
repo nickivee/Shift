@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, transitionAll, recordInitial, history, type TransitionActor } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 // Location / bed / care space (Shared Lifecycle Object 247):
@@ -24,6 +24,14 @@ const RANK: Record<string, number> = { NOW: 0, TODAY: 1, ROUTINE: 2 };
 const list = (v: unknown) => String(v ?? '').split(',').map((x) => x.trim()).filter((x) => FEATURES[x]);
 const labels = (v: unknown) => list(v).map((x) => FEATURES[x]);
 const bedOrder = "CAST(substr(b.label, instr(b.label, 'Bed ') + 4) AS INTEGER), b.label";
+
+// Every bed state change goes through the bed lifecycle. `personId` sets who holds it; undefined leaves it.
+export function bedTo(store: Store, where: string, params: unknown[], to: string, a: TransitionActor, reason: string, personId?: string | null) {
+  for (const id of transitionAll(store, 'bed', where, params, to, a, reason)) {
+    if (personId === undefined) store.run('UPDATE bed SET updated_at = ? WHERE id = ?', now(), id);
+    else store.run('UPDATE bed SET person_id = ?, updated_at = ? WHERE id = ?', personId, now(), id);
+  }
+}
 
 // Called by admission, transfer, discharge and moves so that the bed history is complete.
 export function occupy(store: Store, bedId: string, personId: string, serviceId: string, reason: string, at = now()) {
@@ -141,7 +149,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         if (missing.length && note.length < 3) {
           throw new HttpError(400, 'NOTE_REQUIRED', `${bed.label} has no ${missing.map((x) => FEATURES[x].toLowerCase()).join(' or ')}. Write why it is still the right bed.`);
         }
-        store.run("UPDATE bed SET state = 'RESERVED', person_id = ?, updated_at = ? WHERE id = ?", personId, now(), bed.id);
+        bedTo(store, 'id = ?', [bed.id], 'RESERVED', who, 'Held for a bed move', personId);
         store.run('UPDATE bed_move SET bed_id = ?, allocated_by = ?, allocated_at = ?, allocation_note = ? WHERE id = ?', bed.id, ctx.workerId, now(), note || null, id);
         transition(store, 'bedmove', id, 'ALLOCATED', who, `${bed.label}${note ? `: ${note}` : ''}`);
         logged(store, ctx, 'BED_MOVE_ALLOCATE', id, personId, bed.label);
@@ -151,7 +159,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         manage();
         if (m.state !== 'ALLOCATED') throw new HttpError(409, 'WRONG_STATE', 'No bed is held for this move.');
         if (note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', 'Write why the bed is being given back.');
-        store.run("UPDATE bed SET state = 'AVAILABLE', person_id = NULL, updated_at = ? WHERE id = ? AND state = 'RESERVED'", now(), m.bedId);
+        bedTo(store, "id = ? AND state = 'RESERVED'", [m.bedId], 'AVAILABLE', who, 'Bed move released', null);
         store.run('UPDATE bed_move SET bed_id = NULL, allocated_by = NULL, allocated_at = NULL, allocation_note = NULL WHERE id = ?', id);
         transition(store, 'bedmove', id, 'REQUESTED', who, note);
         logged(store, ctx, 'BED_MOVE_RELEASE', id, personId, note);
@@ -164,10 +172,9 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         const at = now();
         const reason = `Moved from ${m.fromBed ?? 'another bed'}: ${m.reason}`;
         vacate(store, personId, serviceId, `Moved to ${m.bed}`, at);
-        store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ? AND state = 'OCCUPIED'", at, personId, serviceId);
-        store.run("UPDATE bed SET state = 'OCCUPIED', updated_at = ? WHERE id = ?", at, m.bedId);
+        bedTo(store, "person_id = ? AND service_id = ? AND state = 'OCCUPIED'", [personId, serviceId], 'CLEANING', who, `Moved to ${m.bed}`, null);
+        bedTo(store, 'id = ?', [m.bedId], 'OCCUPIED', who, reason);
         occupy(store, String(m.bedId), personId, serviceId, reason, at);
-        store.run("UPDATE encounter SET location = ? WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", m.bed, personId, serviceId);
         store.run('UPDATE bed_move SET moved_by = ?, moved_at = ? WHERE id = ?', ctx.workerId, at, id);
         transition(store, 'bedmove', id, 'MOVED', who, note || `Now in ${m.bed}`);
         logged(store, ctx, 'BED_MOVE', id, personId, `${m.fromBed} to ${m.bed}`);
@@ -179,7 +186,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         }
         if (!['REQUESTED', 'ALLOCATED'].includes(String(m.state))) throw new HttpError(409, 'WRONG_STATE', 'This move is finished.');
         if (note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', 'Write why the move is no longer needed.');
-        if (m.bedId) store.run("UPDATE bed SET state = 'AVAILABLE', person_id = NULL, updated_at = ? WHERE id = ? AND state = 'RESERVED'", now(), m.bedId);
+        if (m.bedId) bedTo(store, "id = ? AND state = 'RESERVED'", [m.bedId], 'AVAILABLE', who, 'Bed move cancelled', null);
         store.run('UPDATE bed_move SET closed_by = ?, closed_at = ?, close_reason = ? WHERE id = ?', ctx.workerId, now(), note, id);
         transition(store, 'bedmove', id, 'CANCELLED', who, note);
         logged(store, ctx, 'BED_MOVE_CANCEL', id, personId, note);

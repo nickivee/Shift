@@ -235,7 +235,8 @@ export function amend(store: Store, ctx: WorkContext, eventId: string, body: { f
   const txId = newId();
   return store.tx(() => {
     if (body.enteredInError) {
-      store.run("UPDATE clinical_event SET state = 'ENTERED_IN_ERROR', amendment_reason = ? WHERE id = ?", reason, eventId);
+      transition(store, 'clinical_event', eventId, 'ENTERED_IN_ERROR', { actorId: ctx.workerId, workContextId: ctx.id, transactionId: txId }, reason);
+      store.run('UPDATE clinical_event SET amendment_reason = ? WHERE id = ?', reason, eventId);
       store.run('UPDATE handover_mark SET cleared_by = ?, cleared_at = ? WHERE event_lineage_id = ? AND cleared_at IS NULL', ctx.workerId, now(), e.lineage_id);
       audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', subjectPersonId: String(e.person_id), operation: 'ENTERED_IN_ERROR', objectType: 'clinical_event', objectId: eventId, decision: 'ALLOW', outcome: 'COMMITTED', reason, engines: [230], transactionId: txId });
       return { eventId, state: 'ENTERED_IN_ERROR' };
@@ -244,7 +245,7 @@ export function amend(store: Store, ctx: WorkContext, eventId: string, body: { f
     if (!t) throw new HttpError(409, 'NOT_AMENDABLE', 'This entry was not made with a .key and cannot be amended here.');
     const fields = cleanFields(t, body.fields);
     const id = newId();
-    store.run("UPDATE clinical_event SET state = 'SUPERSEDED' WHERE id = ?", eventId);
+    transition(store, 'clinical_event', eventId, 'SUPERSEDED', { actorId: ctx.workerId, workContextId: ctx.id, transactionId: txId }, reason);
     store.insert('clinical_event', {
       ...e, id, version: Number(e.version) + 1, fields_json: JSON.stringify(fields), rendered_text: render(t, fields),
       author_id: ctx.workerId, author_position_id: ctx.positionId, author_role_label: `${ctx.role.label}, ${ctx.serviceName}`,

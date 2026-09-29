@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, recordInitial, history, revise } from './lifecycle.ts';
 import { KEY_BY_CODE } from '../config/keys.ts';
 import { render } from './commands.ts';
 import { newId, now, todayLocal, addDays, HttpError } from '../lib/util.ts';
@@ -163,6 +163,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         if (plan.length < 5) throw new HttpError(400, 'PLAN_REQUIRED', 'Write the treatment plan.');
         const days = Math.round(Number(b.reviewDays));
         if (!Number.isFinite(days) || days < 1 || days > 28) throw new HttpError(400, 'REVIEW_REQUIRED', 'Set how often it is reassessed, in days (1 to 28).');
+        const before = store.get<Record<string, unknown>>('SELECT plan, review_days FROM wound WHERE id = ?', id)!;
+        revise(store, 'wound', id, before, { plan, review_days: days }, { plan: 'Plan', review_days: 'Reassess every (days)' }, who, 'New treatment plan');
         transition(store, 'wound', id, 'PLANNED', who, plan);
         store.run('UPDATE wound SET plan = ?, review_days = ?, plan_by = ?, plan_at = ?, next_review = ? WHERE id = ?', plan, days, ctx.workerId, now(), addDays(todayLocal(), days), id);
         break;

@@ -401,6 +401,53 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OPEN',
     next: { OPEN: ['ACKNOWLEDGED', 'RESOLVED', 'SUPERSEDED'], ACKNOWLEDGED: ['RESOLVED'] },
   },
+  // Places, stays and allocations: the state changes that used to be made directly.
+  bed: {
+    table: 'bed',
+    initial: 'AVAILABLE',
+    next: { AVAILABLE: ['RESERVED', 'OCCUPIED', 'CLEANING'], RESERVED: ['AVAILABLE', 'OCCUPIED'], OCCUPIED: ['CLEANING'], CLEANING: ['AVAILABLE'] },
+  },
+  encounter: {
+    table: 'encounter',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ENDED'] },
+  },
+  allocation: {
+    table: 'allocation',
+    initial: 'PROPOSED',
+    next: { PROPOSED: ['ACTIVE', 'ENDED'], ACTIVE: ['ENDED'], LEGACY: ['ENDED'] },
+  },
+  clinical_event: {
+    table: 'clinical_event',
+    initial: 'CURRENT',
+    next: { CURRENT: ['SUPERSEDED', 'ENTERED_IN_ERROR'] },
+  },
+  // Workforce and shared knowledge.
+  leave_request: {
+    table: 'leave_request',
+    initial: 'REQUESTED',
+    next: { REQUESTED: ['APPROVED', 'DECLINED', 'CANCELLED'] },
+  },
+  open_shift: {
+    table: 'open_shift',
+    initial: 'OPEN',
+    next: { OPEN: ['FILLED', 'WITHDRAWN'] },
+  },
+  shift_offer: {
+    table: 'shift_offer',
+    initial: 'OFFERED',
+    next: { OFFERED: ['WITHDRAWN', 'REASSIGNED', 'DECLINED'] },
+  },
+  roster_shift: {
+    table: 'roster_shift',
+    initial: 'PLANNED',
+    next: { PLANNED: ['CANCELLED', 'REASSIGNED'] },
+  },
+  knowledge_question: {
+    table: 'knowledge_question',
+    initial: 'OPEN',
+    next: { OPEN: ['CLOSED', 'WITHDRAWN'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
@@ -513,3 +560,40 @@ export function history(store: Store, type: string, objectId: string) {
     type, objectId,
   );
 }
+
+// Move every row matching `where` that may make this move, each through a valid transition.
+export function transitionAll(store: Store, type: string, where: string, params: unknown[], to: string, a: TransitionActor, reason?: string): string[] {
+  const lc = LIFECYCLES[type];
+  if (!lc) throw new Error(`Unknown lifecycle ${type}`);
+  const from = Object.entries(lc.next).filter(([, n]) => n.includes(to)).map(([f]) => f);
+  if (!from.length) return [];
+  const rows = store.all<{ id: string }>(
+    `SELECT id FROM ${lc.table} WHERE (${where}) AND state IN (${from.map(() => '?').join(', ')})`, ...params, ...from,
+  );
+  for (const r of rows) transition(store, type, r.id, to, a, reason);
+  return rows.map((r) => r.id);
+}
+
+// A change to what an object says (not its state): keep each old and new value with who, when and why.
+export function revise(
+  store: Store, type: string, objectId: string, before: Record<string, unknown>, after: Record<string, unknown>,
+  labels: Record<string, string | [string, Record<string, string>]>, a: TransitionActor, why: string,
+): string {
+  const at = now();
+  const shown = (v: unknown) => (v === null || v === undefined || v === '' ? 'none' : String(v));
+  const changed: string[] = [];
+  for (const [field, l] of Object.entries(labels)) {
+    const [label, codes] = typeof l === 'string' ? [l, null] : l;
+    const say = (v: unknown) => shown(codes && v !== null && v !== undefined ? codes[String(v)] ?? v : v);
+    const from = before[field] ?? null;
+    const to = after[field] ?? null;
+    if (String(from ?? '') === String(to ?? '')) continue;
+    store.insert('object_revision', {
+      id: newId(), object_type: type, object_id: objectId, field, from_value: from === null ? null : String(from), to_value: to === null ? null : String(to),
+      actor_id: a.actorId, work_context_id: a.workContextId, at, reason: why,
+    });
+    changed.push(`${label}: ${say(from)} → ${say(to)}`);
+  }
+  return changed.join('; ');
+}
+

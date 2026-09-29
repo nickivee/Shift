@@ -3267,4 +3267,42 @@ CREATE TABLE work_escalation_log (
 CREATE INDEX work_escalation_log_e ON work_escalation_log(escalation_id, at);
 `,
   },
+  {
+    version: 61,
+    name: 'architecture check',
+    sql: `
+-- HISTORY CHANGED → preserve both old and new states with provenance: one row per changed field.
+CREATE TABLE object_revision (
+  id TEXT PRIMARY KEY,
+  object_type TEXT NOT NULL,
+  object_id TEXT NOT NULL,
+  field TEXT NOT NULL,
+  from_value TEXT,
+  to_value TEXT,
+  actor_id TEXT REFERENCES workforce_person(id),
+  work_context_id TEXT,
+  at TEXT NOT NULL,
+  reason TEXT NOT NULL
+);
+CREATE INDEX object_revision_o ON object_revision(object_type, object_id, at);
+CREATE TRIGGER object_revision_no_update BEFORE UPDATE ON object_revision BEGIN SELECT RAISE(ABORT, 'Revisions are append-only'); END;
+CREATE TRIGGER object_revision_no_delete BEFORE DELETE ON object_revision BEGIN SELECT RAISE(ABORT, 'Revisions are append-only'); END;
+
+-- SAME FACT → do not re-enter it. The bed is the canonical place; a stay shows it, never a typed copy of it.
+CREATE TRIGGER bed_occupancy_in AFTER INSERT ON bed_occupancy WHEN NEW.until_at IS NULL BEGIN
+  UPDATE encounter SET location = (SELECT label FROM bed WHERE id = NEW.bed_id)
+   WHERE person_id = NEW.person_id AND service_id = NEW.service_id AND state = 'ACTIVE';
+END;
+CREATE TRIGGER bed_occupancy_out AFTER UPDATE OF until_at ON bed_occupancy WHEN OLD.until_at IS NULL AND NEW.until_at IS NOT NULL BEGIN
+  UPDATE encounter SET location = NULL
+   WHERE person_id = NEW.person_id AND service_id = NEW.service_id AND state = 'ACTIVE'
+     AND location = (SELECT label FROM bed WHERE id = NEW.bed_id);
+END;
+UPDATE encounter SET location = (
+  SELECT b.label FROM bed_occupancy o JOIN bed b ON b.id = o.bed_id
+   WHERE o.person_id = encounter.person_id AND o.service_id = encounter.service_id AND o.until_at IS NULL ORDER BY o.from_at DESC LIMIT 1)
+ WHERE state = 'ACTIVE' AND EXISTS (
+  SELECT 1 FROM bed_occupancy o WHERE o.person_id = encounter.person_id AND o.service_id = encounter.service_id AND o.until_at IS NULL);
+`,
+  },
 ];

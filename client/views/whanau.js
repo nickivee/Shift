@@ -136,6 +136,8 @@ export function supportCard(p, options, reload) {
     p.contacts.length ? h('details', {}, h('summary', { class: 'small' }, `Contacts (${p.contacts.length})`), h('ul', { class: 'small stack' }, p.contacts.map((c) => h('li', {},
       h('b', {}, `${c.kindLabel}, ${fmtDateTime(c.at)} (${c.by}, ${c.service}): `), c.summary,
       c.shared === 'HEALTH' ? h('span', { class: 'tag warn' }, ' Health information shared') : h('span', { class: 'tag muted' }, ' No health information'))))) : null,
+    p.history?.some((c) => c.from_state === c.to_state) ? h('details', {}, h('summary', { class: 'small' }, `Changes (${p.history.filter((c) => c.from_state === c.to_state).length})`),
+      h('ul', { class: 'small stack' }, p.history.filter((c) => c.from_state === c.to_state).map((c) => h('li', {}, h('b', {}, `${c.actor ?? 'SHIFT'}, ${fmtDateTime(c.at)}: `), c.reason)))) : null,
     ended ? h('div', { class: 'small' }, h('b', {}, `Removed (${p.endedBy}): `), p.endReason) : null,
     h('div', { class: 'small muted' }, [`Added by ${p.addedBy} ${fmtDateTime(p.addedAt)}`, p.updatedBy ? `changed by ${p.updatedBy} ${fmtDateTime(p.updatedAt)}` : null].filter(Boolean).join(' · ')),
     p.actions.length ? h('div', { class: 'row' }, p.actions.map((x) =>
