@@ -5,6 +5,7 @@ import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { recordInitial, transition } from './lifecycle.ts';
 import { parseDue } from './workqueue.ts';
+import { backEntry } from './downtime.ts';
 import { KEY_BY_CODE, type KeyTemplate } from '../config/keys.ts';
 import { fromEntry as problemFromEntry } from './problems.ts';
 import { fromPainEntry } from './symptoms.ts';
@@ -21,6 +22,7 @@ export interface CommandInput {
   urgent?: boolean;
   from?: string | null;
   to?: string | null;
+  downtime?: { id?: unknown; paperBy?: unknown; paperRef?: unknown } | null;   // entering a paper record made while SHIFT was down
   idempotencyKey: string;
 }
 
@@ -157,6 +159,7 @@ export function execute(store: Store, ctx: WorkContext, input: CommandInput) {
     } else if (template) {
       const fields = cleanFields(template, input.fields);
       const period = validPeriod(input.from, input.to);
+      const paper = input.downtime ? backEntry(store, ctx, input.downtime, period.start, input.from) : null;
       const id = newId();
       store.insert('clinical_event', {
         id, lineage_id: id, version: 1, person_id: person.id,
@@ -165,10 +168,10 @@ export function execute(store: Store, ctx: WorkContext, input: CommandInput) {
         rendered_text: render(template, fields), author_id: ctx.workerId, author_position_id: ctx.positionId,
         author_role_label: `${ctx.role.label}, ${ctx.serviceName}`, service_id: ctx.serviceId, recorded_at: now(),
         effective_at: period.start, effective_end: period.end, state: 'CURRENT', urgent: Boolean(input.urgent),
-        collection: 'DIRECT', data_source: 'SHIFT', transaction_id: txId,
+        collection: 'DIRECT', data_source: 'SHIFT', transaction_id: txId, ...(paper ?? {}),
       });
       template.engines.forEach((e) => engines.add(e));
-      audit(store, { ...auditBase, operation: 'CREATE_EVENT', objectType: 'clinical_event', objectId: id, reason: template.code, ruleRefs: ['ORG-SYN-001 v1', 'LAW-NZ-002'], engines: template.engines });
+      audit(store, { ...auditBase, operation: paper ? 'CREATE_EVENT_FROM_PAPER' : 'CREATE_EVENT', objectType: 'clinical_event', objectId: id, reason: paper ? `${template.code} from paper by ${paper.paper_by}` : template.code, ruleRefs: ['ORG-SYN-001 v1', 'LAW-NZ-002'], engines: template.engines });
       // A .problem entry keeps the problem list (Object 273) in step.
       if (template.code === '.problem') problemFromEntry(store, ctx, person.id, fields, id);
       // A .pain entry feeds the symptom record (Object 274).

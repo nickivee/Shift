@@ -3305,4 +3305,53 @@ UPDATE encounter SET location = (
   SELECT 1 FROM bed_occupancy o WHERE o.person_id = encounter.person_id AND o.service_id = encounter.service_id AND o.until_at IS NULL);
 `,
   },
+  {
+    version: 62,
+    name: 'downtime continuity',
+    sql: `
+-- Downtime continuity: downtime declared → affected functions → approved continuity process →
+-- temporary clinical recording → system restoration → reconciliation → provenance → closure.
+CREATE TABLE downtime (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  functions TEXT NOT NULL,              -- comma list: ALL | MEDICINES | RESULTS | OBSERVATIONS | TASKS
+  reason TEXT NOT NULL,
+  started_at TEXT NOT NULL,             -- when it went down, which can be before it was declared
+  state TEXT NOT NULL,                  -- DECLARED | RESTORED | CLOSED | CANCELLED
+  declared_by TEXT NOT NULL REFERENCES workforce_person(id),
+  declared_at TEXT NOT NULL,
+  restored_by TEXT REFERENCES workforce_person(id),
+  restored_at TEXT,
+  restore_note TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  close_note TEXT
+);
+CREATE INDEX downtime_service ON downtime(service_id, state);
+CREATE TABLE downtime_check (
+  id TEXT PRIMARY KEY,
+  downtime_id TEXT NOT NULL REFERENCES downtime(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- TO_CHECK | CHECKED
+  outcome TEXT,                         -- ENTERED | NOTHING
+  note TEXT,
+  checked_by TEXT REFERENCES workforce_person(id),
+  checked_at TEXT
+);
+CREATE INDEX downtime_check_d ON downtime_check(downtime_id, state);
+CREATE TABLE downtime_log (
+  id TEXT PRIMARY KEY,
+  downtime_id TEXT NOT NULL REFERENCES downtime(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX downtime_log_d ON downtime_log(downtime_id, at);
+-- Provenance of an entry made afterwards from a paper record.
+ALTER TABLE clinical_event ADD COLUMN downtime_id TEXT REFERENCES downtime(id);
+ALTER TABLE clinical_event ADD COLUMN paper_by TEXT;
+ALTER TABLE clinical_event ADD COLUMN paper_ref TEXT;
+`,
+  },
 ];
