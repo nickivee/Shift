@@ -339,6 +339,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-DUP-001',
+    question: 'The New Zealand process for duplicate health records: who may merge or unmerge local records, how duplicate NHIs are reported and resolved nationally, and what must be kept of a merged record.',
+    blocks: 'Merging two records that each have an NHI, and changing the National Health Index. SHIFT merges only local duplicates, keeps the record with the NHI, keeps the merged record marked as merged, gives every affected service a task to check its entries, and can undo the merge.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

@@ -52,6 +52,7 @@ import { forPerson as variancesFor } from './variances.ts';
 import { forPerson as declinedFor, current as declinedNow } from './declined.ts';
 import { forPerson as prioritiesFor } from './priorities.ts';
 import { forPerson as identityFor, current as identityNow } from './identitymatch.ts';
+import { forPerson as duplicatesFor, current as duplicateNow } from './duplicates.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -242,6 +243,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     siteDiscrepancies: ctx.role.views.includes('sitechecks') ? siteNow(store, personId) : null,
     declinedCare: ctx.role.views.includes('declined') ? declinedNow(store, personId) : null,
     identityUnresolved: identityNow(store, personId),
+    possibleDuplicate: duplicateNow(store, personId),
     mergedInto: p.merged_into ? { id: p.merged_into, name: store.get<{ n: string }>("SELECT given_name || ' ' || family_name AS n FROM person WHERE id = ?", p.merged_into)?.n ?? null } : null,
     team: teamNow(store, personId),
   };
@@ -495,7 +497,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = prioritiesFor(store, ctx, personId);
       break;
     case 'identity':
-      body = identityFor(store, ctx, personId);
+      body = { ...identityFor(store, ctx, personId), duplicates: duplicatesFor(store, ctx, personId) };
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

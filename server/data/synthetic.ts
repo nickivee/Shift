@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 55;
+const SET = 56;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -382,6 +382,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 53) set53(store);
     if (at < 54) set54(store);
     if (at < 55) set55(store);
+    if (at < 56) set56(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3755,4 +3756,31 @@ function set55(store: Store): void {
     log(m2, 'REGISTERED', `The person told us: ${p.given_name} ${p.family_name}, NHI ZZZ0105, born ${p.date_of_birth}, Male.`, mins);
     log(m2, 'MATCHED', `${p.given_name} ${p.family_name}. Agrees: NHI, Date of birth, Family name, Given name.`, mins);
   }
+}
+
+// Set 56: duplicate records. Physiotherapy outpatients made a local record for Margaret Oliver two
+// years ago, before her NHI was known; it holds a codeine allergy her main record lacks. SHIFT
+// spotted the pair yesterday.
+function set56(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const main = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0032'")?.id;
+  const lena = who('lena');
+  if (!main || !lena) return;
+  const day = 1440;
+  const dup = newId();
+  store.insert('person', { id: dup, family_name: 'Oliver', given_name: 'Margaret', date_of_birth: '1938-09-30', gender: 'Female', ethnicity: 'NZ European', data_source: 'LOCAL', created_at: ago(700 * day) });
+  store.insert('external_identifier', { id: newId(), person_id: dup, system: 'LOCAL_MRN', value: 'PHY-20417', verification: 'UNVERIFIED', created_at: ago(700 * day) });
+  store.insert('encounter', { id: newId(), person_id: dup, service_id: 'svc-physio', location: 'Outpatient gym', kind: 'OUTPATIENT', started_at: ago(700 * day), ended_at: ago(640 * day), state: 'ENDED' });
+  store.insert('allergy', { id: newId(), person_id: dup, kind: 'ALLERGY', substance: 'Codeine', reaction: 'Vomiting and confusion', severity: 'MODERATE', certainty: 'CONFIRMED', state: 'ACTIVE',
+    source: 'Patient report at physiotherapy outpatients', recorded_by: lena, recorded_at: ago(700 * day), data_source: 'SYNTHETIC' });
+  const id = newId();
+  const evidence = { personId: main, name: 'Margaret Oliver', nhi: 'ZZZ0032', dob: '1938-09-30', gender: 'Female', agree: ['DOB', 'FAMILY', 'GIVEN', 'GENDER'], differ: [], enough: true,
+    agreeLabel: 'Date of birth, Family name, Given name, Gender', differLabel: '' };
+  store.insert('duplicate_case', {
+    id, person_a: main, person_b: dup, detected_how: 'SHIFT', detected_by: null, detected_at: ago(day), state: 'POSSIBLE',
+    reason: 'Same date of birth, family name, given name, gender.', evidence: JSON.stringify(evidence),
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'duplicate_case', object_id: id, from_state: null, to_state: 'POSSIBLE', actor_id: lena, work_context_id: null, at: ago(day), reason: 'Spotted by SHIFT', transaction_id: null });
+  store.insert('duplicate_log', { id: newId(), case_id: id, kind: 'DETECTED', body: 'Two records agree on Date of birth, Family name, Given name, Gender.', by_id: null, at: ago(day) });
 }

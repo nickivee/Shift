@@ -861,3 +861,9 @@ dd.overdue { color: var(--danger); font-weight: 700; }
 .idm-cand.enough { border-left-color: var(--ok); }
 .idm-differ { color: var(--danger); font-weight: 700; }
 dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
+.dup-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.dup-side.kept { border-left: 6px solid var(--ok); }
+.dup-side.gone { opacity: .7; }
+.tile.dup-possible { border-left: 6px solid var(--danger); }
+.tile.dup-not_duplicate, .tile.dup-reconciled { border-left: 6px solid var(--ok); }
+.screen-row.chosen { background: var(--paua-shade, #0b3d4a); color: #fff; padding-inline: 8px; border-radius: 8px; }

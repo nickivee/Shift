@@ -3102,4 +3102,43 @@ CREATE TABLE identity_match_log (
 CREATE INDEX identity_match_log_m ON identity_match_log(match_id, at);
 `,
   },
+  {
+    version: 56,
+    name: 'duplicate records',
+    sql: `
+-- Duplicate record resolution: possible duplicate → review → duplicate or not → authorised
+-- reconciliation → one canonical record → retained provenance → downstream correction.
+CREATE TABLE duplicate_case (
+  id TEXT PRIMARY KEY,
+  person_a TEXT NOT NULL REFERENCES person(id),
+  person_b TEXT NOT NULL REFERENCES person(id),
+  kept_id TEXT REFERENCES person(id),
+  merged_id TEXT REFERENCES person(id),
+  detected_how TEXT NOT NULL,           -- SHIFT | FLAGGED
+  detected_by TEXT,
+  detected_at TEXT NOT NULL,
+  reason TEXT,
+  evidence TEXT,
+  state TEXT NOT NULL,                  -- POSSIBLE | NOT_DUPLICATE | RECONCILED
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  manifest TEXT,                        -- JSON: rows and identifiers moved, and follow-up tasks
+  undone_by TEXT,
+  undone_at TEXT,
+  undone_note TEXT
+);
+CREATE INDEX duplicate_case_a ON duplicate_case(person_a, state);
+CREATE INDEX duplicate_case_b ON duplicate_case(person_b, state);
+CREATE TABLE duplicate_log (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES duplicate_case(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT,                           -- null when SHIFT itself spotted the pair
+  at TEXT NOT NULL
+);
+CREATE INDEX duplicate_log_c ON duplicate_log(case_id, at);
+`,
+  },
 ];
