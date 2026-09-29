@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go, state } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Decision-making capacity: a specific decision → why capacity is in question → the four
 // abilities → what was done to help them decide → the finding, for this decision only → when to
@@ -11,25 +12,6 @@ const PRESUMED = 'Capacity is presumed. This is about one decision at one time, 
 const LAW = 'SHIFT records the assessment only. Who decides if the person lacks capacity, and any enduring power of attorney, is still being researched (RR-CAP-001).';
 const TONE = { HAS: 'ok', LACKS: 'danger', NOT_YET: 'warn' };
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const select = (options, value) => {
   const s = h('select', {}, Object.entries(options).map(([k, v]) => h('option', { value: k }, v)));

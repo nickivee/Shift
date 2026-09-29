@@ -3,7 +3,7 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { state, go } from '../app.js';
 import { workHeader } from './entry.js';
-import { dialog, field, select } from './identity.js';
+import { dialog, field, select } from '../lib/forms.js';
 
 // Break-glass access: no ordinary access → clinical need → the pathway that fits → reason →
 // agreement or a senior's approval → time-limited access → everything done listed → review.

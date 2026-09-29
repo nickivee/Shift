@@ -3,30 +3,12 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Bed and location: placement need → move asked for → bed found and held → patient moved →
 // the old bed goes for cleaning. Every stay in a bed is kept.
 const STATE = { REQUESTED: ['Needs a bed', 'warn'], ALLOCATED: ['Bed held', 'ok'], MOVED: ['Moved', 'muted'], CANCELLED: ['Cancelled', 'muted'] };
 const BED = { AVAILABLE: 'ok', RESERVED: 'warn', OCCUPIED: '', CLEANING: 'muted' };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 function allocateDialog(m, reload) {
   const pick = h('select', {}, m.beds.map((b) => h('option', { value: b.id }, `${b.label}${b.matches ? '' : ` (no ${b.missing.join(', ').toLowerCase()})`}`)));

@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog, field, select } from '../lib/forms.js';
 
 // Clinical pathways: trigger or eligibility → started → each step done, skipped, not applicable or deferred → deviations → escalation → completed or exited.
 const TONE = { SUGGESTED: 'warn', ACTIVE: 'ok', COMPLETED: 'muted', EXITED: 'muted', DECLINED: 'muted', ENTERED_IN_ERROR: 'muted' };
@@ -10,26 +11,6 @@ const STEP_TONE = { PENDING: 'muted', DONE: 'ok', SKIPPED: 'danger', NOT_APPLICA
 const URGENCY = { IMMEDIATE: 'Immediate', URGENT: 'Urgent', ROUTINE: 'Routine' };
 const DEFER = [[30, '30 minutes'], [60, '1 hour'], [120, '2 hours'], [240, '4 hours'], [480, '8 hours'], [1440, 'Tomorrow (24 hours)']];
 
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel')),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
-
-const field = (label, el) => h('label', { class: 'field' }, label, el);
-const select = (entries, label, blank = 'Choose…') => h('select', { 'aria-label': label }, blank === null ? null : h('option', { value: '' }, blank), entries.map(([k, v]) => h('option', { value: k }, v)));
 const send = (x, action, body) => post(`/api/work/pathways/${x.id}/${action}`, body);
 
 // Yes/no for each eligibility question.

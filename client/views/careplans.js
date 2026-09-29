@@ -3,30 +3,12 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Care plan: need → goal → care → who → review date → review (continue, change, achieved,
 // ceased). A change supersedes the old item; reviews carry forward so the trail is unbroken.
 const OUTCOME = { CONTINUE: 'Continue', MODIFIED: 'Changed', ACHIEVED: 'Achieved', CEASED: 'Ceased' };
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 function itemFields(responsible, item = {}) {
   const need = h('input', { type: 'text', 'aria-label': 'Need', value: item.need ?? '' });

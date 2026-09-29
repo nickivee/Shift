@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Communication: what needs saying → to whom → how → each attempt → got through or not →
 // what was conveyed → their response → follow-up → completed.
@@ -17,25 +18,6 @@ function steps(c) {
     && (s !== 'FOLLOW_UP' || c.followUp || OPEN.includes(c.state)));
   const at = list.indexOf(c.state);
   return h('ol', { class: 'steps' }, list.map((s, i) => h('li', { class: i < at || c.state === 'COMPLETED' ? 'done' : i === at ? 'now' : '' }, LABEL[s])));
-}
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
 }
 
 const select = (options, value) => {

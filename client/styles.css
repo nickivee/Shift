@@ -367,6 +367,13 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .dest.active { background: var(--paua-shade); color: #fff; border-color: #0b3d4a; text-shadow: 0 1px 3px #000a; }
 
 .dest.active svg { color: #fff; }
+.dest-group {
+  margin-top: 8px; padding: 0 2px; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+  color: #0b4f6c; overflow-wrap: anywhere;
+}
+.dest-group:first-child { margin-top: 0; }
+.home-group { display: grid; gap: 10px; margin-top: 14px; }
+.home-group .section-title { border-radius: var(--radius); }
 .live { border: 2px solid var(--line); border-radius: var(--radius); background: var(--card); display: flex; flex-direction: column; min-height: 62vh; overflow: hidden; }
 .live-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; }
 .live-title h2 { margin: 0; font-size: 22px; }
@@ -380,6 +387,7 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
   .dest { padding: 7px 3px; font-size: 11px; border-radius: 10px; }
   #app { padding-left: 10px; padding-right: 10px; }
   .dest svg { display: none; }
+  .dest-group { font-size: 9.5px; letter-spacing: .3px; }
   .live { min-height: 70vh; }
   .live-title { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
   .live-title h2 { font-size: 18px; }

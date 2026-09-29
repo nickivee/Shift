@@ -3,30 +3,12 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog } from '../lib/forms.js';
 
 // Clinical equipment: on the register → available → set up for a patient after a check →
 // in use → finished with, or a fault takes it out of use → repair → back in service → retired.
 const TONE = { AVAILABLE: 'ok', IN_USE: 'warn', QUARANTINED: 'danger', IN_REPAIR: 'muted', RETIRED: 'muted' };
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel'),
-      ),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const ACTION = {
   end: { label: 'Finished with', title: 'Finished with', field: 'Note (optional)', placeholder: 'Cleaned and returned', done: 'Returned to available.' },

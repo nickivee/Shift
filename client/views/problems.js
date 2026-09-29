@@ -3,35 +3,17 @@ import { get, post } from '../lib/api.js';
 import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog as dialog, field } from '../lib/forms.js';
 
 // Problems: concern → evidence → working problem → confirmed → managed and watched → improving, stable or worse → resolved or inactive → back again.
 const TONE = { CONCERN: 'warn', PROVISIONAL: 'warn', ACTIVE: 'danger', RESOLVED: 'muted', INACTIVE: 'muted', RULED_OUT: 'muted', ENTERED_IN_ERROR: 'muted' };
 const TREND_TONE = { IMPROVING: 'ok', STABLE: 'muted', WORSENING: 'danger' };
-
-function dialog(title, body, submitLabel, onSubmit) {
-  const error = h('p', { class: 'small notice', hidden: true });
-  const dlg = h('dialog', {},
-    h('form', { class: 'stack', onsubmit: async (e) => {
-      e.preventDefault();
-      try { await onSubmit(); dlg.close(); dlg.remove(); } catch (err) { error.textContent = err?.message ?? 'Something went wrong.'; error.hidden = false; }
-    } },
-      h('h2', {}, title), body, error,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'submit' }, submitLabel),
-        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Cancel')),
-    ),
-  );
-  dlg.addEventListener('cancel', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-}
 
 const today = () => {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
-const field = (label, el) => h('label', { class: 'field' }, label, el);
 
 function raiseDialog(personId, reload) {
   const title = h('input', { type: 'text', 'aria-label': 'Concern', placeholder: 'e.g. New confusion' });
