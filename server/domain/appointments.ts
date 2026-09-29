@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, recordInitial, history, revise } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Appointment (Shared Lifecycle Object 208):
@@ -182,6 +182,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
       case 'declined':
         manage();
         need(3, 'Record what the patient said.');
+        revise(store, 'appointment', id, store.get<Record<string, unknown>>('SELECT start_at, place FROM appointment WHERE id = ?', id)!, {},
+          { start_at: 'Offered time', place: 'Offered place' }, who, `Offer declined: ${note}`);
         transition(store, 'appointment', id, 'REQUESTED', who, `Offer declined: ${note}`);
         store.run('UPDATE appointment SET start_at = NULL, place = NULL, response_note = ? WHERE id = ?', note, id);
         break;

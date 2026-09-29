@@ -3,8 +3,8 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
-import { vacate } from './locations.ts';
+import { transition, transitionAll, recordInitial, history } from './lifecycle.ts';
+import { vacate, bedTo } from './locations.ts';
 import { endForService } from './assignments.ts';
 import { requireCoding } from './coding.ts';
 import { EXPECTED, CERT, NOTIFY, NOTIFY_BY_ID, DONATION, RELEASE } from '../config/deaths.ts';
@@ -245,13 +245,15 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
           transition(store, 'deterioration', d.id, 'CLOSED', who, 'Died');
           store.run("UPDATE deterioration_event SET outcome = 'DIED', outcome_note = ?, closed_by = ?, closed_at = ? WHERE id = ?", 'Closed with their death record', ctx.workerId, at, d.id);
         }
-        store.run("UPDATE allocation SET state = 'ENDED', ended_at = ?, end_reason = 'Died' WHERE person_id = ? AND state IN ('ACTIVE', 'PROPOSED')", at, personId);
+        for (const a of transitionAll(store, 'allocation', 'person_id = ?', [personId], 'ENDED', who, 'Died')) store.run("UPDATE allocation SET ended_at = ?, end_reason = 'Died' WHERE id = ?", at, a);
         endForService(store, personId, serviceId, 'Died', who);
         vacate(store, personId, serviceId, 'Died', at);
-        store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", at, personId, serviceId);
+        bedTo(store, "person_id = ? AND service_id = ? AND state = 'OCCUPIED'", [personId, serviceId], 'CLEANING', who, 'Died', null);
+        bedTo(store, "person_id = ? AND service_id = ? AND state = 'RESERVED'", [personId, serviceId], 'AVAILABLE', who, 'Died', null);
         const enc = store.get<{ id: string }>("SELECT id FROM encounter WHERE person_id = ? AND service_id = ? AND state = 'ACTIVE'", personId, serviceId);
         if (enc) {
-          store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = ?", at, enc.id);
+          transition(store, 'encounter', enc.id, 'ENDED', who, 'Died');
+          store.run('UPDATE encounter SET ended_at = ? WHERE id = ?', at, enc.id);
           requireCoding(store, enc.id, 'Died', who);
         }
         store.run('UPDATE care_relationship SET ended_at = ? WHERE person_id = ? AND ended_at IS NULL AND service_id IN (SELECT id FROM service WHERE organisation_id = ?)',

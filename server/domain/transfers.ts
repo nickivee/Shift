@@ -3,9 +3,9 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, transitionAll, recordInitial, history } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
-import { occupy, vacate } from './locations.ts';
+import { occupy, vacate, bedTo } from './locations.ts';
 import { requireCoding } from './coding.ts';
 import { endForService } from './assignments.ts';
 
@@ -135,8 +135,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         enforce(store, ctx, { op: 'BED_MANAGE', serviceId: String(t.toServiceId), organisationId: ctx.organisationId }, personId);
         const bed = store.get<{ id: string; label: string }>("SELECT id, label FROM bed WHERE id = ? AND service_id = ? AND state = 'AVAILABLE'", b.bedId ?? '', t.toServiceId);
         if (!bed) throw new HttpError(409, 'BED_UNAVAILABLE', 'That bed is no longer available.');
-        if (t.bedId) store.run("UPDATE bed SET state = 'AVAILABLE', person_id = NULL, updated_at = ? WHERE id = ?", now(), t.bedId);
-        store.run("UPDATE bed SET state = 'RESERVED', person_id = ?, updated_at = ? WHERE id = ?", personId, now(), bed.id);
+        if (t.bedId) bedTo(store, 'id = ?', [t.bedId], 'AVAILABLE', who, 'Another bed chosen for the transfer', null);
+        bedTo(store, 'id = ?', [bed.id], 'RESERVED', who, 'Held for a transfer', personId);
         store.run('UPDATE transfer SET bed_id = ? WHERE id = ?', bed.id, id);
         transition(store, 'transfer', id, 'BED_ALLOCATED', who, bed.label);
         break;
@@ -144,8 +144,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
       case 'arrive': {
         enforce(store, ctx, { op: 'TRANSFER_RESPOND', toServiceId: String(t.toServiceId), step: 'arrive' }, personId);
         const encId = newId();
-        store.insert('encounter', { id: encId, person_id: personId, service_id: t.toServiceId, location: t.bed, kind: 'INPATIENT', started_at: now(), state: 'ACTIVE' });
-        store.run("UPDATE bed SET state = 'OCCUPIED', updated_at = ? WHERE id = ?", now(), t.bedId);
+        store.insert('encounter', { id: encId, person_id: personId, service_id: t.toServiceId, location: null, kind: 'INPATIENT', started_at: now(), state: 'ACTIVE' });
+        if (t.bedId) bedTo(store, 'id = ?', [t.bedId], 'OCCUPIED', who, `Arrived from ${t.fromService ?? 'another service'}`);
         if (t.bedId) occupy(store, String(t.bedId), personId, String(t.toServiceId), `Arrived from ${t.fromService ?? 'another service'}`);
         store.run('UPDATE transfer SET to_encounter_id = ? WHERE id = ?', encId, id);
         transition(store, 'transfer', id, 'ARRIVED', who, note ?? `Arrived in ${t.bed}`);
@@ -155,11 +155,12 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         enforce(store, ctx, { op: 'TRANSFER_RESPOND', toServiceId: String(t.toServiceId), step: 'responsibility' }, personId);
         const from = store.get<{ id: string }>('SELECT from_encounter_id AS id FROM transfer WHERE id = ?', id);
         if (from?.id) {
-          store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = ? AND state = 'ACTIVE'", now(), from.id);
+          for (const e of transitionAll(store, 'encounter', 'id = ?', [from.id], 'ENDED', who, `Transferred to ${ctx.serviceName}`)) store.run('UPDATE encounter SET ended_at = ? WHERE id = ?', now(), e);
           requireCoding(store, from.id, `Transferred to ${ctx.serviceName}`, who);
           vacate(store, personId, String(t.fromServiceId), `Transferred to ${ctx.serviceName}`);
           endForService(store, personId, String(t.fromServiceId), `Transferred to ${ctx.serviceName}`, who);
-          store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", now(), personId, t.fromServiceId);
+          bedTo(store, "person_id = ? AND service_id = ? AND state = 'OCCUPIED'", [personId, t.fromServiceId], 'CLEANING', who, `Transferred to ${ctx.serviceName}`, null);
+          bedTo(store, "person_id = ? AND service_id = ? AND state = 'RESERVED'", [personId, t.fromServiceId], 'AVAILABLE', who, `Transferred to ${ctx.serviceName}`, null);
         }
         store.run('UPDATE transfer SET responsible_by = ? WHERE id = ?', ctx.workerId, id);
         transition(store, 'transfer', id, 'RESPONSIBILITY_ACCEPTED', who, note ?? `${ctx.serviceName} has taken responsibility`);
@@ -169,7 +170,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         if (t.fromServiceId !== ctx.serviceId || !ctx.role.capabilities.includes('transfer.request')) throw new HttpError(403, 'BLOCK', 'Only the requesting service can cancel this transfer.');
         if (!note) throw new HttpError(400, 'REASON_REQUIRED', 'Give the reason for cancelling.');
         transition(store, 'transfer', id, 'CANCELLED', who, note);
-        if (t.bedId) store.run("UPDATE bed SET state = 'AVAILABLE', person_id = NULL, updated_at = ? WHERE id = ?", now(), t.bedId);
+        if (t.bedId) bedTo(store, 'id = ?', [t.bedId], 'AVAILABLE', who, 'Transfer cancelled', null);
         break;
       }
       default:
@@ -209,7 +210,7 @@ export function setBed(store: Store, ctx: WorkContext, bedId: string, state: str
   enforce(store, ctx, { op: 'BED_MANAGE', serviceId: bed.service_id, organisationId: ctx.organisationId });
   const allowed: Record<string, string[]> = { CLEANING: ['AVAILABLE'], AVAILABLE: ['CLEANING'] };
   if (!allowed[bed.state]?.includes(state)) throw new HttpError(409, 'INVALID_BED_STATE', 'Occupied and reserved beds change only through admission, transfer or discharge.');
-  store.run('UPDATE bed SET state = ?, updated_at = ? WHERE id = ?', state, now(), bedId);
+  bedTo(store, 'id = ?', [bedId], state, { actorId: ctx.workerId, workContextId: ctx.id }, state === 'AVAILABLE' ? 'Cleaned and ready' : 'Needs cleaning');
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: `BED_${state}`, objectType: 'bed', objectId: bedId, decision: 'ALLOW', outcome: 'COMMITTED', engines: [42] });
   return { id: bedId, state };
 }

@@ -1,6 +1,7 @@
 import type { Store } from '../db/database.ts';
 import type { Session } from './identity.ts';
 import { audit } from './audit.ts';
+import { transition } from './lifecycle.ts';
 import { newId, now, todayLocal, addDays, HttpError } from '../lib/util.ts';
 
 // PERSONAL: the signed-in worker's own employment information. It never opens a patient
@@ -121,8 +122,11 @@ export function offerShift(store: Store, s: Session, rosterShiftId: string) {
 }
 
 export function withdrawOffer(store: Store, s: Session, offerId: string) {
-  const r = store.run("UPDATE shift_offer SET state = 'WITHDRAWN', decided_at = ? WHERE id = ? AND offered_by = ? AND state = 'OFFERED'", now(), offerId, s.workerId);
-  if (!r.changes) throw new HttpError(409, 'NOT_OPEN', 'That offer is no longer open.');
+  if (!store.get("SELECT 1 FROM shift_offer WHERE id = ? AND offered_by = ? AND state = 'OFFERED'", offerId, s.workerId)) throw new HttpError(409, 'NOT_OPEN', 'That offer is no longer open.');
+  store.tx(() => {
+    transition(store, 'shift_offer', offerId, 'WITHDRAWN', { actorId: s.workerId, workContextId: null }, 'Withdrawn by the worker');
+    store.run('UPDATE shift_offer SET decided_at = ? WHERE id = ?', now(), offerId);
+  });
   audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: 'SHIFT_OFFER_WITHDRAW', objectType: 'shift_offer', objectId: offerId, outcome: 'COMMITTED' });
   return { id: offerId, state: 'WITHDRAWN' };
 }
@@ -213,8 +217,8 @@ export function requestLeave(store: Store, s: Session, b: { type?: string; start
 }
 
 export function cancelLeave(store: Store, s: Session, id: string) {
-  const r = store.run("UPDATE leave_request SET state = 'CANCELLED' WHERE id = ? AND workforce_person_id = ? AND state = 'REQUESTED'", id, s.workerId);
-  if (!r.changes) throw new HttpError(409, 'NOT_CANCELLABLE', 'Only a request still awaiting a decision can be cancelled here.');
+  if (!store.get("SELECT 1 FROM leave_request WHERE id = ? AND workforce_person_id = ? AND state = 'REQUESTED'", id, s.workerId)) throw new HttpError(409, 'NOT_CANCELLABLE', 'Only a request still awaiting a decision can be cancelled here.');
+  transition(store, 'leave_request', id, 'CANCELLED', { actorId: s.workerId, workContextId: null }, 'Cancelled by the worker');
   audit(store, { actorId: s.workerId, sessionId: s.id, space: 'PERSONAL', operation: 'LEAVE_CANCEL', objectType: 'leave_request', objectId: id, outcome: 'COMMITTED' });
   return { id, state: 'CANCELLED' };
 }

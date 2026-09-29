@@ -2,6 +2,7 @@ import type { Store } from '../db/database.ts';
 import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
+import { transition } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 // Doctors' anonymous shared professional knowledge. Participants see no names; the system
@@ -75,10 +76,11 @@ export function reply(store: Store, ctx: WorkContext, questionId: string, body: 
 
 export function closeQuestion(store: Store, ctx: WorkContext, id: string, withdraw: boolean) {
   enforce(store, ctx, { op: 'KNOWLEDGE' });
-  const r = store.run(
-    "UPDATE knowledge_question SET state = ?, closed_at = ? WHERE id = ? AND author_id = ? AND state = 'OPEN'", withdraw ? 'WITHDRAWN' : 'CLOSED', now(), id, ctx.workerId,
-  );
-  if (!r.changes) throw new HttpError(409, 'NOT_ALLOWED', 'Only the asker can close an open question.');
+  if (!store.get("SELECT 1 FROM knowledge_question WHERE id = ? AND author_id = ? AND state = 'OPEN'", id, ctx.workerId)) throw new HttpError(409, 'NOT_ALLOWED', 'Only the asker can close an open question.');
+  store.tx(() => {
+    transition(store, 'knowledge_question', id, withdraw ? 'WITHDRAWN' : 'CLOSED', { actorId: ctx.workerId, workContextId: ctx.id });
+    store.run('UPDATE knowledge_question SET closed_at = ? WHERE id = ?', now(), id);
+  });
   logged(store, ctx, withdraw ? 'KNOWLEDGE_WITHDRAW' : 'KNOWLEDGE_CLOSE', id);
   return { id };
 }

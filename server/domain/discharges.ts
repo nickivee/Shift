@@ -3,9 +3,9 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, transitionAll, recordInitial, history } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
-import { vacate } from './locations.ts';
+import { vacate, bedTo } from './locations.ts';
 import { requireCoding } from './coding.ts';
 import { endForService } from './assignments.ts';
 
@@ -175,11 +175,14 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         transition(store, 'discharge', id, 'DISCHARGED', who, note ?? `Discharged: ${d.destination}`);
         const at = now();
         store.run('UPDATE discharge SET discharged_by = ?, discharged_at = ? WHERE id = ?', ctx.workerId, at, id);
-        store.run("UPDATE encounter SET state = 'ENDED', ended_at = ? WHERE id = (SELECT encounter_id FROM discharge WHERE id = ?) AND state = 'ACTIVE'", at, id);
+        for (const e of transitionAll(store, 'encounter', 'id = (SELECT encounter_id FROM discharge WHERE id = ?)', [id], 'ENDED', who, `Discharged: ${d.destination}`)) {
+          store.run('UPDATE encounter SET ended_at = ? WHERE id = ?', at, e);
+        }
         requireCoding(store, String(store.get<{ e: string }>('SELECT encounter_id AS e FROM discharge WHERE id = ?', id)?.e), `Discharged: ${d.destination}`, who);
         vacate(store, personId, ctx.serviceId, 'Discharged', at);
         endForService(store, personId, ctx.serviceId, `Discharged: ${d.destination}`, who);
-        store.run("UPDATE bed SET state = 'CLEANING', person_id = NULL, updated_at = ? WHERE person_id = ? AND service_id = ?", at, personId, ctx.serviceId);
+        bedTo(store, "person_id = ? AND service_id = ? AND state = 'OCCUPIED'", [personId, ctx.serviceId], 'CLEANING', who, 'Discharged', null);
+        bedTo(store, "person_id = ? AND service_id = ? AND state = 'RESERVED'", [personId, ctx.serviceId], 'AVAILABLE', who, 'Discharged', null);
         // Hospital services sharing this person's care (e.g. physiotherapy) end with the stay.
         store.run(
           'UPDATE care_relationship SET ended_at = ? WHERE person_id = ? AND ended_at IS NULL AND service_id IN (SELECT id FROM service WHERE organisation_id = ?)',

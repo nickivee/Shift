@@ -114,6 +114,8 @@ function needCard(n, reload) {
     h('div', { class: 'small' }, n.detail),
     n.reviewDate && !ended ? h('div', { class: 'small muted' }, `Review by ${fmtDate(n.reviewDate)}`) : null,
     ended ? h('div', { class: 'small' }, h('b', {}, `Ended (${n.endedBy}): `), n.endReason) : null,
+    n.changes?.length ? h('details', {}, h('summary', { class: 'small' }, `Changes (${n.changes.length})`), h('ul', { class: 'small stack' }, n.changes.map((c) =>
+      h('li', {}, h('b', {}, `${c.actor ?? 'SHIFT'}, ${fmtDateTime(c.at)}: `), c.reason)))) : null,
     h('div', { class: 'small muted' }, [`Recorded by ${n.recordedBy} ${fmtDateTime(n.recordedAt)}`, n.reviewedBy ? `reviewed by ${n.reviewedBy} ${fmtDateTime(n.reviewedAt)}` : null].filter(Boolean).join(' · ')),
     n.actions?.length ? h('div', { class: 'row' }, n.actions.map((x) =>
       h('button', { class: `btn small${NEED_ACTION[x][1] ? ' primary' : ''}`, onclick: () => needAction(n, x, reload) }, NEED_ACTION[x][0]))) : null,

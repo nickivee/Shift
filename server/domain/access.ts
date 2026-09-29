@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, recordInitial, history, revise } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Interpreter / communication accessibility requirement (Shared Lifecycle Object 253):
@@ -54,13 +54,14 @@ const BOOKING = `
 const may = (store: Store, ctx: WorkContext, personId: string) => evaluate(store, ctx, { op: 'ACCESS', personId }).decision === 'ALLOW';
 const needLabel = (r: Row) => (r.kind === 'INTERPRETER' && r.language ? `${r.language} interpreter` : KINDS[String(r.kind)]);
 
-function shapeNeed(r: Row, manage: boolean) {
+function shapeNeed(store: Store, r: Row, manage: boolean) {
   const active = r.state === 'ACTIVE';
   const actions: string[] = [];
   if (active && manage) actions.push(...(INTERPRETED.includes(String(r.kind)) ? ['book'] : []), 'review', 'end');
   return {
     ...r, label: needLabel(r), kindLabel: KINDS[String(r.kind)], whenLabel: WHEN[String(r.whenNeeded)],
     interpreted: INTERPRETED.includes(String(r.kind)), reviewDue: active && !!r.reviewDate && String(r.reviewDate) <= todayLocal(), actions,
+    changes: history(store, 'commneed', String(r.id)).filter((x) => x.from_state === x.to_state),
   };
 }
 
@@ -86,8 +87,8 @@ const options = () => ({ kinds: KINDS, when: WHEN, modes: MODES });
 
 export function forPerson(store: Store, ctx: WorkContext, personId: string) {
   const manage = may(store, ctx, personId);
-  const needs = store.all<Row>(`${NEED} WHERE n.person_id = ? AND n.state = 'ACTIVE' ORDER BY n.recorded_at`, personId).map((r) => shapeNeed(r, manage));
-  const ended = store.all<Row>(`${NEED} WHERE n.person_id = ? AND n.state = 'ENDED' ORDER BY n.ended_at DESC`, personId).map((r) => shapeNeed(r, false));
+  const needs = store.all<Row>(`${NEED} WHERE n.person_id = ? AND n.state = 'ACTIVE' ORDER BY n.recorded_at`, personId).map((r) => shapeNeed(store, r, manage));
+  const ended = store.all<Row>(`${NEED} WHERE n.person_id = ? AND n.state = 'ENDED' ORDER BY n.ended_at DESC`, personId).map((r) => shapeNeed(store, r, false));
   const bookings = store.all<Row>(`${BOOKING} WHERE b.person_id = ? ORDER BY b.state IN ('REQUESTED', 'BOOKED') DESC, b.needed_at DESC LIMIT 20`, personId)
     .map((r) => shapeBooking(store, r, manage));
   return { needs, ended, bookings, canManage: manage, options: options() };
@@ -162,9 +163,12 @@ export function actNeed(store: Store, ctx: WorkContext, id: string, action: stri
     case 'review': {
       const v = cleanNeed({ ...b, kind: String(r.kind) });
       store.tx(() => {
+        const before = store.get<Record<string, unknown>>('SELECT * FROM comm_need WHERE id = ?', id)!;
+        const changed = revise(store, 'commneed', id, before, v, { language: 'Language', detail: 'What helps', when_needed: ['When needed', WHEN], review_date: 'Review by' },
+          { actorId: ctx.workerId, workContextId: ctx.id }, `Reviewed: ${v.detail}`);
         store.run('UPDATE comm_need SET language = ?, detail = ?, when_needed = ?, review_date = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?',
           v.language, v.detail, v.when_needed, v.review_date, ctx.workerId, at, id);
-        store.insert('state_transition', { id: newId(), object_type: 'commneed', object_id: id, from_state: 'ACTIVE', to_state: 'ACTIVE', actor_id: ctx.workerId, work_context_id: ctx.id, at, reason: `Reviewed: ${v.detail}`, transaction_id: null });
+        store.insert('state_transition', { id: newId(), object_type: 'commneed', object_id: id, from_state: 'ACTIVE', to_state: 'ACTIVE', actor_id: ctx.workerId, work_context_id: ctx.id, at, reason: `Reviewed: ${v.detail}${changed ? `. Changed ${changed}` : ''}`, transaction_id: null });
         logged(store, ctx, 'COMM_NEED_REVIEW', personId, 'comm_need', id, v.detail);
       });
       break;
@@ -258,7 +262,7 @@ export function list(store: Store, ctx: WorkContext) {
   ).map((r) => shapeBooking(store, r, true));
   const needs = store.all<Row>(
     `${NEED} WHERE n.state = 'ACTIVE' AND n.person_id IN (SELECT person_id FROM encounter WHERE service_id = ? AND state = 'ACTIVE') ORDER BY n.recorded_at`, ctx.serviceId,
-  ).map((r) => ({ ...shapeNeed(r, true), patient: store.get<{ n: string }>("SELECT given_name || ' ' || family_name AS n FROM person WHERE id = ?", String(r.personId))?.n }));
+  ).map((r) => ({ ...shapeNeed(store, r, true), patient: store.get<{ n: string }>("SELECT given_name || ' ' || family_name AS n FROM person WHERE id = ?", String(r.personId))?.n }));
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_INTERPRETERS', decision: 'ALLOW', outcome: 'VIEWED' });
   return { bookings, needs, options: options() };
 }

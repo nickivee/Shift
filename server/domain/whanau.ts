@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, recordInitial, history, revise } from './lifecycle.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 // Whānau / family / support-person involvement (Shared Lifecycle Object 252):
@@ -96,6 +96,12 @@ interface Fields {
 }
 const text = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max);
 
+// What a change keeps the old value of, in the words the screen uses.
+const CHANGE_LABELS: Record<string, string | [string, Record<string, string>]> = {
+  name: 'Name', relationship: ['Relationship', RELATIONSHIPS], relationship_note: 'About the relationship', phone: 'Phone', first_contact: ['First contact', { 0: 'No', 1: 'Yes' }],
+  wishes: ['Asked about sharing', WISHES], share: ['May be told', SHARE], involve: 'Involve them in', limits: 'Limits', authority: ['Legal authority', AUTHORITY], authority_ref: 'Document seen',
+};
+
 function clean(b: Fields) {
   const name = text(b.name, 200);
   if (name.length < 2) throw new HttpError(400, 'NAME_REQUIRED', 'Write their name.');
@@ -170,6 +176,8 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
       if (note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', 'Write what changed and who said so.');
       const authorityChanged = v.authority !== r.authority || v.authority_ref !== r.authorityRef;
       store.tx(() => {
+        const before = store.get<Record<string, unknown>>('SELECT * FROM support_person WHERE id = ?', id)!;
+        const changed = revise(store, 'supportperson', id, before, v, CHANGE_LABELS, { actorId: ctx.workerId, workContextId: ctx.id }, note);
         if (v.first_contact) store.run("UPDATE support_person SET first_contact = 0 WHERE person_id = ? AND state = 'ACTIVE' AND id <> ?", personId, id);
         store.run(
           `UPDATE support_person SET name = ?, relationship = ?, relationship_note = ?, phone = ?, first_contact = ?, wishes = ?, share = ?, involve = ?,
@@ -180,7 +188,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
           store.run('UPDATE support_person SET authority_seen_by = ?, authority_seen_at = ? WHERE id = ?',
             v.authority === 'NONE' ? null : ctx.workerId, v.authority === 'NONE' ? null : at, id);
         }
-        store.insert('state_transition', { id: newId(), object_type: 'supportperson', object_id: id, from_state: 'ACTIVE', to_state: 'ACTIVE', actor_id: ctx.workerId, work_context_id: ctx.id, at, reason: `Changed: ${note}`, transaction_id: null });
+        store.insert('state_transition', { id: newId(), object_type: 'supportperson', object_id: id, from_state: 'ACTIVE', to_state: 'ACTIVE', actor_id: ctx.workerId, work_context_id: ctx.id, at, reason: `Changed: ${note}${changed ? `. ${changed}` : ''}`, transaction_id: null });
         logged(store, ctx, 'WHANAU_CHANGE', personId, id, note);
       });
       break;

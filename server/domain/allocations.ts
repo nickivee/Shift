@@ -3,7 +3,7 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
-import { transition, recordInitial, history } from './lifecycle.ts';
+import { transition, transitionAll, recordInitial, history, type TransitionActor } from './lifecycle.ts';
 import { activeRaised } from './alerts.ts';
 import { current as helpNeeded } from './functional.ts';
 import { current as differentNow } from './usual.ts';
@@ -205,8 +205,8 @@ export function create(store: Store, ctx: WorkContext, b: { date?: string; perio
   return detail(store, ctx, load(store, id));
 }
 
-function endLines(store: Store, planId: string, reason: string) {
-  store.run("UPDATE allocation SET state = 'ENDED', ended_at = ?, end_reason = ? WHERE plan_id = ? AND state IN ('ACTIVE', 'PROPOSED')", now(), reason, planId);
+function endLines(store: Store, planId: string, reason: string, who: TransitionActor) {
+  for (const id of transitionAll(store, 'allocation', 'plan_id = ?', [planId], 'ENDED', who, reason)) store.run('UPDATE allocation SET ended_at = ?, end_reason = ? WHERE id = ?', now(), reason, id);
 }
 
 export function act(store: Store, ctx: WorkContext, id: string, action: string,
@@ -291,12 +291,14 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
         if (prior) {
           transition(store, 'allocplan', String(prior.id), 'ENDED', who, `Handed over to the ${label(r).toLowerCase()}`);
           store.run('UPDATE allocation_plan SET ended_by = ?, ended_at = ?, end_note = ? WHERE id = ?', ctx.workerId, now(), `Handed over to the ${label(r).toLowerCase()}`, String(prior.id));
-          endLines(store, String(prior.id), 'Shift handed over');
+          endLines(store, String(prior.id), 'Shift handed over', who);
         }
-        store.run("UPDATE allocation SET state = 'ENDED', ended_at = ?, end_reason = 'Replaced by allocation plans' WHERE service_id = ? AND state = 'LEGACY'", now(), serviceId);
+        for (const a of transitionAll(store, 'allocation', "service_id = ? AND state = 'LEGACY'", [serviceId], 'ENDED', who, 'Replaced by allocation plans')) {
+          store.run("UPDATE allocation SET ended_at = ?, end_reason = 'Replaced by allocation plans' WHERE id = ?", now(), a);
+        }
         transition(store, 'allocplan', id, 'ACTIVE', who, 'Shift started');
         store.run('UPDATE allocation_plan SET started_by = ?, started_at = ? WHERE id = ?', ctx.workerId, now(), id);
-        store.run("UPDATE allocation SET state = 'ACTIVE' WHERE plan_id = ? AND state = 'PROPOSED'", id);
+        transitionAll(store, 'allocation', 'plan_id = ?', [id], 'ACTIVE', who, 'Shift started');
         logged(store, ctx, 'ALLOCATION_START', id, label(r));
       });
       break;
@@ -312,7 +314,10 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
       if (store.get("SELECT 1 FROM allocation WHERE plan_id = ? AND person_id = ? AND workforce_person_id = ? AND state = 'ACTIVE'", id, p.id, to)) throw new HttpError(409, 'ALREADY', 'They already have this patient.');
       if (note.length < 3) throw new HttpError(400, 'REASON_REQUIRED', 'Write why, e.g. "New admission to Bed 9" or "Nicki went home unwell".');
       store.tx(() => {
-        if (from) store.run("UPDATE allocation SET state = 'ENDED', ended_at = ?, end_reason = ? WHERE id = ?", now(), `Moved: ${note}`, from.id);
+        if (from) {
+          transition(store, 'allocation', from.id, 'ENDED', who, `Moved: ${note}`);
+          store.run('UPDATE allocation SET ended_at = ?, end_reason = ? WHERE id = ?', now(), `Moved: ${note}`, from.id);
+        }
         store.insert('allocation', {
           id: newId(), workforce_person_id: to, person_id: p.id, service_id: serviceId, shift_date: String(r.shiftDate), created_at: now(), created_by: ctx.workerId,
           plan_id: id, state: 'ACTIVE', reallocated_from: from?.id ?? null, move_reason: note,
@@ -327,7 +332,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
       store.tx(() => {
         transition(store, 'allocplan', id, 'ENDED', who, note);
         store.run('UPDATE allocation_plan SET ended_by = ?, ended_at = ?, end_note = ? WHERE id = ?', ctx.workerId, now(), note, id);
-        endLines(store, id, 'Shift ended');
+        endLines(store, id, 'Shift ended', who);
         logged(store, ctx, 'ALLOCATION_END', id, note);
       });
       break;

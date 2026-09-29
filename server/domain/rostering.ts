@@ -2,6 +2,7 @@ import type { Store } from '../db/database.ts';
 import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
+import { transition } from './lifecycle.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Rostering decisions for one service. This is the only place a roster changes: interest in
@@ -73,7 +74,7 @@ export function decideVacancy(store: Store, ctx: WorkContext, openShiftId: strin
   const rid = newId();
   store.tx(() => {
     store.insert('roster_shift', { id: rid, workforce_person_id: chosen.workerId, position_id: position.id, service_id: ctx.serviceId, shift_date: o.shift_date, start_time: o.start_time, end_time: o.end_time, state: 'PLANNED', data_source: 'SHIFT' });
-    store.run("UPDATE open_shift SET state = 'FILLED' WHERE id = ?", openShiftId);
+    transition(store, 'open_shift', openShiftId, 'FILLED', { actorId: ctx.workerId, workContextId: ctx.id }, `Filled by ${chosen.name}`);
     for (const c of store.all<{ w: string }>('SELECT DISTINCT workforce_person_id AS w FROM open_shift_interest WHERE open_shift_id = ?', openShiftId)) {
       store.insert('open_shift_interest', { id: newId(), open_shift_id: openShiftId, workforce_person_id: c.w, state: c.w === chosen.workerId ? 'ACCEPTED' : 'DECLINED', at: now() });
     }
@@ -104,7 +105,8 @@ export function decideSwap(store: Store, ctx: WorkContext, offerId: string, b: {
   const takers = store.all<{ w: string }>('SELECT DISTINCT workforce_person_id AS w FROM shift_offer_take WHERE offer_id = ?', offerId);
   if (b.decline) {
     store.tx(() => {
-      store.run("UPDATE shift_offer SET state = 'DECLINED', decided_at = ?, decided_by = ? WHERE id = ?", now(), ctx.workerId, offerId);
+      transition(store, 'shift_offer', offerId, 'DECLINED', { actorId: ctx.workerId, workContextId: ctx.id }, b.note || undefined);
+      store.run('UPDATE shift_offer SET decided_at = ?, decided_by = ? WHERE id = ?', now(), ctx.workerId, offerId);
       for (const t of takers) store.insert('shift_offer_take', { id: newId(), offer_id: offerId, workforce_person_id: t.w, state: 'DECLINED', at: now() });
       decided(store, ctx, { kind: 'EXCHANGE', objectId: offerId, outcome: 'DECLINED', note: b.note });
     });
@@ -118,9 +120,10 @@ export function decideSwap(store: Store, ctx: WorkContext, offerId: string, b: {
   const original = store.get<Row>('SELECT r.* FROM roster_shift r JOIN shift_offer o ON o.roster_shift_id = r.id WHERE o.id = ?', offerId)!;
   const rid = newId();
   store.tx(() => {
-    store.run("UPDATE roster_shift SET state = 'REASSIGNED' WHERE id = ?", original.id);
+    transition(store, 'roster_shift', String(original.id), 'REASSIGNED', { actorId: ctx.workerId, workContextId: ctx.id }, `Swapped to ${chosen.name}`);
     store.insert('roster_shift', { id: rid, workforce_person_id: chosen.workerId, position_id: position.id, service_id: ctx.serviceId, shift_date: original.shift_date, start_time: original.start_time, end_time: original.end_time, state: 'PLANNED', data_source: 'SHIFT' });
-    store.run("UPDATE shift_offer SET state = 'REASSIGNED', decided_at = ?, decided_by = ? WHERE id = ?", now(), ctx.workerId, offerId);
+    transition(store, 'shift_offer', offerId, 'REASSIGNED', { actorId: ctx.workerId, workContextId: ctx.id }, `Swapped to ${chosen.name}`);
+    store.run('UPDATE shift_offer SET decided_at = ?, decided_by = ? WHERE id = ?', now(), ctx.workerId, offerId);
     for (const t of takers) store.insert('shift_offer_take', { id: newId(), offer_id: offerId, workforce_person_id: t.w, state: t.w === chosen.workerId ? 'ACCEPTED' : 'DECLINED', at: now() });
     decided(store, ctx, { kind: 'EXCHANGE', objectId: offerId, outcome: 'REASSIGNED', subject: chosen.workerId, rosterShiftId: rid, note: b.note });
   });
@@ -147,7 +150,7 @@ export function leaveRequests(store: Store, ctx: WorkContext) {
 export function decideLeave(store: Store, ctx: WorkContext, id: string, approve: boolean, note?: string) {
   if (!leaveRequests(store, ctx).some((l) => l.id === id)) throw new HttpError(404, 'NOT_FOUND', 'That leave request is no longer waiting for a decision.');
   store.tx(() => {
-    store.run('UPDATE leave_request SET state = ? WHERE id = ?', approve ? 'APPROVED' : 'DECLINED', id);
+    transition(store, 'leave_request', id, approve ? 'APPROVED' : 'DECLINED', { actorId: ctx.workerId, workContextId: ctx.id }, note || undefined);
     const who = store.get<{ w: string }>('SELECT workforce_person_id AS w FROM leave_request WHERE id = ?', id)!.w;
     decided(store, ctx, { kind: 'LEAVE', objectId: id, outcome: approve ? 'APPROVED' : 'DECLINED', subject: who, note });
   });
