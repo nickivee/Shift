@@ -448,6 +448,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OPEN',
     next: { OPEN: ['CLOSED', 'WITHDRAWN'] },
   },
+  downtime: {
+    table: 'downtime',
+    initial: 'DECLARED',
+    next: { DECLARED: ['RESTORED', 'CANCELLED'], RESTORED: ['CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

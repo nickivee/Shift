@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-DOWNTIME-001',
+    question: 'What New Zealand requires when an electronic health record is unavailable: the continuity processes a service must have, how records made on paper during downtime are brought back into the electronic record, how long the paper originals must be kept (Health (Retention of Health Information) Regulations 1996), and who may enter them.',
+    blocks: 'Treating the synthetic organisation\'s paper processes as a standard, and any advice to destroy paper originals. SHIFT shows the organisation\'s process for each function that is down, enters each paper record at the time the care happened with who wrote it and the sheet it came from, and closes a downtime only when everyone in the service has been checked.',
+    category: 'ORGANISATIONAL CONFIGURATION',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

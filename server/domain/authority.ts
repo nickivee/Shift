@@ -23,6 +23,7 @@ export type Operation =
   | { op: 'REVIEW_RESULT'; personId: string }
   | { op: 'KNOWLEDGE' }
   | { op: 'ROSTER_DECIDE'; serviceId: string }
+  | { op: 'DOWNTIME'; serviceId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
   | { op: 'TRANSFER_REQUEST'; personId: string }
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
@@ -159,6 +160,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
         : block('That allocation belongs to another service'));
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
+    case 'DOWNTIME':
+      return need(ctx, 'downtime.manage') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-DOWNTIME-001']) : block('That downtime belongs to another service'));
     case 'TASK':
       return need(ctx, 'task.manage') ?? (o.serviceId === ctx.serviceId ? allow() : block('Task belongs to another service'));
     case 'RECEIVE':

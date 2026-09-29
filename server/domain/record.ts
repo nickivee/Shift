@@ -243,13 +243,13 @@ interface EventRow {
   id: string; lineage_id: string; version: number; category: string; key_code: string | null; fields_json: string;
   rendered_text: string; author: string | null; author_role_label: string | null; author_id: string | null;
   recorded_at: string; effective_at: string; effective_end: string | null; state: string; urgent: number;
-  amendment_reason: string | null; service_name: string | null; collection: string;
+  amendment_reason: string | null; service_name: string | null; collection: string; downtime_id: string | null; paper_by: string | null; paper_ref: string | null;
 }
 
 const EVENT_SELECT = `
   SELECT e.id, e.lineage_id, e.version, e.category, e.key_code, e.fields_json, e.rendered_text, w.display_name AS author,
          e.author_role_label, e.author_id, e.recorded_at, e.effective_at, e.effective_end, e.state, e.urgent, e.amendment_reason,
-         s.name AS service_name, e.collection
+         s.name AS service_name, e.collection, e.downtime_id, e.paper_by, e.paper_ref
     FROM clinical_event e
     LEFT JOIN workforce_person w ON w.id = e.author_id
     LEFT JOIN service s ON s.id = e.service_id`;
@@ -268,6 +268,7 @@ function shapeEvent(store: Store, ctx: WorkContext, e: EventRow) {
     mine: e.author_id === ctx.workerId, recordedAt: e.recorded_at, effectiveAt: e.effective_at, effectiveEnd: e.effective_end,
     state: e.state, urgent: Boolean(e.urgent), amendmentReason: e.amendment_reason, service: e.service_name,
     collection: e.collection, routes, handover: Boolean(mark),
+    fromPaper: e.downtime_id ? { by: e.paper_by, ref: e.paper_ref } : null,
   };
 }
 

@@ -110,6 +110,7 @@ const PATHS = {
   priorities: 'M5 4h14M7 9h10M9 14h6M11 19h2',
   arrivals: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M17 8h5M19.5 5.5v5',
   duplicates: 'M4 4h10v12H4zM10 8h10v12H10z',
+  downtime: 'M4 5h16v10H4zM9 19h6M12 15v4M8 8l8 4M16 8l-8 4',
   delegation: 'M4 12h10M10 8l4 4-4 4M17 5v14M20 9v6',
   breakglass: 'M4 4h16v16H4zM9 4l3 7-4 3 5 6M15 4l-2 5 4 3',
   infections: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3',

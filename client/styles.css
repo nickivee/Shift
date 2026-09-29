@@ -885,3 +885,10 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .rule-facts { margin: 0; padding-left: 18px; }
 .rule-book summary { font-weight: 700; cursor: pointer; }
 .rule-book .rule { border-top: 1px solid var(--tint); padding-top: 8px; }
+
+/* Downtime */
+.downtime-banner { display: block; width: 100%; margin-top: 10px; text-align: left; font: inherit; font-weight: 700; cursor: pointer; }
+.paper-entry { padding: 10px 12px; border: 2px dashed #d99a00; border-radius: 12px; background: var(--warn-bg); }
+.paper-entry .row > .field { flex: 1 1 180px; }
+.dt-people { list-style: none; padding: 0; margin: 0; }
+.dt-people > li { padding: 8px 0; border-top: 1px solid var(--tint); gap: 8px; flex-wrap: wrap; }

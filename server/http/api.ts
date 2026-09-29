@@ -61,6 +61,7 @@ import * as duplicates from '../domain/duplicates.ts';
 import * as breakglass from '../domain/breakglass.ts';
 import * as delegation from '../domain/delegation.ts';
 import * as workqueue from '../domain/workqueue.ts';
+import * as downtime from '../domain/downtime.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -161,6 +162,7 @@ export function buildApi(store: Store): Router {
       urgent: b.urgent === true,
       from: str(b.from) || null,
       to: str(b.to) || null,
+      downtime: b.downtime && typeof b.downtime === 'object' ? b.downtime as Record<string, unknown> : null,
       idempotencyKey: str(b.idempotencyKey),
     });
   });
@@ -170,6 +172,10 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/routes/:id/:action', (req) => coordination.routeAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
   r.on('GET', '/api/work/tasks', (req) => coordination.taskList(store, work(req)));
   r.on('GET', '/api/work/queue', (req) => workqueue.queue(store, work(req)));
+  r.on('GET', '/api/work/downtime', (req) => downtime.list(store, work(req)));
+  r.on('GET', '/api/work/downtime/now', (req) => downtime.current(store, work(req)));
+  r.on('POST', '/api/work/downtime', (req) => downtime.declare(store, work(req), { functions: req.body.functions, reason: str(req.body.reason), startedAgo: Number(req.body.startedAgo) }));
+  r.on('POST', '/api/work/downtime/:id/:action', (req) => downtime.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), checkId: str(req.body.checkId), outcome: str(req.body.outcome) }));
   r.on('POST', '/api/work/queue/:id/:action', (req) => workqueue.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), minutes: Number(req.body.minutes) }));
   r.on('POST', '/api/work/tasks/:id/:action', (req) => coordination.taskAction(store, work(req), req.params.id, req.params.action, str(req.body.note)));
   r.on('GET', '/api/work/handover', (req) => coordination.handoverBoard(store, work(req)));

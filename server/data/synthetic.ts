@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 60;
+const SET = 62;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -388,6 +388,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 58) set58(store);
     if (at < 59) set59(store);
     if (at < 60) set60(store);
+    if (at < 62) set62(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3907,4 +3908,54 @@ function set60(store: Store): void {
   };
   if (kate && frank) add(frank, 'svc-arc', 'Reposition Frank and check both heels', 50, 'role:arc-caregiver', 'ASSIGNED', kate, 120);
   if (ravi && mere && tom) add(tom, 'svc-ed', 'Repeat ECG', 80, `worker:${mere}`, 'ACCEPTED', ravi, 100);
+}
+
+// Set 62: downtime continuity. General Medicine was down overnight and is back up, with paper
+// records still to enter; the Emergency Department had a results outage last week, now closed.
+function set62(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const [nicki, mere] = [who('nicki'), who('mere')];
+  if (!nicki || !mere) return;
+  const add = (serviceId: string, functions: string, reason: string, by: string, from: number, to: number, state: string, closeNote: string | null) => {
+    const id = newId();
+    store.insert('downtime', {
+      id, service_id: serviceId, functions, reason, started_at: ago(from), state, declared_by: by, declared_at: ago(from - 10),
+      restored_by: by, restored_at: ago(to), restore_note: 'Network fixed; checked on every computer',
+      closed_by: closeNote ? by : null, closed_at: closeNote ? ago(to - 600) : null, close_note: closeNote,
+    });
+    const step = (from_: string | null, to_: string, at: string, reason_: string) =>
+      store.insert('state_transition', { id: newId(), object_type: 'downtime', object_id: id, from_state: from_, to_state: to_, actor_id: by, work_context_id: null, at, reason: reason_, transaction_id: null });
+    const log = (kind: string, body: string, at: string) => store.insert('downtime_log', { id: newId(), downtime_id: id, kind, body, by_id: by, at });
+    step(null, 'DECLARED', ago(from - 10), reason);
+    log('DECLARED', reason, ago(from - 10));
+    step('DECLARED', 'RESTORED', ago(to), 'Network fixed; checked on every computer');
+    const people = store.all<{ p: string }>(
+      'SELECT DISTINCT person_id AS p FROM encounter WHERE service_id = ? AND started_at <= ? AND (ended_at IS NULL OR ended_at >= ?)', serviceId, ago(to), ago(from),
+    );
+    for (const { p } of people) store.insert('downtime_check', { id: newId(), downtime_id: id, person_id: p, state: closeNote ? 'CHECKED' : 'TO_CHECK', outcome: closeNote ? 'NOTHING' : null, note: closeNote ? 'No results phoned for them' : null, checked_by: closeNote ? by : null, checked_at: closeNote ? ago(to - 300) : null });
+    log('RESTORED', `Network fixed; checked on every computer. ${people.length} people to check for paper records.`, ago(to));
+    if (closeNote) {
+      step('RESTORED', 'CLOSED', ago(to - 600), closeNote);
+      log('CLOSED', closeNote, ago(to - 600));
+    }
+    return id;
+  };
+  // General Medicine, last night: everything down for two and a half hours; one paper obs set already entered.
+  const gm = add('svc-genmed', 'ALL', 'Screens frozen on every computer on the ward', nicki, 22 * 60, 19.5 * 60, 'RESTORED', null);
+  const aroha = store.get<{ id: string }>("SELECT id FROM person WHERE given_name = 'Aroha' AND family_name = 'Rangi'")?.id;
+  const pos = store.get<{ id: string }>("SELECT p.id FROM position p JOIN employment e ON e.id = p.employment_id WHERE e.workforce_person_id = ? AND p.service_id = 'svc-genmed'", nicki)?.id ?? null;
+  if (aroha) {
+    const t = KEY_BY_CODE.get('.obs')!;
+    const fields = { bp: '112/70', hr: 98, spo2: 93, rr: 22, t: 38.1, o2: '2 L nasal prongs', loc: 'Alert' };
+    const id = newId();
+    store.insert('clinical_event', {
+      id, lineage_id: id, version: 1, person_id: aroha, category: t.category, key_code: '.obs', key_version: t.version, fields_json: JSON.stringify(fields),
+      rendered_text: render(t, fields), author_id: nicki, author_position_id: pos, author_role_label: 'Registered Nurse, General Medicine', service_id: 'svc-genmed',
+      recorded_at: ago(19 * 60), effective_at: ago(21 * 60), state: 'CURRENT', urgent: 0, collection: 'DIRECT', data_source: 'SYNTHETIC',
+      downtime_id: gm, paper_by: 'Nicki V, RN', paper_ref: 'Obs chart 1',
+    });
+  }
+  // Emergency Department, last week: laboratory results down for an hour, closed with a lesson learned.
+  add('svc-ed', 'RESULTS', 'Laboratory results not arriving in SHIFT', mere, 6 * 1440, 6 * 1440 - 60, 'CLOSED', 'Phoning results worked; keep a spare results sheet in the resus bay.');
 }

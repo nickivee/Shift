@@ -1,6 +1,6 @@
 import { h, icon } from '../lib/dom.js';
 import { get, post, del, localInfo, resetDevice } from '../lib/api.js';
-import { showError, toast, pageTitle, confirmDialog } from '../lib/ui.js';
+import { showError, toast, pageTitle, confirmDialog, fmtDateTime } from '../lib/ui.js';
 import { state, go, refreshMe } from '../app.js';
 
 export async function entryView() {
@@ -117,14 +117,21 @@ export async function contextView() {
 
 export function workHeader(title, subtitle) {
   const ctx = state.me.context;
-  return h('div', { class: 'header-card card' },
+  // While downtime is declared, every screen in the service says so and points to the paper process.
+  const down = h('button', { class: 'banner danger downtime-banner', hidden: true, onclick: () => go('/work/downtime') });
+  get('/api/work/downtime/now').then((list) => {
+    if (!list?.length) return;
+    down.textContent = `Downtime since ${fmtDateTime(list[0].startedAt)}: ${list.flatMap((x) => x.functions).join(', ')}. Use the paper process. Tap for details.`;
+    down.hidden = false;
+  }, () => {});
+  return h('div', {}, h('div', { class: 'header-card card' },
     h('div', { class: 'logo small' }, 'S'),
     h('div', { class: 'grow' },
       h('h1', {}, title ?? state.me.worker.name),
       h('div', { class: 'sub' }, subtitle ?? `WORK · ${ctx.service}`),
     ),
     h('button', { class: 'btn small', onclick: () => go('/work/context'), title: 'Change WORK context' }, 'Context'),
-  );
+  ), down);
 }
 
 export { pageTitle };

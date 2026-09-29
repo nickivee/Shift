@@ -89,6 +89,22 @@ export async function workstationView(personId, initialView) {
   const to = h('input', { type: 'datetime-local' });
   const toggles = h('div', { class: 'toggles' });
 
+  // Entering records made on paper while SHIFT was down: each one goes in at the time on the paper,
+  // with who wrote it, and is marked as coming from paper.
+  const paper = state.backEntry?.personId === personId ? state.backEntry : null;
+  const localTime = (iso) => { const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  const paperBy = h('input', { type: 'text', 'aria-label': 'Who wrote it on paper', placeholder: 'e.g. Kate Morgan, RN' });
+  const paperRef = h('input', { type: 'text', 'aria-label': 'Paper sheet', placeholder: 'e.g. Obs chart 2 of 3 (optional)' });
+  const paperStrip = paper ? h('div', { class: 'paper-entry stack' },
+    h('div', { class: 'small' }, h('b', {}, 'Entering from paper. '), `SHIFT was down ${fmtDateTime(paper.startedAt)} to ${fmtDateTime(paper.restoredAt)}. Type the .key, set From to the time written on the paper, and say who wrote it.`),
+    h('div', { class: 'row' }, h('label', { class: 'field' }, 'Who wrote it on paper', paperBy), h('label', { class: 'field' }, 'Paper sheet', paperRef)),
+    h('div', {}, h('button', { class: 'btn small', onclick: () => { state.backEntry = null; go('/work/downtime'); } }, 'Finished entering from paper')),
+  ) : null;
+  if (paper) {
+    ws.showPeriod = true;
+    from.value = localTime(paper.startedAt);
+  }
+
   // Record destinations: every record area this role may open, down the side.
   const subject = state.me.context.subjectLabel;
   // A break opportunity after '/' keeps labels like Intake/Output whole words.
@@ -243,6 +259,7 @@ export async function workstationView(personId, initialView) {
           handover: ws.handover, urgent: ws.urgent,
           from: ws.showPeriod && from.value ? new Date(from.value).toISOString() : null,
           to: ws.showPeriod && to.value ? new Date(to.value).toISOString() : null,
+          downtime: paper ? { id: paper.downtimeId, paperBy: paperBy.value, paperRef: paperRef.value } : null,
           idempotencyKey: f.idem,
         });
         toast(receipt(f.template, result));
@@ -341,6 +358,7 @@ export async function workstationView(personId, initialView) {
       h('div', { class: 'row small' },
         e.urgent ? h('span', { class: 'tag danger' }, 'Urgent') : null,
         e.handover ? h('span', { class: 'tag' }, 'Handover') : null,
+        e.fromPaper ? h('span', { class: 'tag warn' }, 'From paper') : null,
         e.version > 1 ? h('span', { class: 'tag muted' }, `Amended (v${e.version})`) : null,
         e.state === 'ENTERED_IN_ERROR' ? h('span', { class: 'tag danger' }, 'Entered in error') : null,
         e.routes.map((r) => h('span', { class: 'tag muted' }, `→ ${r.label}: ${titleCase(r.state)}`)),
@@ -360,6 +378,7 @@ export async function workstationView(personId, initialView) {
         h('h2', {}, d.template?.label ?? d.event.category),
         h('p', {}, d.event.text),
         h('p', { class: 'small muted' }, `Recorded ${fmtDateTime(d.event.recordedAt)} by ${d.event.author} (${d.event.authorRole}). Source: ${d.event.collection === 'DIRECT' ? 'direct' : 'indirect'} collection.`),
+        d.event.fromPaper ? h('p', { class: 'small notice' }, `Entered afterwards from a paper record made while SHIFT was down, written by ${d.event.fromPaper.by}${d.event.fromPaper.ref ? ` (${d.event.fromPaper.ref})` : ''}.`) : null,
         d.versions.length > 1 ? h('div', {}, h('h3', {}, 'Versions'), d.versions.map((v) => h('p', { class: 'small' }, `v${v.version} · ${titleCase(v.state)} · ${fmtDateTime(v.recordedAt)} · ${v.author}${v.amendmentReason ? ` · Reason: ${v.amendmentReason}` : ''}`, h('br'), v.text))) : null,
         d.routeHistory.length ? h('div', {}, h('h3', {}, 'Routing'), d.routeHistory.map((r, i) => h('p', { class: 'small' }, `${d.event.routes[i]?.label ?? 'Route'}: `, r.transitions.map((t) => `${titleCase(t.to_state)} ${fmtDateTime(t.at)}${t.actor ? ` (${t.actor})` : ''}`).join(' → ')))) : null,
         h('div', { class: 'row' },
@@ -691,7 +710,7 @@ export async function workstationView(personId, initialView) {
         body,
         h('div', { class: 'command' },
           h('div', { class: 'command-line' }, input, h('button', { class: 'btn primary', onclick: run }, 'Enter')),
-          suggest, chips, toggles,
+          paperStrip, suggest, chips, toggles,
         ),
       ),
     ),
