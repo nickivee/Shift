@@ -3216,4 +3216,15 @@ CREATE TABLE delegation_log (
 CREATE INDEX delegation_log_d ON delegation_log(delegation_id, at);
 `,
   },
+  {
+    version: 59,
+    name: 'rule engine',
+    sql: `
+-- Rule engine: each generated alert keeps the rule version and the facts that fired it, and a
+-- clinical decision alert keeps the decision recorded against it.
+ALTER TABLE alert ADD COLUMN rule_version INTEGER;
+ALTER TABLE alert ADD COLUMN evidence TEXT;             -- JSON: the facts that fired the rule
+ALTER TABLE alert ADD COLUMN outcome TEXT;              -- the decision, for clinical decision alerts
+`,
+  },
 ];

@@ -582,7 +582,8 @@ export function buildApi(store: Store): Router {
   r.on('GET', '/api/work/alerts', (req) => alerts.list(store, work(req)));
   r.on('GET', '/api/work/alerts/count', (req) => alerts.count(store, work(req)));
   r.on('POST', '/api/work/patients/:id/alerts', (req) => alerts.raise(store, work(req), req.params.id, { category: str(req.body.category), title: str(req.body.title), detail: str(req.body.detail), expiresOn: str(req.body.expiresOn) }));
-  r.on('POST', '/api/work/alerts/:id/:action', (req) => alerts.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
+  r.on('GET', '/api/work/alerts/rules', (req) => alerts.rules(work(req)));
+  r.on('POST', '/api/work/alerts/:id/:action', (req) => alerts.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), outcome: str(req.body.outcome) }));
   r.on('GET', '/api/work/appointments', (req) => appointments.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/appointments', (req) => appointments.request(store, work(req), req.params.id, { reason: str(req.body.reason), priority: str(req.body.priority), mode: str(req.body.mode) }));
   r.on('POST', '/api/work/appointments/:id/:action', (req) => appointments.act(store, work(req), req.params.id, req.params.action, {

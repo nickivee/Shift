@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { dialog, field, select } from './identity.js';
 
 // Alert: trigger → generated → visible to its recipient → acknowledged → action → resolved
 // or expired. Alerts generated from the record close themselves when the record changes;
@@ -22,7 +23,7 @@ const SOURCE = {
   EQUIPMENT_SERVICE_OVERDUE: 'From equipment: it is in use on a patient past its planned service date. Swapping it closes this alert.',
 };
 const OPEN = ['GENERATED', 'VISIBLE', 'ACKNOWLEDGED', 'ACTIONED'];
-const WHERE = { CAPACITY_REASSESS_DUE: 'capacity', LEAVE_OVERDUE: 'absence', RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan', MONITORING_OVERDUE: 'monitoring', RESTRICTION_REVIEW_OVERDUE: 'restrictions', SWALLOW_CONCERN: 'diet', EQUIPMENT_SERVICE_OVERDUE: 'equipment' };
+const WHERE = { ALLERGY_MEDICINE: 'meds', INSULIN_NO_BGL: 'monitoring', CAPACITY_REASSESS_DUE: 'capacity', LEAVE_OVERDUE: 'absence', RESULT_ABNORMAL: 'results', WOUND_REVIEW_OVERDUE: 'wounds', CAREPLAN_REVIEW_OVERDUE: 'careplan', MONITORING_OVERDUE: 'monitoring', RESTRICTION_REVIEW_OVERDUE: 'restrictions', SWALLOW_CONCERN: 'diet', EQUIPMENT_SERVICE_OVERDUE: 'equipment' };
 
 function steps(a) {
   if (a.state === 'EXPIRED') return null;
@@ -30,7 +31,23 @@ function steps(a) {
   return h('ol', { class: 'steps' }, STEPS.map((s, i) => h('li', { class: i < at || a.state === 'RESOLVED' ? 'done' : i === at ? 'now' : '' }, LABEL[s])));
 }
 
+// A clinical decision alert: record what was decided, not just that something was done.
+function decideDialog(a, reload) {
+  const outcome = select(Object.entries(a.outcomes), 'What you decided');
+  const note = h('textarea', { 'aria-label': 'Details', placeholder: 'e.g. Rang Dr Patel: changed to paracetamol alone' });
+  dialog(`Decision: ${a.title}`, (run, close) => h('div', { class: 'stack' },
+    a.ruleInfo ? h('p', { class: 'small' }, a.ruleInfo.expects) : null,
+    field('What you decided', outcome), field('Details', note),
+    h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: run(async () => {
+      await post(`/api/work/alerts/${a.id}/action`, { outcome: outcome.value, note: note.value });
+      close();
+      toast('Decision recorded.');
+      reload();
+    }) }, 'Record decision'))));
+}
+
 async function doAction(a, action, reload) {
+  if (action === 'action' && a.outcomes) return decideDialog(a, reload);
   let body = {};
   if (action === 'action') {
     const note = await ask({ title: 'Record the action taken', message: a.rule === 'RAISED' ? 'Colleagues see what was done.' : 'The alert closes by itself once the record changes.', label: 'What was done', confirm: 'Save', multiline: true, minLength: 3 });
@@ -50,6 +67,7 @@ async function doAction(a, action, reload) {
 }
 
 const ACTION = { acknowledge: ['Acknowledge', true], action: ['Record action', false], resolve: ['Resolve', false] };
+const actionLabel = (a, x) => (x === 'action' && a.outcomes ? 'Record decision' : ACTION[x][0]);
 
 export function alertCard(a, reload, { showPatient = true } = {}) {
   const raised = a.rule === 'RAISED';
@@ -63,10 +81,12 @@ export function alertCard(a, reload, { showPatient = true } = {}) {
     ),
     h('div', {}, h('b', {}, a.title)),
     a.detail ? h('div', {}, a.detail) : null,
-    raised ? null : h('div', { class: 'small muted' }, SOURCE[a.rule]),
+    raised ? null : a.evidence?.length ? h('ul', { class: 'small rule-facts' }, a.evidence.map((e) => h('li', {}, e))) : null,
+    raised ? null : h('div', { class: 'small muted' }, SOURCE[a.rule] ?? a.ruleInfo?.expects ?? ''),
+    a.ruleInfo && !raised ? h('div', { class: 'small muted' }, `Rule: ${a.ruleInfo.label} · ${a.ruleInfo.step} · version ${a.ruleInfo.version} · ${a.ruleInfo.source}`) : null,
     steps(a),
-    a.actionNote ? h('div', { class: 'small' }, h('b', {}, `Action (${a.actionedBy}, ${fmtDateTime(a.actionedAt)}): `), a.actionNote) : null,
-    a.resolution ? h('div', { class: 'small' }, h('b', {}, `${LABEL[a.state]}${a.resolvedBy ? ` (${a.resolvedBy})` : ''}: `), a.resolution) : null,
+    a.actionNote ? h('div', { class: 'small' }, h('b', {}, `${a.outcomeLabel ? `Decision: ${a.outcomeLabel}` : 'Action'} (${a.actionedBy}, ${fmtDateTime(a.actionedAt)}): `), a.actionNote) : null,
+    a.resolution && !(a.outcomeLabel && a.resolvedBy) ? h('div', { class: 'small' }, h('b', {}, `${LABEL[a.state]}${a.resolvedBy ? ` (${a.resolvedBy})` : ''}: `), a.resolution) : null,
     h('div', { class: 'small muted' }, [
       `${raised ? 'Raised' : 'Generated'} ${fmtDateTime(a.generatedAt)}`,
       a.seenBy && !raised ? `first seen by ${a.seenBy}` : null,
@@ -74,7 +94,7 @@ export function alertCard(a, reload, { showPatient = true } = {}) {
       a.expiresOn && OPEN.includes(a.state) ? `review by ${fmtDate(a.expiresOn)}` : null,
     ].filter(Boolean).join(' · ')),
     a.actions.length ? h('div', { class: 'row' }, a.actions.map((x) =>
-      h('button', { class: `btn small${ACTION[x][1] ? ' primary' : ''}`, onclick: () => doAction(a, x, reload) }, ACTION[x][0]))) : null,
+      h('button', { class: `btn small${ACTION[x][1] ? ' primary' : ''}`, onclick: () => doAction(a, x, reload) }, actionLabel(a, x)))) : null,
   );
 }
 
@@ -111,7 +131,7 @@ export function alertsPanel(personId, d, reload) {
 export async function alertsView() {
   const root = h('div');
   const load = async () => {
-    const rows = await get('/api/work/alerts');
+    const [rows, rules] = await Promise.all([get('/api/work/alerts'), get('/api/work/alerts/rules')]);
     const fresh = rows.filter((a) => a.state === 'VISIBLE' || a.state === 'GENERATED');
     const going = rows.filter((a) => a.state === 'ACKNOWLEDGED' || a.state === 'ACTIONED');
     const closed = rows.filter((a) => !OPEN.includes(a.state));
@@ -120,10 +140,16 @@ export async function alertsView() {
     mount(root,
       workHeader(),
       pageTitle('Alerts', () => go('/work/home')),
-      h('div', { class: 'banner' }, 'Alerts come from what is recorded, such as a result the laboratory flagged or a review date that has passed. SHIFT sets no clinical thresholds of its own.'),
+      h('div', { class: 'banner' }, 'Alerts come from rules that read what is recorded, such as a medicine that names a recorded allergy, a result the laboratory flagged or a review date that has passed. Each alert shows the facts behind it. SHIFT sets no clinical thresholds of its own.'),
       section('Needs acknowledging', fresh, 'Nothing new.'),
       going.length ? section('Acknowledged', going, '') : null,
       closed.length ? section('Closed today', closed, '') : null,
+      rules.length ? h('details', { class: 'tile rule-book' }, h('summary', {}, `How these alerts are decided (${rules.length} rules)`),
+        h('div', { class: 'stack' }, rules.map((r) => h('div', { class: 'stack rule' },
+          h('div', { class: 'spread' }, h('b', {}, r.label), h('span', { class: `tag ${r.status === 'ACTIVE' ? 'ok' : 'warn'}` }, r.status === 'ACTIVE' ? (r.decision ? 'Running · needs a decision' : 'Running') : 'Waiting for approval')),
+          h('div', { class: 'small' }, `${r.step}. ${r.checks} ${r.expects}`),
+          r.waiting ? h('div', { class: 'small notice' }, r.waiting) : null,
+          h('div', { class: 'small muted' }, `${r.status === 'ACTIVE' ? `Version ${r.version}` : 'No approved version yet'} · ${r.source}`))))) : null,
     );
   };
   await load();
