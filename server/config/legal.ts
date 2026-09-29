@@ -333,6 +333,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-IDENT-001',
+    question: 'The New Zealand rules for identifying a person on arrival: searching the National Health Index, how many identifiers must agree, naming and managing unidentified people, recording an NHI that has not been verified, and who may merge or unmerge records.',
+    blocks: 'Treating SHIFT\'s matching rule (the NHI, or date of birth with full name) as a national standard, and updating the National Health Index. SHIFT records what was stated and where it came from, shows the evidence for each possible match, and keeps every merge reversible; a clinician makes every match.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

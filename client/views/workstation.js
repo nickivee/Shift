@@ -51,6 +51,7 @@ import { readinessPanel } from './readiness.js';
 import { variancesPanel } from './variances.js';
 import { declinedPanel } from './declined.js';
 import { prioritiesPanel } from './priorities.js';
+import { identityPanel } from './identity.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -434,6 +435,7 @@ export async function workstationView(personId, initialView) {
       case 'variances': return variancesPanel(personId, d, () => go(`/work/patient/${personId}/variances`));
       case 'declined': return declinedPanel(personId, d, () => go(`/work/patient/${personId}/declined`));
       case 'priorities': return prioritiesPanel(personId, d, () => go(`/work/patient/${personId}/${ws.view}`));
+      case 'identity': return identityPanel(personId, d, (to = personId) => go(`/work/patient/${to}/identity`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
       case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
@@ -543,6 +545,14 @@ export async function workstationView(personId, initialView) {
     if (patient.declinedCare?.length) {
       block.append(h('button', { class: 'patient-declined', onclick: () => openView('declined') }, icon('declined'),
         h('span', {}, h('b', {}, 'DECLINED CARE'), patient.declinedCare.join(' · '))));
+    }
+    if (patient.mergedInto) {
+      block.append(h('button', { class: 'patient-identity', onclick: () => go(`/work/patient/${patient.mergedInto.id}/identity`) }, icon('arrivals'),
+        h('span', {}, h('b', {}, 'MERGED'), `This temporary record was merged into ${patient.mergedInto.name}. Open their record.`)));
+    }
+    if (patient.identityUnresolved) {
+      block.append(h('button', { class: 'patient-identity', onclick: () => openView('identity') }, icon('arrivals'),
+        h('span', {}, h('b', {}, 'IDENTITY NOT CONFIRMED'), 'Temporary identity. Check any details you record, and identify them as soon as you can.')));
     }
     if (patient.careOverdue?.length) {
       block.append(h('button', { class: 'patient-caredue', onclick: () => openView('caredue') }, icon('caredue'),

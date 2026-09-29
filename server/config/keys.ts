@@ -276,7 +276,7 @@ export const KEY_BY_CODE = new Map(KEYS.map((k) => [k.code, k]));
 export interface RetrieveView {
   code: string;
   label: string;
-  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups' | 'surveillance' | 'screening' | 'infections' | 'antimicrobials' | 'sitechecks' | 'readiness' | 'variances' | 'declined' | 'priorities';
+  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups' | 'surveillance' | 'screening' | 'infections' | 'antimicrobials' | 'sitechecks' | 'readiness' | 'variances' | 'declined' | 'priorities' | 'identity';
   categories?: string[];
   key?: string;   // the .key a worker would use to add to this view
 }
@@ -313,6 +313,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'variances', label: 'Variances', kind: 'variances' },
   { code: 'declined', label: 'Declined care', kind: 'declined' },
   { code: 'priorities', label: 'Priority', kind: 'priorities' },
+  { code: 'identity', label: 'Identity', kind: 'identity' },
   { code: 'wounds', label: 'Wounds', kind: 'wounds', categories: ['WOUND'] },
   { code: 'skin', label: 'Skin', kind: 'events', categories: ['SKIN', 'WOUND'], key: '.skin' },
   { code: 'falls', label: 'Falls', kind: 'events', categories: ['FALL'], key: '.fall' },
