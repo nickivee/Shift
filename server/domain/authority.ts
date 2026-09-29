@@ -460,10 +460,12 @@ export function relationship(store: Store, ctx: WorkContext, personId: string): 
     personId, ctx.serviceId, ctx.role.roleKey,
   );
   if (cs) return 'CONSULTATION';
-  // The treating service may read the record while a coder's question about its episode is open.
+  // The treating service may read the record while a coder's question about its episode is open,
+  // and for a week after answering it, to see how the episode was coded.
   if (ctx.role.capabilities.includes('coding.answer')) {
     const cq = store.get(
-      "SELECT 1 FROM coding_query q JOIN coding_case c ON c.id = q.case_id WHERE c.person_id = ? AND q.service_id = ? AND q.state = 'OPEN'", personId, ctx.serviceId,
+      "SELECT 1 FROM coding_query q JOIN coding_case c ON c.id = q.case_id WHERE c.person_id = ? AND q.service_id = ? AND (q.state = 'OPEN' OR (q.state = 'ANSWERED' AND q.answered_at >= ?))",
+      personId, ctx.serviceId, new Date(Date.now() - 7 * 24 * 3600_000).toISOString(),
     );
     if (cq) return 'CODING_QUERY';
   }

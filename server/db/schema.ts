@@ -3173,4 +3173,47 @@ CREATE TABLE exceptional_access_log (
 CREATE INDEX exceptional_access_log_a ON exceptional_access_log(access_id, at);
 `,
   },
+  {
+    version: 58,
+    name: 'delegation',
+    sql: `
+-- Delegation: eligible activity → delegator → delegate → scope → timeframe → acceptance →
+-- performance → supervision/review where required → completion/end.
+CREATE TABLE delegation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  activity TEXT NOT NULL,
+  instructions TEXT NOT NULL,
+  report_if TEXT NOT NULL,
+  delegator_id TEXT NOT NULL REFERENCES workforce_person(id),
+  delegate_id TEXT NOT NULL REFERENCES workforce_person(id),
+  starts_at TEXT NOT NULL,
+  ends_at TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- OFFERED | ACCEPTED | DECLINED | WITHDRAWN | TO_REVIEW | COMPLETED | EXPIRED
+  competence_confirmed INTEGER NOT NULL,
+  review_required INTEGER NOT NULL,
+  responded_at TEXT,
+  response_note TEXT,
+  concern_at TEXT,
+  done_at TEXT,
+  reviewed_at TEXT,
+  review_outcome TEXT,
+  review_note TEXT,
+  ended_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX delegation_delegate ON delegation(delegate_id, state);
+CREATE INDEX delegation_delegator ON delegation(delegator_id, state);
+CREATE TABLE delegation_log (
+  id TEXT PRIMARY KEY,
+  delegation_id TEXT NOT NULL REFERENCES delegation(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+CREATE INDEX delegation_log_d ON delegation_log(delegation_id, at);
+`,
+  },
 ];

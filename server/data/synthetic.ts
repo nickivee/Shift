@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 57;
+const SET = 58;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -384,6 +384,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 55) set55(store);
     if (at < 56) set56(store);
     if (at < 57) set57(store);
+    if (at < 58) set58(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3821,4 +3822,46 @@ function set57(store: Store): void {
   step('ACTIVE', 'ENDED', end, 'Time limit reached');
   store.insert('exceptional_access_log', { id: newId(), access_id: id, kind: 'OPENED', body: `Emergency: life or serious harm at risk now. ${reason} Open for 60 minutes.`, by_id: mere, at: start });
   store.insert('exceptional_access_log', { id: newId(), access_id: id, kind: 'EXPIRED', body: 'Access closed at the end of its time limit.', by_id: mere, at: end });
+}
+
+// Set 58: delegation. In Residential Care, Kate has asked Tama to reposition Frank, and Tama has
+// finished Elsie's blood glucose checks for Nicki to check. On the medical ward, Dr Hannah Li has
+// asked Nicki to take Aroha's bloods.
+function set58(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const later = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const pt = (given: string, family: string) => store.get<{ id: string }>('SELECT id FROM person WHERE given_name = ? AND family_name = ? AND merged_into IS NULL ORDER BY created_at LIMIT 1', given, family)?.id ?? null;
+  const [kate, nicki, tama, hannah] = [who('kate'), who('nicki'), who('tama'), who('hannah')];
+  const [frank, elsie, aroha] = [pt('Frank', 'Dawson'), pt('Elsie', 'Morgan'), pt('Aroha', 'Rangi')];
+  if (!kate || !nicki || !tama || !hannah || !frank || !elsie || !aroha) return;
+  const add = (d: { person: string; service: string; activity: string; label: string; instructions: string; reportIf: string; by: string; to: string; toName: string; at: number; hours: number; review: boolean }) => {
+    const id = newId();
+    store.insert('delegation', {
+      id, person_id: d.person, service_id: d.service, activity: d.activity, instructions: d.instructions, report_if: d.reportIf, delegator_id: d.by, delegate_id: d.to,
+      starts_at: ago(d.at), ends_at: later(d.hours * 60 - d.at), state: 'OFFERED', competence_confirmed: 1, review_required: d.review ? 1 : 0, created_at: ago(d.at),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'delegation', object_id: id, from_state: null, to_state: 'OFFERED', actor_id: d.by, work_context_id: null, at: ago(d.at), reason: d.label, transaction_id: null });
+    store.insert('delegation_log', { id: newId(), delegation_id: id, kind: 'OFFERED', body: `${d.label} to ${d.toName} for ${d.hours} h. ${d.instructions} Report straight back if: ${d.reportIf}${d.review ? ' Checked by the delegator when done.' : ''}`, by_id: d.by, at: ago(d.at) });
+    return id;
+  };
+  const move = (id: string, from: string, to: string, by: string, at: number, why: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'delegation', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(at), reason: why, transaction_id: null });
+  const note = (id: string, kind: string, body: string, by: string, at: number) => store.insert('delegation_log', { id: newId(), delegation_id: id, kind, body, by_id: by, at: ago(at) });
+
+  add({ person: frank, service: 'svc-arc', activity: 'REPOSITION', label: 'Reposition and check skin', instructions: 'Two-hourly turns this afternoon; check his heels and sacrum each time.',
+    reportIf: 'Any new redness that does not fade, broken skin or pain.', by: kate, to: tama, toName: 'Tama Walker', at: 15, hours: 4, review: false });
+
+  const bgl = add({ person: elsie, service: 'svc-arc', activity: 'BGL', label: 'Check blood glucose', instructions: 'Check before lunch and before tea, and record each reading in SHIFT.',
+    reportIf: 'Below 4 or above 15 mmol/L, or she is drowsy or sweaty.', by: nicki, to: tama, toName: 'Tama Walker', at: 240, hours: 8, review: true });
+  move(bgl, 'OFFERED', 'ACCEPTED', tama, 230, 'Accepted');
+  note(bgl, 'ACCEPTED', 'Accepted.', tama, 230);
+  note(bgl, 'PROGRESS', 'Before lunch: 7.8 mmol/L, recorded.', tama, 150);
+  note(bgl, 'PROGRESS', 'Before tea: 9.1 mmol/L, recorded.', tama, 25);
+  move(bgl, 'ACCEPTED', 'TO_REVIEW', tama, 20, 'Both checks done');
+  note(bgl, 'FINISHED', 'Both checks done and recorded. Nicki V will check it.', tama, 20);
+  store.run("UPDATE delegation SET state = 'TO_REVIEW', responded_at = ?, done_at = ? WHERE id = ?", ago(230), ago(20), bgl);
+
+  add({ person: aroha, service: 'svc-genmed', activity: 'BLOODS', label: 'Take blood samples', instructions: 'FBC, U&E and CRP before the 2 pm ward round; send urgent.',
+    reportIf: 'Two attempts without success, or she declines.', by: hannah, to: nicki, toName: 'Nicki V', at: 10, hours: 2, review: false });
 }
