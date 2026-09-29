@@ -873,3 +873,7 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .patient-breakglass .btn { margin-left: 34px; }
 .bg-activity { margin: 0; padding-left: 18px; }
 .bg-reviewed { opacity: .92; }
+
+.rule-facts { margin: 0; padding-left: 18px; }
+.rule-book summary { font-weight: 700; cursor: pointer; }
+.rule-book .rule { border-top: 1px solid var(--tint); padding-top: 8px; }

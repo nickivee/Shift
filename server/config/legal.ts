@@ -357,6 +357,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-RULES-001',
+    question: 'Clinical decision support content for New Zealand settings: which medicine, allergy, diagnosis and result rules an organisation should run, the thresholds and dosing tables they need (for example kidney function and medicine doses), who approves and owns each rule, and how rules are validated and kept up to date.',
+    blocks: 'Running any rule that needs a clinical threshold or dosing table. SHIFT runs only rules built on recorded facts (a medicine that names a recorded allergy, insulin or diabetes without blood glucose monitoring, a result the laboratory flagged), shows the facts behind every alert, and lists rules awaiting approval without running them.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INSTR-001',
     question: 'Which assessment instruments each New Zealand setting must or should use (for example interRAI in aged residential care), their licensing terms, and checking the text of free-to-use instruments against the publishers\' current versions.',
     blocks: 'Using licensed instruments such as interRAI. SHIFT includes only instruments whose publishers allow free use (PHQ-9 and 4AT), and their text must be checked before clinical use.',

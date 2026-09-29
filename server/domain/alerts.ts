@@ -11,6 +11,7 @@ import { overdue as leaveOverdue } from './leave.ts';
 import { reassessDue as capacityReassessDue } from './capacity.ts';
 import { swallowConcerns } from './diets.ts';
 import { inUseOverdue as equipmentOverdue } from './equipment.ts';
+import { RULE_BOOK, STEPS } from '../config/rules.ts';
 
 // Alert (Shared Lifecycle Object 218):
 //   trigger condition → alert generated → visible to an authorised recipient →
@@ -18,16 +19,68 @@ import { inUseOverdue as equipmentOverdue } from './equipment.ts';
 // Generated alerts follow recorded facts only. When the condition clears, an alert nobody
 // acknowledged expires; one that was acknowledged is resolved. SHIFT sets no clinical
 // thresholds: an abnormal result is one the laboratory flagged.
+// Rule Engine (Cross-System Capability 313): risk → diagnosis recommendation → order result →
+// clinical decision alert → completed action. Each rule is in the rule book with its version and
+// source, and each alert keeps the facts that fired it. A clinical decision alert needs the
+// decision recorded; a decision that closes it holds while the same facts hold.
 
 type Row = Record<string, string | number | null>;
 const OPEN = "('GENERATED', 'VISIBLE', 'ACKNOWLEDGED', 'ACTIONED')";
 const CATEGORIES: Record<string, string> = { SAFETY: 'Safety', CLINICAL: 'Clinical risk', COMMUNICATION: 'Communication need' };
 
-interface Condition { personId: string; objectId: string; title: string; detail: string }
+interface Condition { personId: string; objectId: string; title: string; detail: string; evidence?: string[] }
 interface Rule { rule: string; objectType: string; capability: string; current: (store: Store, serviceId: string, today: string) => Condition[] }
+
+const inService = (alias: string) => `EXISTS (SELECT 1 FROM encounter e WHERE e.person_id = ${alias} AND e.service_id = ? AND e.state = 'ACTIVE')`;
 
 // Each rule reads the canonical record and lists the conditions that hold right now.
 const RULES: Rule[] = [
+  {
+    // Risk → order: a medicine that names a substance the person reacts to.
+    rule: 'ALLERGY_MEDICINE', objectType: 'medication', capability: 'decision.respond',
+    current: (store, serviceId) => {
+      const rows = store.all<Record<string, string>>(
+        `SELECT m.id, m.person_id, m.medicine, m.dose, m.state, a.substance, a.kind, a.reaction, a.severity FROM medication m
+           JOIN allergy a ON a.person_id = m.person_id AND a.state = 'ACTIVE' AND a.kind IN ('ALLERGY', 'INTOLERANCE')
+                         AND coalesce(a.substance, '') <> '' AND instr(lower(m.medicine), lower(a.substance)) > 0
+          WHERE m.state IN ('ORDERED', 'VERIFIED', 'ACTIVE') AND ${inService('m.person_id')} ORDER BY m.id, a.substance`, serviceId,
+      );
+      const byMed = new Map<string, Record<string, string>[]>();
+      for (const r of rows) byMed.set(r.id, [...(byMed.get(r.id) ?? []), r]);
+      return [...byMed.values()].map((rs) => {
+        const m = rs[0];
+        return {
+          personId: m.person_id, objectId: m.id,
+          title: `${m.medicine} ${m.state === 'ORDERED' ? 'ordered' : 'charted'}: recorded ${rs.map((r) => `${r.kind.toLowerCase()} to ${r.substance}`).join(', ')}`,
+          detail: 'Check before the next dose is given.',
+          evidence: [`Medicine: ${m.medicine}${m.dose ? ` ${m.dose}` : ''} (${m.state.toLowerCase()})`,
+            ...rs.map((r) => `${r.kind === 'ALLERGY' ? 'Allergy' : 'Intolerance'}: ${r.substance}${r.reaction ? ` (${r.reaction}${r.severity ? `, ${r.severity.toLowerCase()}` : ''})` : ''}`)],
+        };
+      });
+    },
+  },
+  {
+    // Diagnosis → recommendation: diabetes treatment or diagnosis without blood glucose monitoring.
+    rule: 'INSULIN_NO_BGL', objectType: 'person', capability: 'decision.respond',
+    current: (store, serviceId) => {
+      const people = store.all<{ id: string }>(
+        `SELECT p.id FROM person p WHERE ${inService('p.id')}
+            AND NOT EXISTS (SELECT 1 FROM monitoring_plan mp WHERE mp.person_id = p.id AND mp.service_id = ? AND mp.parameter = 'BGL' AND mp.state = 'ACTIVE')
+            AND (EXISTS (SELECT 1 FROM medication m WHERE m.person_id = p.id AND m.state IN ('ORDERED', 'VERIFIED', 'ACTIVE') AND lower(m.medicine) LIKE '%insulin%')
+              OR EXISTS (SELECT 1 FROM clinical_problem c WHERE c.person_id = p.id AND c.state IN ('PROVISIONAL', 'ACTIVE') AND lower(c.title) LIKE '%diabet%'))`,
+        serviceId, serviceId,
+      );
+      return people.map(({ id }) => {
+        const meds = store.all<{ medicine: string; dose: string | null }>("SELECT medicine, dose FROM medication WHERE person_id = ? AND state IN ('ORDERED', 'VERIFIED', 'ACTIVE') AND lower(medicine) LIKE '%insulin%' ORDER BY medicine", id);
+        const probs = store.all<{ title: string }>("SELECT title FROM clinical_problem WHERE person_id = ? AND state IN ('PROVISIONAL', 'ACTIVE') AND lower(title) LIKE '%diabet%' ORDER BY title", id);
+        return {
+          personId: id, objectId: id, title: 'No blood glucose monitoring set up',
+          detail: meds.length ? `On ${meds.map((m) => m.medicine).join(', ')}.` : `${probs.map((p) => p.title).join(', ')} on the problem list.`,
+          evidence: [...meds.map((m) => `Medicine: ${m.medicine}${m.dose ? ` ${m.dose}` : ''}`), ...probs.map((p) => `Problem: ${p.title}`), 'No current blood glucose monitoring plan in this service'],
+        };
+      });
+    },
+  },
   {
     rule: 'RESULT_ABNORMAL', objectType: 'result', capability: 'result.review',
     current: (store, serviceId) => store.all<Record<string, string>>(
@@ -83,16 +136,24 @@ export function refresh(store: Store, serviceId: string) {
   const today = todayLocal();
   store.tx(() => {
     for (const rule of RULES) {
+      const info = RULE_BOOK[rule.rule];
+      if (info && info.status !== 'ACTIVE') continue;
       const holding = rule.current(store, serviceId, today);
       const ids = new Set(holding.map((c) => c.objectId));
       const open = store.all<{ id: string; object_id: string; state: string }>(`SELECT id, object_id, state FROM alert WHERE service_id = ? AND rule = ? AND state IN ${OPEN}`, serviceId, rule.rule);
       const have = new Set(open.map((a) => a.object_id));
+      // A decision that closed an alert stands while the facts behind it are the same.
+      const decided = new Set(store.all<{ object_id: string; evidence: string | null; outcome: string }>(
+        "SELECT object_id, evidence, outcome FROM alert WHERE service_id = ? AND rule = ? AND state = 'RESOLVED' AND outcome IS NOT NULL", serviceId, rule.rule,
+      ).filter((a) => info?.outcomes?.[a.outcome]?.closes).map((a) => `${a.object_id}|${a.evidence}`));
       for (const c of holding) {
         if (have.has(c.objectId)) continue;
+        const evidence = c.evidence ? JSON.stringify(c.evidence) : null;
+        if (decided.has(`${c.objectId}|${evidence}`)) continue;
         const id = newId();
         store.insert('alert', {
           id, person_id: c.personId, service_id: serviceId, capability: rule.capability, rule: rule.rule, object_type: rule.objectType, object_id: c.objectId,
-          title: c.title, detail: c.detail, state: 'GENERATED', generated_at: now(),
+          title: c.title, detail: c.detail, state: 'GENERATED', generated_at: now(), rule_version: info?.version ?? null, evidence,
         });
         recordInitial(store, 'alert', id, 'GENERATED', { actorId: null, workContextId: null }, c.detail);
       }
@@ -120,7 +181,7 @@ const SELECT = `
          a.service_id AS serviceId, s.name AS service, a.capability, a.object_type AS objectType, a.generated_at AS generatedAt,
          rb.display_name AS raisedBy, vt.display_name AS seenBy, a.visible_at AS visibleAt, ak.display_name AS acknowledgedBy, a.acknowledged_at AS acknowledgedAt,
          a.action_note AS actionNote, ac.display_name AS actionedBy, a.actioned_at AS actionedAt, rs.display_name AS resolvedBy, a.resolved_at AS resolvedAt,
-         a.resolution, a.expires_on AS expiresOn
+         a.resolution, a.expires_on AS expiresOn, a.rule_version AS ruleVersion, a.evidence, a.outcome
     FROM alert a
     JOIN person p ON p.id = a.person_id
     JOIN service s ON s.id = a.service_id
@@ -154,8 +215,13 @@ function shape(store: Store, ctx: WorkContext, a: Row) {
   if (mine && (state === 'ACKNOWLEDGED' || state === 'ACTIONED')) actions.push('action');
   // Generated alerts resolve when the record changes; a raised alert is resolved by a person.
   if (a.rule === 'RAISED' && mine && ctx.role.capabilities.includes('alert.raise') && ['VISIBLE', 'ACKNOWLEDGED', 'ACTIONED'].includes(state)) actions.push('resolve');
+  const info = RULE_BOOK[String(a.rule)];
   return {
     ...a, categoryLabel: a.category ? CATEGORIES[String(a.category)] : null, actions, mine,
+    evidence: a.evidence ? JSON.parse(String(a.evidence)) as string[] : [],
+    ruleInfo: info ? { label: info.label, step: STEPS[info.step], version: a.ruleVersion ?? info.version, source: info.source, checks: info.checks, expects: info.expects } : null,
+    outcomes: info?.outcomes ? Object.fromEntries(Object.entries(info.outcomes).map(([k, o]) => [k, o.label])) : null,
+    outcomeLabel: a.outcome ? info?.outcomes?.[String(a.outcome)]?.label ?? String(a.outcome) : null,
     history: history(store, 'alert', String(a.id)),
   };
 }
@@ -212,7 +278,7 @@ export function raise(store: Store, ctx: WorkContext, personId: string, b: { cat
   return { id };
 }
 
-export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string }) {
+export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string; outcome?: string }) {
   const a = store.get<Row>(`${SELECT} WHERE a.id = ?`, id);
   if (!a) throw new HttpError(404, 'NOT_FOUND', 'That alert no longer exists.');
   const personId = String(a.personId);
@@ -225,11 +291,29 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         transition(store, 'alert', id, 'ACKNOWLEDGED', who);
         store.run('UPDATE alert SET acknowledged_by = ?, acknowledged_at = ? WHERE id = ?', ctx.workerId, now(), id);
         break;
-      case 'action':
+      case 'action': {
+        const outcomes = RULE_BOOK[String(a.rule)]?.outcomes;
+        if (outcomes) {
+          // A clinical decision alert: the decision is part of the record.
+          const o = outcomes[String(b.outcome)];
+          if (!o) throw new HttpError(400, 'OUTCOME_REQUIRED', 'Choose what you decided.');
+          if (note.length < (o.closes ? 10 : 3)) throw new HttpError(400, 'NOTE_REQUIRED', o.closes ? 'Say why, and who you checked with.' : 'Record what was done.');
+          const at = now();
+          if (o.closes) {
+            transition(store, 'alert', id, 'RESOLVED', who, `${o.label}: ${note}`);
+            store.run('UPDATE alert SET outcome = ?, action_note = ?, actioned_by = ?, actioned_at = ?, resolved_by = ?, resolved_at = ?, resolution = ? WHERE id = ?',
+              String(b.outcome), note, ctx.workerId, at, ctx.workerId, at, `${o.label}: ${note}`, id);
+          } else {
+            transition(store, 'alert', id, 'ACTIONED', who, `${o.label}: ${note}`);
+            store.run('UPDATE alert SET outcome = ?, action_note = ?, actioned_by = ?, actioned_at = ? WHERE id = ?', String(b.outcome), note, ctx.workerId, at, id);
+          }
+          break;
+        }
         if (note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', 'Record what was done.');
         transition(store, 'alert', id, 'ACTIONED', who, note);
         store.run('UPDATE alert SET action_note = ?, actioned_by = ?, actioned_at = ? WHERE id = ?', note, ctx.workerId, now(), id);
         break;
+      }
       case 'resolve':
         if (a.rule !== 'RAISED') throw new HttpError(409, 'RECORD_RESOLVES', 'This alert resolves when the record changes.');
         enforce(store, ctx, { op: 'ALERT_RAISE', personId }, personId);
@@ -273,4 +357,13 @@ export function count(store: Store, ctx: WorkContext) {
     ctx.serviceId, ...caps,
   );
   return { open: Number(r?.n ?? 0) };
+}
+
+// The rules behind this service's alerts: what each looks at, and which are waiting for approval.
+export function rules(ctx: WorkContext) {
+  const caps = new Set<string>(ctx.role.capabilities);
+  const mine = new Set(RULES.filter((r) => caps.has(r.capability)).map((r) => r.rule));
+  return Object.entries(RULE_BOOK)
+    .filter(([k, r]) => mine.has(k) || (r.status !== 'ACTIVE' && caps.has('decision.respond')))
+    .map(([k, r]) => ({ id: k, label: r.label, step: STEPS[r.step], version: r.version, status: r.status, source: r.source, checks: r.checks, expects: r.expects, waiting: r.waiting ?? null, decision: !!r.outcomes }));
 }

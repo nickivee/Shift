@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 58;
+const SET = 59;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -385,6 +385,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 56) set56(store);
     if (at < 57) set57(store);
     if (at < 58) set58(store);
+    if (at < 59) set59(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3864,4 +3865,17 @@ function set58(store: Store): void {
 
   add({ person: aroha, service: 'svc-genmed', activity: 'BLOODS', label: 'Take blood samples', instructions: 'FBC, U&E and CRP before the 2 pm ward round; send urgent.',
     reportIf: 'Two attempts without success, or she declines.', by: hannah, to: nicki, toName: 'Nicki V', at: 10, hours: 2, review: false });
+}
+
+// Set 59: the rule engine. Dr Sam Patel has just ordered paracetamol and codeine for Wiremu, who
+// has a recorded codeine allergy. (Frank, on insulin in Residential Care with no blood glucose
+// monitoring plan, is picked up by the rules from what is already recorded.)
+function set59(store: Store): void {
+  const sam = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'sam'")?.id;
+  const wiremu = store.get<{ id: string }>("SELECT id FROM person WHERE given_name = 'Wiremu' AND family_name = 'Te Whare' AND merged_into IS NULL")?.id;
+  if (!sam || !wiremu) return;
+  store.insert('medication', {
+    id: newId(), person_id: wiremu, medicine: 'Paracetamol and codeine', dose: '1 g / 30 mg', route: 'Oral', frequency: 'Four times a day as needed', indication: 'Pain',
+    state: 'ORDERED', prescriber: 'Dr Sam Patel', started_at: new Date(Date.now() - 15 * 60_000).toISOString(), source: 'Ward K medication chart', data_source: 'SYNTHETIC',
+  });
 }
