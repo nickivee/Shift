@@ -51,6 +51,7 @@ import { forPerson as readinessFor } from './readiness.ts';
 import { forPerson as variancesFor } from './variances.ts';
 import { forPerson as declinedFor, current as declinedNow } from './declined.ts';
 import { forPerson as prioritiesFor } from './priorities.ts';
+import { forPerson as identityFor, current as identityNow } from './identitymatch.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -152,7 +153,7 @@ export function search(store: Store, ctx: WorkContext, q: string) {
             (SELECT value FROM external_identifier x WHERE x.person_id = p.id AND x.system = 'NHI') AS nhi
        FROM person p
        LEFT JOIN external_identifier x ON x.person_id = p.id
-      WHERE p.id NOT IN (SELECT person_id FROM workforce_person)
+      WHERE p.id NOT IN (SELECT person_id FROM workforce_person) AND p.merged_into IS NULL
         AND (p.given_name || ' ' || p.family_name LIKE ? OR p.family_name LIKE ? OR x.value LIKE ?)
       ORDER BY p.family_name LIMIT 25`,
     like, like, like.toUpperCase(),
@@ -240,6 +241,8 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     resistantOrganisms: ctx.role.views.includes('infections') ? resistantNow(store, personId) : null,
     siteDiscrepancies: ctx.role.views.includes('sitechecks') ? siteNow(store, personId) : null,
     declinedCare: ctx.role.views.includes('declined') ? declinedNow(store, personId) : null,
+    identityUnresolved: identityNow(store, personId),
+    mergedInto: p.merged_into ? { id: p.merged_into, name: store.get<{ n: string }>("SELECT given_name || ' ' || family_name AS n FROM person WHERE id = ?", p.merged_into)?.n ?? null } : null,
     team: teamNow(store, personId),
   };
 }
@@ -490,6 +493,9 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'priorities':
       body = prioritiesFor(store, ctx, personId);
+      break;
+    case 'identity':
+      body = identityFor(store, ctx, personId);
       break;
     case 'deterioration':
       body = deteriorationFor(store, ctx, personId);

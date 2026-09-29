@@ -29,7 +29,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 54;
+const SET = 55;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -381,6 +381,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 52) set52(store);
     if (at < 53) set53(store);
     if (at < 54) set54(store);
+    if (at < 55) set55(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3693,4 +3694,65 @@ function set54(store: Store): void {
     evidence: 'Drowsy but rousable, SpO2 89% on air, declining oxygen, hip pain after fall', level: 'TODAY', mins: 120 });
   add({ nhi: 'ZZZ0059', svc: 'svc-arc', scale: 'ARC', u: 'kate', source: 'REQUEST', what: 'GP to check her left ear after irrigation',
     evidence: 'Hearing still reduced on the left after wax softening drops', level: 'ARC_ROUTINE', mins: 1440 });
+}
+
+// Set 55: identity matching. An unidentified man brought in by ambulance has a temporary identity;
+// he is Tipene Walker, known to SHIFT from an emergency visit last year with a penicillin allergy.
+// Kiri's arrival this morning was matched to his record on his NHI and date of birth.
+function set55(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const mere = who('mere');
+  if (!mere) return;
+  const S = 'SYNTHETIC';
+  const move = (id: string, from: string | null, to: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'identity_match', object_id: id, from_state: from, to_state: to, actor_id: mere, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  const log = (id: string, kind: string, body: string, mins: number) => store.insert('identity_match_log', { id: newId(), match_id: id, kind, body, by_id: mere, at: ago(mins) });
+
+  // Tipene Walker: known from an emergency visit last year.
+  if (!person('ZZZ0172')) {
+    const tipene = newId();
+    store.insert('person', { id: tipene, family_name: 'Walker', given_name: 'Tipene', date_of_birth: '1971-03-14', gender: 'Male', ethnicity: 'Māori', iwi: 'Ngāpuhi', data_source: S, created_at: ago(400 * 1440) });
+    store.insert('external_identifier', { id: newId(), person_id: tipene, system: 'NHI', value: 'ZZZ0172', verification: S, created_at: ago(400 * 1440) });
+    store.insert('encounter', { id: newId(), person_id: tipene, service_id: 'svc-ed', location: 'Cubicle 6', kind: 'EMERGENCY', started_at: ago(400 * 1440), ended_at: ago(400 * 1440 - 300), state: 'ENDED' });
+    store.insert('allergy', { id: newId(), person_id: tipene, kind: 'ALLERGY', substance: 'Penicillin', reaction: 'Anaphylaxis', severity: 'SEVERE', certainty: 'CONFIRMED', state: 'ACTIVE',
+      source: 'Emergency department record, confirmed with GP record', recorded_by: mere, recorded_at: ago(400 * 1440), data_source: S });
+  }
+
+  // Unidentified Male A: brought in by ambulance 40 minutes ago.
+  const temp = newId();
+  store.insert('person', { id: temp, family_name: 'Male A', given_name: 'Unidentified', date_of_birth: null, gender: 'Male', data_source: 'LOCAL', created_at: ago(40) });
+  store.insert('encounter', { id: newId(), person_id: temp, service_id: 'svc-ed', location: 'Resus 2', kind: 'EMERGENCY', started_at: ago(40), state: 'ACTIVE' });
+  const m1 = newId();
+  store.insert('identity_match', {
+    id: m1, person_id: temp, service_id: 'svc-ed', source: 'AMBULANCE', stated_gender: 'MALE', temporary: 1, state: 'UNRESOLVED',
+    description: 'Man about 50, collapsed at a bus stop on Queen St. No wallet or phone; drowsy, cannot give his name.', registered_by: mere, registered_at: ago(40),
+  });
+  move(m1, null, 'UNRESOLVED', 40, 'Ambulance handover');
+  log(m1, 'REGISTERED', 'Ambulance handover: Male. Man about 50, collapsed at a bus stop on Queen St. No wallet or phone; drowsy, cannot give his name.', 40);
+  log(m1, 'TEMPORARY', 'Care can start under the temporary identity. Identify them as soon as possible.', 40);
+
+  // Kiri Moana: matched on arrival this morning.
+  const daniel = person('ZZZ0105');
+  const enc = daniel ? store.get<{ r: number; at: string }>("SELECT rowid AS r, started_at AS at FROM encounter WHERE person_id = ? AND service_id = 'svc-ed' AND state = 'ACTIVE'", daniel) : undefined;
+  const p = daniel ? store.get<{ given_name: string; family_name: string; date_of_birth: string; gender: string }>('SELECT given_name, family_name, date_of_birth, gender FROM person WHERE id = ?', daniel) : undefined;
+  if (daniel && enc && p) {
+    const snapshot: Record<string, number> = {};
+    for (const t of store.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")) {
+      if (!store.all<{ name: string }>(`PRAGMA table_info(${t.name})`).some((c) => c.name === 'person_id')) continue;
+      snapshot[t.name] = t.name === 'encounter' ? enc.r - 1 : store.get<{ m: number | null }>(`SELECT max(rowid) AS m FROM ${t.name}`)?.m ?? 0;
+    }
+    const mins = Math.round((Date.now() - Date.parse(enc.at)) / 60_000);
+    const evidence = { personId: daniel, name: `${p.given_name} ${p.family_name}`, nhi: 'ZZZ0105', dob: p.date_of_birth, gender: p.gender, agree: ['NHI', 'DOB', 'FAMILY', 'GIVEN'], differ: [],
+      enough: true, agreeLabel: 'NHI, Date of birth, Family name, Given name', differLabel: '' };
+    const m2 = newId();
+    store.insert('identity_match', {
+      id: m2, person_id: daniel, service_id: 'svc-ed', source: 'PERSON', stated_given: p.given_name, stated_family: p.family_name, stated_nhi: 'ZZZ0105', stated_dob: p.date_of_birth,
+      stated_gender: 'MALE', evidence: JSON.stringify(evidence), temporary: 0, state: 'CONFIRMED', registered_by: mere, registered_at: enc.at, manifest: JSON.stringify({ snapshot }),
+    });
+    move(m2, null, 'CONFIRMED', mins, 'The person told us');
+    log(m2, 'REGISTERED', `The person told us: ${p.given_name} ${p.family_name}, NHI ZZZ0105, born ${p.date_of_birth}, Male.`, mins);
+    log(m2, 'MATCHED', `${p.given_name} ${p.family_name}. Agrees: NHI, Date of birth, Family name, Given name.`, mins);
+  }
 }

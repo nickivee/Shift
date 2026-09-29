@@ -3055,4 +3055,51 @@ CREATE TABLE priority_log (
 CREATE INDEX priority_log_p ON priority_log(priority_id, at);
 `,
   },
+  {
+    version: 55,
+    name: 'identity matching',
+    sql: `
+-- Identity matching: incoming identity information → candidate match → matching evidence →
+-- confirmed match OR unresolved identity → merge/link correction where authorised → provenance.
+ALTER TABLE person ADD COLUMN merged_into TEXT;
+CREATE TABLE identity_match (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),  -- the record this arrival is now on
+  service_id TEXT NOT NULL REFERENCES service(id),
+  source TEXT NOT NULL,                 -- where the details came from at arrival
+  id_source TEXT,                       -- where the identifying details came from later
+  stated_given TEXT,
+  stated_family TEXT,
+  stated_nhi TEXT,
+  stated_dob TEXT,
+  stated_gender TEXT,
+  description TEXT,
+  evidence TEXT,                        -- JSON: identifiers that agreed and differed
+  not_them TEXT,
+  temporary INTEGER NOT NULL DEFAULT 0,
+  linked_to TEXT REFERENCES person(id),
+  state TEXT NOT NULL,                  -- CONFIRMED | NEW | UNRESOLVED | RESOLVED
+  registered_by TEXT NOT NULL REFERENCES workforce_person(id),
+  registered_at TEXT NOT NULL,
+  resolved_by TEXT,
+  resolved_at TEXT,
+  resolved_note TEXT,
+  corrected_by TEXT,
+  corrected_at TEXT,
+  corrected_note TEXT,
+  manifest TEXT                         -- JSON: rows moved by a merge, so it can be undone
+);
+CREATE INDEX identity_match_person ON identity_match(person_id, state);
+CREATE INDEX identity_match_service ON identity_match(service_id, state, registered_at);
+CREATE TABLE identity_match_log (
+  id TEXT PRIMARY KEY,
+  match_id TEXT NOT NULL REFERENCES identity_match(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX identity_match_log_m ON identity_match_log(match_id, at);
+`,
+  },
 ];

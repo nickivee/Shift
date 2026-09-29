@@ -56,6 +56,7 @@ import * as readiness from '../domain/readiness.ts';
 import * as variances from '../domain/variances.ts';
 import * as declined from '../domain/declined.ts';
 import * as priorities from '../domain/priorities.ts';
+import * as identitymatch from '../domain/identitymatch.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -246,6 +247,10 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/arrivals', (req) => identitymatch.list(store, work(req)));
+  r.on('POST', '/api/work/arrivals/find', (req) => identitymatch.find(store, work(req), req.body as Record<string, unknown>));
+  r.on('POST', '/api/work/arrivals', (req) => identitymatch.register(store, work(req), req.body as Record<string, unknown>));
+  r.on('POST', '/api/work/identity/:id/:action', (req) => identitymatch.act(store, work(req), req.params.id, req.params.action, req.body as Record<string, unknown>));
   r.on('GET', '/api/work/priorities', (req) => priorities.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/priorities', (req) => priorities.assign(store, work(req), req.params.id, {
     source: str(req.body.source), what: str(req.body.what), evidence: str(req.body.evidence), level: str(req.body.level),

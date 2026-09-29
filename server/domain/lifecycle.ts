@@ -376,6 +376,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'WAITING',
     next: { WAITING: ['ACTIONED', 'CANCELLED', 'ENTERED_IN_ERROR'] },
   },
+  identity_match: {
+    table: 'identity_match',
+    initial: 'UNRESOLVED',
+    next: { CONFIRMED: ['UNRESOLVED'], UNRESOLVED: ['RESOLVED'], RESOLVED: ['UNRESOLVED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
