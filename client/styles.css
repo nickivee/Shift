@@ -867,3 +867,9 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .tile.dup-possible { border-left: 6px solid var(--danger); }
 .tile.dup-not_duplicate, .tile.dup-reconciled { border-left: 6px solid var(--ok); }
 .screen-row.chosen { background: var(--paua-shade, #0b3d4a); color: #fff; padding-inline: 8px; border-radius: 8px; }
+
+.patient-breakglass { flex-wrap: wrap; }
+.patient-breakglass .grow { flex: 1 1 140px; min-width: 0; }
+.patient-breakglass .btn { margin-left: 34px; }
+.bg-activity { margin: 0; padding-left: 18px; }
+.bg-reviewed { opacity: .92; }

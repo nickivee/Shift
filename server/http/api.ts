@@ -58,6 +58,7 @@ import * as declined from '../domain/declined.ts';
 import * as priorities from '../domain/priorities.ts';
 import * as identitymatch from '../domain/identitymatch.ts';
 import * as duplicates from '../domain/duplicates.ts';
+import * as breakglass from '../domain/breakglass.ts';
 import * as diets from '../domain/diets.ts';
 import * as equipment from '../domain/equipment.ts';
 import * as locations from '../domain/locations.ts';
@@ -137,7 +138,9 @@ export function buildApi(store: Store): Router {
   // Patient records ----------------------------------------------------------------------
   r.on('GET', '/api/work/patients', (req) => record.patientList(store, work(req)));
   r.on('GET', '/api/work/search', (req) => record.search(store, work(req), req.query.get('q') ?? ''));
-  r.on('POST', '/api/work/patients/:id/exceptional-access', (req) => record.grantExceptionalAccess(store, work(req), req.params.id, str(req.body.reason)));
+  r.on('POST', '/api/work/patients/:id/exceptional-access', (req) => breakglass.request(store, work(req), req.params.id, {
+    kind: str(req.body.kind), reason: str(req.body.reason), consent: str(req.body.consent), approverId: str(req.body.approverId),
+  }));
   r.on('GET', '/api/work/patients/:id', (req) => record.header(store, work(req), req.params.id));
   r.on('GET', '/api/work/patients/:id/views/:code', (req) => record.retrieve(store, work(req), req.params.id, req.params.code));
   r.on('GET', '/api/work/events/:id', (req) => record.eventDetail(store, work(req), req.params.id));
@@ -248,6 +251,9 @@ export function buildApi(store: Store): Router {
     rating: typeof b.rating === 'number' ? b.rating : str(b.rating), aboutWhen: str(b.aboutWhen), reportedAt: str(b.reportedAt),
     needsReview: b.needsReview === true || b.needsReview === 'true',
   });
+  r.on('GET', '/api/work/breakglass', (req) => breakglass.list(store, work(req)));
+  r.on('GET', '/api/work/breakglass/options', (req) => breakglass.options(store, work(req)));
+  r.on('POST', '/api/work/breakglass/:id/:action', (req) => breakglass.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), outcome: str(req.body.outcome) }));
   r.on('GET', '/api/work/duplicates', (req) => duplicates.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/duplicates', (req) => duplicates.flag(store, work(req), req.params.id, { otherId: str(req.body.otherId), reason: str(req.body.reason) }));
   r.on('POST', '/api/work/duplicates/:id/:action', (req) => duplicates.act(store, work(req), req.params.id, req.params.action, {

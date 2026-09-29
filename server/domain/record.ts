@@ -53,6 +53,7 @@ import { forPerson as declinedFor, current as declinedNow } from './declined.ts'
 import { forPerson as prioritiesFor } from './priorities.ts';
 import { forPerson as identityFor, current as identityNow } from './identitymatch.ts';
 import { forPerson as duplicatesFor, current as duplicateNow } from './duplicates.ts';
+import { current as breakGlassNow, pending as breakGlassPending } from './breakglass.ts';
 import { forPerson as teamFor, current as teamNow } from './assignments.ts';
 import { forPerson as woundsFor } from './wounds.ts';
 import { forPerson as carePlanFor } from './careplans.ts';
@@ -163,24 +164,8 @@ export function search(store: Store, ctx: WorkContext, q: string) {
   return rows.map((r) => ({
     id: r.id, name: `${r.given_name} ${r.family_name}`, nhi: r.nhi, dateOfBirth: r.date_of_birth,
     relationship: relationship(store, ctx, r.id),
+    pending: breakGlassPending(store, ctx, r.id),
   }));
-}
-
-export function grantExceptionalAccess(store: Store, ctx: WorkContext, personId: string, reason: string) {
-  const text = reason.trim();
-  if (text.length < 10) throw new HttpError(400, 'REASON_REQUIRED', 'Give the reason you need this record (at least a short sentence).');
-  if (!store.get('SELECT 1 FROM person WHERE id = ?', personId)) throw new HttpError(404, 'NOT_FOUND', 'Record not found.');
-  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  const id = newId();
-  store.tx(() => {
-    store.insert('exceptional_access', { id, work_context_id: ctx.id, workforce_person_id: ctx.workerId, person_id: personId, reason: text, granted_at: now(), expires_at: expires });
-    audit(store, {
-      actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', subjectPersonId: personId,
-      operation: 'EXCEPTIONAL_ACCESS', objectType: 'exceptional_access', objectId: id, purpose: 'DIRECT_CARE', decision: 'ALLOW',
-      outcome: 'COMMITTED', reason: text, ruleRefs: ['ORG-SYN-001 v1', 'LAW-NZ-002'], engines: [26],
-    });
-  });
-  return { expiresAt: expires };
 }
 
 // Patient header and safety banner ------------------------------------------------------
@@ -244,6 +229,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     declinedCare: ctx.role.views.includes('declined') ? declinedNow(store, personId) : null,
     identityUnresolved: identityNow(store, personId),
     possibleDuplicate: duplicateNow(store, personId),
+    breakGlass: breakGlassNow(store, ctx, personId),
     mergedInto: p.merged_into ? { id: p.merged_into, name: store.get<{ n: string }>("SELECT given_name || ' ' || family_name AS n FROM person WHERE id = ?", p.merged_into)?.n ?? null } : null,
     team: teamNow(store, personId),
   };

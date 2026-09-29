@@ -52,6 +52,7 @@ import { variancesPanel } from './variances.js';
 import { declinedPanel } from './declined.js';
 import { prioritiesPanel } from './priorities.js';
 import { identityPanel } from './identity.js';
+import { endBreakGlass } from './breakglass.js';
 import { teamPanel } from './team.js';
 import { state, go } from '../app.js';
 
@@ -546,6 +547,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-declined', onclick: () => openView('declined') }, icon('declined'),
         h('span', {}, h('b', {}, 'DECLINED CARE'), patient.declinedCare.join(' · '))));
     }
+    if (patient.breakGlass) {
+      block.append(h('div', { class: 'patient-identity patient-breakglass' }, icon('breakglass'),
+        h('span', { class: 'grow' }, h('b', {}, 'BREAK-GLASS ACCESS'), `Open until ${patient.breakGlass.until}. Everything you open is recorded and reviewed.`),
+        h('button', { class: 'btn small danger', onclick: () => endBreakGlass(patient.breakGlass.id) }, 'End access now')));
+    }
     if (patient.mergedInto) {
       block.append(h('button', { class: 'patient-identity', onclick: () => go(`/work/patient/${patient.mergedInto.id}/identity`) }, icon('arrivals'),
         h('span', {}, h('b', {}, 'MERGED'), `This record was merged into ${patient.mergedInto.name}'s. Open their record.`)));
@@ -653,7 +659,7 @@ export async function workstationView(personId, initialView) {
           patient.team.missing.map((m) => h('span', { class: 'team-gap' }, `${m}: not named`))) : null,
         h('div', { class: 'row small' },
           patient.synthetic ? h('span', { class: 'synthetic' }, 'Synthetic record') : null,
-          patient.relationship === 'EXCEPTIONAL' ? h('span', { class: 'tag danger' }, 'Exceptional access (audited)') : null,
+          patient.relationship === 'EXCEPTIONAL' ? h('span', { class: 'tag danger' }, 'Break-glass access (audited)') : null,
           state.me.context.authority && !state.me.context.authority.current ? h('span', { class: 'tag danger' }, `Practising authority ${state.me.context.authority.status.toLowerCase()}: entries blocked`) : null,
         ),
       ),
