@@ -50,6 +50,7 @@ import { forPerson as allergiesFor } from './allergies.ts';
 import { forPerson as consentFor, current as consentNow } from './consent.ts';
 import { forPerson as endOfLifeFor, current as endOfLifeNow } from './endoflife.ts';
 import { forPerson as safeguardingFor, current as safeguardingNow } from './safeguarding.ts';
+import { forPerson as residencyFor, current as residencyNow } from './residency.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -116,7 +117,8 @@ export function patientList(store: Store, ctx: WorkContext) {
             (SELECT x.urgency FROM escalation x WHERE x.person_id = p.id AND x.state IN ('RAISED','RECEIVED','ACKNOWLEDGED','RESPONDED')
               ORDER BY CASE x.urgency WHEN 'IMMEDIATE' THEN 0 WHEN 'URGENT' THEN 1 ELSE 2 END LIMIT 1) AS escalation,
             (SELECT d.state || '|' || COALESCE(d.expected_date, '') FROM discharge d WHERE d.person_id = p.id AND d.service_id = ? AND d.state IN ('CONSIDERED','DECIDED') LIMIT 1) AS discharge,
-            (SELECT l.state || '|' || l.return_by FROM leave_of_absence l WHERE l.person_id = p.id AND l.state IN ('AWAY','NOT_RETURNED') LIMIT 1) AS away
+            (SELECT l.state || '|' || l.return_by FROM leave_of_absence l WHERE l.person_id = p.id AND l.state IN ('AWAY','NOT_RETURNED') LIMIT 1) AS away,
+            (SELECT x.hospital_where FROM residency x WHERE x.person_id = p.id AND x.state = 'IN_HOSPITAL' LIMIT 1) AS inHospital
        FROM person p
        LEFT JOIN encounter e ON e.person_id = p.id AND e.service_id = ? AND e.state = 'ACTIVE'
       WHERE e.id IS NOT NULL
@@ -137,6 +139,7 @@ export function patientList(store: Store, ctx: WorkContext) {
       escalation: r.escalation ?? null,
       discharge: r.discharge ? { state: String(r.discharge).split('|')[0], expected: String(r.discharge).split('|')[1] || null } : null,
       transfer: r.transfer ? { state: String(r.transfer).split('|')[0], to: String(r.transfer).split('|')[1] } : null,
+      inHospital: r.inHospital ? String(r.inHospital) : null,
       away: r.away ? { state: String(r.away).split('|')[0], returnBy: String(r.away).split('|')[1] } : null,
     };
   });
@@ -218,6 +221,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     consentNo: consentNow(store, personId),
     endOfLife: endOfLifeNow(store, personId),
     safeguarding: safeguardingNow(store, personId),
+    inHospital: residencyNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -389,7 +393,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = locationFor(store, ctx, personId);
       break;
     case 'leave':
-      body = leaveFor(store, ctx, personId);
+      body = { ...leaveFor(store, ctx, personId), residency: residencyFor(store, ctx, personId) };
       break;
     case 'preferences':
       body = preferencesFor(store, ctx, personId);

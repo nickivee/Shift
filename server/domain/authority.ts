@@ -30,6 +30,7 @@ export type Operation =
   | { op: 'CONSENT'; personId: string }
   | { op: 'PALLIATIVE'; personId: string }
   | { op: 'SAFEGUARD'; personId: string }
+  | { op: 'RESIDENCY'; personId: string }
   | { op: 'SAFEGUARD_RAISE'; personId: string }
   | { op: 'PALLIATIVE_COMFORT'; personId: string }
   | { op: 'ALLERGY_REPORT'; personId: string }
@@ -390,6 +391,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'RESIDENCY':
+      return need(ctx, 'residency.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-ARC-001'])
+        : block(`Only the rest home caring for this ${ctx.subjectLabel.toLowerCase()} can record their stay`));
     case 'SAFEGUARD':
       return need(ctx, 'safeguarding.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005', 'RR-SAFE-001'])

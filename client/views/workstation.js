@@ -22,6 +22,7 @@ import { capacityPanel } from './capacity.js';
 import { consentPanel } from './consent.js';
 import { endOfLifePanel } from './endoflife.js';
 import { safeguardingPanel } from './safeguarding.js';
+import { residencyPanel } from './residency.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -483,7 +484,10 @@ export async function workstationView(personId, initialView) {
         return h('div', { class: 'stack' }, consentPanel(personId, d.consent, reload), h('h3', {}, 'Capacity'), capacityPanel(personId, d, reload));
       }
       case 'preferences': return preferencesPanel(personId, d, () => go(`/work/patient/${personId}/preferences`));
-      case 'leave': return leavePanel(personId, d, () => go(`/work/patient/${personId}/absence`));
+      case 'leave': {
+        const reload = () => go(`/work/patient/${personId}/absence`);
+        return h('div', { class: 'stack' }, residencyPanel(personId, d.residency, reload), leavePanel(personId, d, reload));
+      }
       case 'location': return locationPanel(personId, d, () => go(`/work/patient/${personId}/location`));
       case 'equipment': return equipmentPanel(personId, d, () => openView('equipment'));
       case 'diet': return dietPanel(personId, d, () => go(`/work/patient/${personId}/diet`));
@@ -669,6 +673,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-pref', onclick: () => openView('preferences') }, icon('preferences'),
         h('span', {}, h('b', {}, patient.preferences.count === 1 ? 'PREFERENCE' : `${patient.preferences.count} PREFERENCES`),
           patient.preferences.first.join(' · '))));
+    }
+    if (patient.inHospital) {
+      const x = patient.inHospital;
+      block.append(h('button', { class: 'patient-leave', onclick: () => openView('absence') }, icon('absence'),
+        h('span', {}, h('b', {}, 'IN HOSPITAL: ROOM HELD'), `${x.where} since ${fmtDateTime(x.since)}`)));
     }
     if (patient.leave) {
       const l = patient.leave;

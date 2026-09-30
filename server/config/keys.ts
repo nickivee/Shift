@@ -356,7 +356,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'diet', label: 'Diet and meals', kind: 'diet' },
   { code: 'equipment', label: 'Equipment', kind: 'equipment' },
   { code: 'location', label: 'Bed and location', kind: 'location' },
-  { code: 'absence', label: 'Leave and outings', kind: 'leave' },
+  { code: 'absence', label: 'Care level and time away', kind: 'leave' },
   { code: 'preferences', label: 'Preferences', kind: 'preferences' },
   { code: 'capacity', label: 'Consent and capacity', kind: 'capacity' },
   { code: 'support', label: 'Whānau and support', kind: 'support' },
