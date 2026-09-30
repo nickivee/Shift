@@ -21,6 +21,7 @@ import { preferencesPanel } from './preferences.js';
 import { capacityPanel } from './capacity.js';
 import { consentPanel } from './consent.js';
 import { endOfLifePanel } from './endoflife.js';
+import { safeguardingPanel } from './safeguarding.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -440,7 +441,10 @@ export async function workstationView(personId, initialView) {
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
-      case 'incidents': return incidentsPanel(personId, d, () => go(`/work/patient/${personId}/incidents`));
+      case 'incidents': {
+        const reload = () => go(`/work/patient/${personId}/incidents`);
+        return h('div', { class: 'stack' }, incidentsPanel(personId, d, reload), safeguardingPanel(personId, d.safeguarding, reload));
+      }
       case 'interventions': return interventionsPanel(personId, d, () => go(`/work/patient/${personId}/interventions`));
       case 'treatmentplans': return treatmentPlansPanel(personId, d, () => go(`/work/patient/${personId}/treatmentplans`));
       case 'pathways': return pathwaysPanel(personId, d, () => go(`/work/patient/${personId}/pathways`));
@@ -643,6 +647,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-whanau', onclick: () => openView('support') }, icon('support'),
         h('span', {}, h('b', {}, 'WHĀNAU: LIMITS AND AUTHORITY'),
           patient.whanau.map((w) => `${w.name}: ${[w.limits, w.authority ? `${w.authority} (document seen)` : null].filter(Boolean).join('; ')}`).join(' · '))));
+    }
+    if (patient.safeguarding) {
+      block.append(h('button', { class: 'patient-safeguard', onclick: () => openView('incidents') }, icon('alert'),
+        h('span', {}, h('b', {}, 'SAFEGUARDING CONCERN'), 'Check with the nurse in charge before sharing any information or letting visitors in')));
     }
     if (patient.endOfLife) {
       const e = patient.endOfLife;

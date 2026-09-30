@@ -29,6 +29,8 @@ export type Operation =
   | { op: 'ALLERGY'; personId: string }
   | { op: 'CONSENT'; personId: string }
   | { op: 'PALLIATIVE'; personId: string }
+  | { op: 'SAFEGUARD'; personId: string }
+  | { op: 'SAFEGUARD_RAISE'; personId: string }
   | { op: 'PALLIATIVE_COMFORT'; personId: string }
   | { op: 'ALLERGY_REPORT'; personId: string }
   | { op: 'OUTBREAK'; serviceId: string }
@@ -388,6 +390,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'SAFEGUARD':
+      return need(ctx, 'safeguarding.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-005', 'RR-SAFE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can work a safeguarding concern`));
+    case 'SAFEGUARD_RAISE':
+      return (ctx.role.capabilities.includes('safeguarding.manage') ? null : need(ctx, 'safeguarding.raise')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-SAFE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can raise a safeguarding concern`));
     case 'PALLIATIVE':
       return need(ctx, 'palliative.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005', 'RR-EOL-001'])

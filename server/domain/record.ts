@@ -49,6 +49,7 @@ import { forPerson as isolationFor, current as isolationNow } from './isolation.
 import { forPerson as allergiesFor } from './allergies.ts';
 import { forPerson as consentFor, current as consentNow } from './consent.ts';
 import { forPerson as endOfLifeFor, current as endOfLifeNow } from './endoflife.ts';
+import { forPerson as safeguardingFor, current as safeguardingNow } from './safeguarding.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -216,6 +217,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     capacity: capacityNow(store, personId),
     consentNo: consentNow(store, personId),
     endOfLife: endOfLifeNow(store, personId),
+    safeguarding: safeguardingNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -420,7 +422,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = usualFor(store, ctx, personId);
       break;
     case 'incidents':
-      body = incidentsFor(store, ctx, personId);
+      body = { ...incidentsFor(store, ctx, personId), safeguarding: safeguardingFor(store, ctx, personId) };
       break;
     case 'death':
       body = { ...deathFor(store, ctx, personId), endOfLife: endOfLifeFor(store, ctx, personId) };

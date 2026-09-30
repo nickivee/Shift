@@ -369,7 +369,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'usual', label: 'Usual state', kind: 'usual' },
   { code: 'acuity', label: 'Clinical status', kind: 'acuity' },
   { code: 'deterioration', label: 'Deterioration', kind: 'deterioration' },
-  { code: 'incidents', label: 'Incidents', kind: 'incidents' },
+  { code: 'incidents', label: 'Incidents and safeguarding', kind: 'incidents' },
   { code: 'death', label: 'End of life', kind: 'death' },
   { code: 'team', label: 'Care team', kind: 'team' },
 ];
