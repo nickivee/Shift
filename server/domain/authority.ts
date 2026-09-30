@@ -32,6 +32,8 @@ export type Operation =
   | { op: 'SAFEGUARD'; personId: string }
   | { op: 'RESIDENCY'; personId: string }
   | { op: 'COMPLAINT'; personId: string }
+  | { op: 'DEVICE'; personId: string }
+  | { op: 'DEVICE_REPORT'; personId: string }
   | { op: 'COMPLAINT_RECORD'; personId: string }
   | { op: 'SAFEGUARD_RAISE'; personId: string }
   | { op: 'PALLIATIVE_COMFORT'; personId: string }
@@ -393,6 +395,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'DEVICE':
+      return need(ctx, 'device.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-DEVICE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their lines and tubes`));
+    case 'DEVICE_REPORT':
+      return (ctx.role.capabilities.includes('device.record') ? null : need(ctx, 'device.report')) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-DEVICE-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can report a problem with their lines or tubes`));
     case 'COMPLAINT':
       return need(ctx, 'complaint.manage') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005', 'RR-COMPLAINT-001'])

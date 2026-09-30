@@ -498,6 +498,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'RECEIVED',
     next: { RECEIVED: ['LOOKING', 'CLOSED'], LOOKING: ['RESPONDED', 'CLOSED'], RESPONDED: ['LOOKING', 'CLOSED'] },
   },
+  device: {
+    table: 'device',
+    initial: 'IN_PLACE',
+    next: { NEEDS_CHECK: ['IN_PLACE', 'REMOVED'], IN_PLACE: ['REMOVED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

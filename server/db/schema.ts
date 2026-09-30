@@ -3711,4 +3711,50 @@ CREATE TABLE complaint_step (
 CREATE INDEX complaint_step_c ON complaint_step(complaint_id, at);
 `,
   },
+  {
+    version: 71,
+    name: 'devices',
+    sql: `
+-- Lines, tubes and catheters (entries 186, 187; SLO 214): inserted → position confirmed before
+-- use where needed → checked by a set time → still needed → removed, whole or not. Kinds and
+-- check intervals are ORG-SYN-001; national requirements are RR-DEVICE-001.
+CREATE TABLE device (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- PIVC | MIDLINE | PICC | CVC | SUBCUT | IDC | SPC | NGT | PEG | DRAIN | OTHER
+  site TEXT,
+  size TEXT,
+  reason TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- NEEDS_CHECK | IN_PLACE | REMOVED
+  inserted_by TEXT NOT NULL REFERENCES workforce_person(id),
+  inserted_at TEXT NOT NULL,
+  inserted_where TEXT,
+  confirmed_by TEXT REFERENCES workforce_person(id),
+  confirmed_at TEXT,
+  confirm_how TEXT,
+  check_due TEXT,
+  last_check_at TEXT,
+  last_site TEXT,
+  needed_at TEXT,
+  needed_why TEXT,
+  removed_by TEXT REFERENCES workforce_person(id),
+  removed_at TEXT,
+  remove_reason TEXT,
+  intact INTEGER,
+  remove_note TEXT,
+  recorded_at TEXT NOT NULL
+);
+CREATE INDEX device_person ON device(person_id, state);
+CREATE TABLE device_log (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL REFERENCES device(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX device_log_d ON device_log(device_id, at);
+`,
+  },
 ];
