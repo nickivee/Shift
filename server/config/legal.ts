@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-ALLERGY-001',
+    question: 'What New Zealand requires when recording allergies and adverse reactions: how a reaction is classified (allergy, intolerance, side effect), who may confirm or rule one out and on what evidence, whether a caregiver report may stand as a suspected allergy until checked, and when a reaction must be reported to the Centre for Adverse Reactions Monitoring (CARM) or Medsafe.',
+    blocks: 'Classifying a reaction automatically, ruling one out without a named clinician and reason, and sending any report to CARM. SHIFT records what was reported or seen, shows it at once on the record and in medicine checks, asks a nurse to check caregiver reports, and keeps every ended entry with who ended it and why.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-IPC-001',
     question: 'What New Zealand requires for isolation and outbreaks in hospitals and rest homes: which precautions each infection or organism needs and for how long, how precautions are cleared, how an outbreak is defined and declared, who must be told (public health, Te Whatu Ora, families), and the Infection Prevention and Control Standard (NZS 8134) criteria a service is audited against.',
     blocks: 'Suggesting a precaution from an organism, stopping precautions automatically, and sending any outbreak notification. SHIFT records the precautions a clinician chooses, shows them to everyone who opens the record, keeps them under review, and records outbreak cases, contacts and what the service did.',

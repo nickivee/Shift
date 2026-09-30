@@ -26,6 +26,8 @@ export type Operation =
   | { op: 'DOWNTIME'; serviceId: string }
   | { op: 'RECONCILE'; personId: string }
   | { op: 'PRECAUTION'; personId: string }
+  | { op: 'ALLERGY'; personId: string }
+  | { op: 'ALLERGY_REPORT'; personId: string }
   | { op: 'OUTBREAK'; serviceId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
   | { op: 'TRANSFER_REQUEST'; personId: string }
@@ -383,6 +385,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'ALLERGY':
+      return need(ctx, 'allergy.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-ALLERGY-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can change their allergy list`));
+    case 'ALLERGY_REPORT':
+      return (ctx.role.capabilities.includes('allergy.record') ? null : need(ctx, 'allergy.report')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-ALLERGY-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can report a reaction`));
     case 'PRECAUTION':
       return need(ctx, 'precaution.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-IPC-001'])

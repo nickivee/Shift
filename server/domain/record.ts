@@ -46,6 +46,7 @@ import { forPerson as surveillanceFor } from './surveillance.ts';
 import { forPerson as screeningFor } from './screening.ts';
 import { forPerson as infectionsFor, current as resistantNow } from './infections.ts';
 import { forPerson as isolationFor, current as isolationNow } from './isolation.ts';
+import { forPerson as allergiesFor } from './allergies.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -322,13 +323,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       };
       break;
     case 'allergies':
-      body = {
-        allergies: store.all(
-          `SELECT a.kind, a.substance, a.reaction, a.severity, a.certainty, a.state, a.source, a.recorded_at AS recordedAt, w.display_name AS recordedBy
-             FROM allergy a LEFT JOIN workforce_person w ON w.id = a.recorded_by WHERE a.person_id = ? ORDER BY a.state, a.substance`,
-          personId,
-        ),
-      };
+      body = allergiesFor(store, ctx, personId);
       break;
     case 'careplan':
       body = carePlanFor(store, ctx, personId);
