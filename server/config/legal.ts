@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-RECONCILE-001',
+    question: 'What New Zealand requires when information from another provider differs from a person\'s record: how medicines reconciliation must be done and by whom at admission, transfer and discharge, whether an allergy reported by another provider may be recorded before it is confirmed with the person, and how the sender must be told about a difference.',
+    blocks: 'Changing a medicine from another provider\'s list, and removing an allergy because a sender did not list it. SHIFT compares what they list with the record, adds or changes an allergy only on a clinician\'s decision with where it came from, sends every medicine difference to a prescriber, and will not let the information be signed off until every difference is decided.',
+    category: 'ORGANISATIONAL CONFIGURATION',
+  },
+  {
     ref: 'RR-DOWNTIME-001',
     question: 'What New Zealand requires when an electronic health record is unavailable: the continuity processes a service must have, how records made on paper during downtime are brought back into the electronic record, how long the paper originals must be kept (Health (Retention of Health Information) Regulations 1996), and who may enter them.',
     blocks: 'Treating the synthetic organisation\'s paper processes as a standard, and any advice to destroy paper originals. SHIFT shows the organisation\'s process for each function that is down, enters each paper record at the time the care happened with who wrote it and the sheet it came from, and closes a downtime only when everyone in the service has been checked.',

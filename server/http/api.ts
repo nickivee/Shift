@@ -25,6 +25,7 @@ import * as capacity from '../domain/capacity.ts';
 import * as whanau from '../domain/whanau.ts';
 import * as access from '../domain/access.ts';
 import * as external from '../domain/external.ts';
+import * as reconcile from '../domain/reconcile.ts';
 import * as coding from '../domain/coding.ts';
 import * as reports from '../domain/reports.ts';
 import * as questionnaires from '../domain/questionnaires.ts';
@@ -252,6 +253,13 @@ export function buildApi(store: Store): Router {
   r.on('GET', '/api/work/external', (req) => external.list(store, work(req)));
   r.on('POST', '/api/work/external', (req) => external.receive(store, work(req), receivedFields(req.body)));
   r.on('POST', '/api/work/patients/:id/external', (req) => external.receiveFor(store, work(req), req.params.id, receivedFields(req.body)));
+  r.on('POST', '/api/work/external/:id/facts', (req) => (reconcile.addFact(store, work(req), req.params.id, {
+    kind: str(req.body.kind), name: str(req.body.name), detail: str(req.body.detail), severity: str(req.body.severity),
+  }), { ok: true }));
+  r.on('POST', '/api/work/external/:id/facts/:fact/remove', (req) => (reconcile.removeFact(store, work(req), req.params.id, req.params.fact), { ok: true }));
+  r.on('POST', '/api/work/external/:id/reconcile', (req) => (reconcile.decide(store, work(req), req.params.id, {
+    key: str(req.body.key), decision: str(req.body.decision), note: str(req.body.note), certainty: str(req.body.certainty),
+  }), { ok: true }));
   r.on('POST', '/api/work/external/:id/:action', (req) => external.act(store, work(req), req.params.id, req.params.action, {
     ...receivedFields(req.body), personId: str(req.body.personId), summary: str(req.body.summary), outcome: str(req.body.outcome),
     outcomeNote: str(req.body.outcomeNote), note: str(req.body.note),
