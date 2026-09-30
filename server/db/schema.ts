@@ -3473,4 +3473,28 @@ CREATE TABLE precaution_log (
 CREATE INDEX precaution_log_p ON precaution_log(precaution_id, at);
 `,
   },
+  {
+    version: 65,
+    name: 'bedside allergy recording',
+    sql: `
+-- Allergy / intolerance / adverse reaction (Shared Lifecycle Object 233): reported or seen → recorded
+-- → suspected or confirmed → changed → ended with a reason. Who may rule an allergy out is RR-ALLERGY-001.
+ALTER TABLE allergy ADD COLUMN category TEXT;   -- MEDICINE | FOOD | ENVIRONMENT | OTHER
+ALTER TABLE allergy ADD COLUMN onset TEXT;
+ALTER TABLE allergy ADD COLUMN ended_by TEXT REFERENCES workforce_person(id);
+ALTER TABLE allergy ADD COLUMN ended_at TEXT;
+ALTER TABLE allergy ADD COLUMN end_reason TEXT; -- REFUTED | RESOLVED | ERROR
+ALTER TABLE allergy ADD COLUMN end_note TEXT;
+CREATE INDEX allergy_person ON allergy(person_id, state);
+CREATE TABLE allergy_log (
+  id TEXT PRIMARY KEY,
+  allergy_id TEXT NOT NULL REFERENCES allergy(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX allergy_log_a ON allergy_log(allergy_id, at);
+`,
+  },
 ];

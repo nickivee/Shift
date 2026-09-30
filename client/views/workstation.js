@@ -45,6 +45,7 @@ import { followupsPanel } from './followups.js';
 import { surveillancePanel } from './surveillance.js';
 import { screeningPanel } from './screening.js';
 import { infectionsPanel } from './infections.js';
+import { allergiesPanel } from './allergies.js';
 import { antimicrobialsPanel } from './antimicrobials.js';
 import { sitechecksPanel } from './sitechecks.js';
 import { readinessPanel } from './readiness.js';
@@ -427,11 +428,7 @@ export async function workstationView(personId, initialView) {
           } }, 'Mark reviewed') : null),
         ))),
       ));
-      case 'allergies': return d.allergies.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'data' },
-        h('thead', {}, h('tr', {}, ['Type', 'Substance', 'Reaction', 'Severity', 'State', 'Where from', 'Recorded'].map((c) => h('th', {}, c)))),
-        h('tbody', {}, d.allergies.map((a) => h('tr', {}, h('td', {}, titleCase(a.kind)), h('td', {}, a.substance ?? '—'), h('td', {}, a.reaction ?? ''), h('td', {}, a.severity ?? ''),
-          h('td', {}, titleCase(a.state), a.certainty === 'SUSPECTED' ? h('div', { class: 'small muted' }, 'Not yet confirmed') : null), h('td', { class: 'small' }, a.source ?? ''), h('td', {}, `${fmtDate(a.recordedAt)} ${a.recordedBy ?? ''}`)))),
-      )) : h('div', { class: 'empty' }, 'No allergies recorded. This is not the same as no known allergies.');
+      case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
       case 'careplan': return carePlanPanel(personId, d, () => openView('careplan'));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
@@ -522,7 +519,7 @@ export async function workstationView(personId, initialView) {
       const [first, ...rest] = patient.allergies;
       return h('div', { class: 'allergy' },
         h('button', { class: 'allergy-alert', onclick: () => openView('allergies') }, icon('alert'),
-          h('span', {}, h('b', {}, first.kind === 'INTOLERANCE' ? 'INTOLERANCE' : 'ALLERGY'), first.substance, first.reaction ? ` (${first.reaction})` : '')),
+          h('span', {}, h('b', {}, first.kind === 'INTOLERANCE' ? 'INTOLERANCE' : 'ALLERGY'), first.substance, first.reaction ? ` (${first.reaction})` : '', first.certainty === 'SUSPECTED' ? ' (suspected)' : '')),
         h('div', { class: 'allergy-note' }, rest.length ? `Also: ${rest.map((a) => a.substance).join(', ')}` : 'No other allergies recorded'),
       );
     }

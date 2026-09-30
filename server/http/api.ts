@@ -52,6 +52,7 @@ import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
 import * as isolation from '../domain/isolation.ts';
+import * as allergies from '../domain/allergies.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -342,6 +343,14 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/allergies', (req) => allergies.record(store, work(req), req.params.id, {
+    kind: str(req.body.kind), category: str(req.body.category), substance: str(req.body.substance), reaction: str(req.body.reaction),
+    severity: str(req.body.severity), certainty: str(req.body.certainty), source: str(req.body.source), onset: str(req.body.onset),
+  }));
+  r.on('POST', '/api/work/patients/:id/allergies/none-known', (req) => allergies.noKnown(store, work(req), req.params.id, { asked: str(req.body.asked), note: str(req.body.note) }));
+  r.on('POST', '/api/work/allergies/:id/:action', (req) => allergies.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), kind: str(req.body.kind), severity: str(req.body.severity), reaction: str(req.body.reaction), category: str(req.body.category), reason: str(req.body.reason),
+  }));
   r.on('POST', '/api/work/patients/:id/precautions', (req) => isolation.start(store, work(req), req.params.id, {
     concern: str(req.body.concern), types: req.body.types, room: str(req.body.room), reviewHours: req.body.reviewHours, infectionId: str(req.body.infectionId), outbreakId: str(req.body.outbreakId),
   }));

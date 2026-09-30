@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 64;
+const SET = 65;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -391,6 +391,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 62) set62(store);
     if (at < 63) set63(store);
     if (at < 64) set64(store);
+    if (at < 65) set65(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4041,4 +4042,21 @@ function set64(store: Store): void {
     step('precaution', id, null, 'REQUIRED', nicki, ago(90), 'Fever and new cough; flu swab sent');
     plog(id, 'REQUIRED', 'Droplet precautions; single room. Fever and new cough; flu swab sent. Waiting for a side room; mask on James and curtains drawn meanwhile.', nicki, ago(90));
   }
+}
+
+// Set 65: bedside allergy recording. Margaret Oliver's daughter mentioned a latex reaction at
+// admission; it was recorded as suspected and is waiting for a nurse or doctor to check it.
+function set65(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const nicki = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'nicki'")?.id;
+  const margaret = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0032'")?.id;
+  if (!nicki || !margaret) return;
+  const id = newId();
+  const say = 'Allergy: Latex. Daughter says her hands swelled after rubber gloves some years ago; not sure of the details (moderate). Told by whānau or carer, some years ago. Suspected, not yet checked.';
+  store.insert('allergy', {
+    id, person_id: margaret, kind: 'ALLERGY', category: 'ENVIRONMENT', substance: 'Latex', reaction: 'Daughter says her hands swelled after rubber gloves some years ago; not sure of the details',
+    severity: 'MODERATE', certainty: 'SUSPECTED', state: 'ACTIVE', source: 'Told by whānau or carer', onset: 'Some years ago', recorded_by: nicki, recorded_at: ago(60 * 20), data_source: 'SYNTHETIC',
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'allergy', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: nicki, work_context_id: null, at: ago(60 * 20), reason: say, transaction_id: null });
+  store.insert('allergy_log', { id: newId(), allergy_id: id, kind: 'RECORDED', body: say, by_id: nicki, at: ago(60 * 20) });
 }
