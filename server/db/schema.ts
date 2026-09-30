@@ -3861,4 +3861,68 @@ CREATE TABLE case_conference_step (
 CREATE INDEX case_conference_step_c ON case_conference_step(conference_id, at);
 `,
   },
+  {
+    version: 74,
+    name: 'rehab episode',
+    sql: `
+-- Rehabilitation episode (entries 49, 50): after the referral is taken on → readiness → baseline,
+-- goals linked to the care plan, plan → sessions delivered or not → reassessment, equipment and
+-- support → handed on and accepted → closed with an outcome.
+CREATE TABLE rehab_episode (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  referral_id TEXT REFERENCES referral(id),
+  state TEXT NOT NULL,                  -- STARTED | NOT_READY | ACTIVE | ENDING | CLOSED
+  started_at TEXT NOT NULL,
+  started_by TEXT NOT NULL REFERENCES workforce_person(id),
+  ready_at TEXT,
+  not_ready_reason TEXT,
+  recheck_on TEXT,
+  baseline TEXT,
+  plan TEXT,
+  per_week INTEGER,
+  needs TEXT,
+  next_kind TEXT,
+  next_to TEXT,
+  next_summary TEXT,
+  accepted_note TEXT,
+  closed_at TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  outcome TEXT,
+  close_note TEXT
+);
+CREATE INDEX rehab_episode_person ON rehab_episode(person_id, state);
+CREATE TABLE rehab_goal (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES rehab_episode(id),
+  goal TEXT NOT NULL,
+  care_plan_item_id TEXT REFERENCES care_plan_item(id),
+  state TEXT NOT NULL,                  -- WORKING | MET | PARTLY | NOT_MET | STOPPED
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX rehab_goal_e ON rehab_goal(episode_id);
+CREATE TABLE rehab_session (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES rehab_episode(id),
+  at TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  delivered INTEGER NOT NULL,
+  done TEXT,
+  response TEXT,
+  reason TEXT,                          -- why not delivered
+  note TEXT
+);
+CREATE INDEX rehab_session_e ON rehab_session(episode_id, at);
+CREATE TABLE rehab_step (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES rehab_episode(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX rehab_step_e ON rehab_step(episode_id, at);
+`,
+  },
 ];

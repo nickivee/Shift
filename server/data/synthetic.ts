@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 73;
+const SET = 74;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -400,6 +400,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 71) set71(store);
     if (at < 72) set72(store);
     if (at < 73) set73(store);
+    if (at < 74) set74(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4392,4 +4393,49 @@ function set73(store: Store): void {
     plan({ personId: peggy, service: 'svc-genmed', kind: 'MDT', label: 'MDT meeting', by: hannah, plannedAgo: 24 * 60, when: 120, invite: [hannah, grace, lena],
       reason: 'Plan for going home: walking with a frame, lives alone, daughter worried about the stairs.', others: 'Daughter by phone' });
   }
+}
+
+// Set 74: rehab episodes. Peggy is in rehab with Lena (two sessions done, one missed because she
+// was unwell; her goals link to the ward care plan); Aroha has just been taken on and her
+// readiness has not been checked yet.
+function set74(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const lena = who('lena');
+  if (!lena) return;
+  const trans = (id: string, from: string | null, to: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'rehab_episode', object_id: id, from_state: from, to_state: to, actor_id: lena, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, mins: number) => store.insert('rehab_step', { id: newId(), episode_id: id, kind, body, by_id: lena, at: at(mins) });
+  const start = (personId: string, mins: number) => {
+    const id = newId();
+    const referralId = store.get<{ id: string }>("SELECT id FROM referral WHERE person_id = ? AND to_service_id = 'svc-physio' ORDER BY drafted_at DESC LIMIT 1", personId)?.id ?? null;
+    store.insert('rehab_episode', { id, person_id: personId, service_id: 'svc-physio', referral_id: referralId, state: 'STARTED', started_at: at(mins), started_by: lena });
+    trans(id, null, 'STARTED', mins, 'Started when the referral was taken on.');
+    step(id, 'STARTED', 'Started when the referral was taken on.', mins);
+    return id;
+  };
+  const peggy = person('ZZZ0032');
+  if (peggy) {
+    const item = newId();
+    store.insert('care_plan_item', {
+      id: item, person_id: peggy, need: 'Mobility', goal: 'Walks to the bathroom with her frame on her own', intervention: 'Frame within reach; physio daily; supervise walks until cleared',
+      responsible: 'Nurses and physio', review_date: new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10), state: 'ACTIVE', created_at: at(26 * 60), data_source: 'SYNTHETIC',
+    });
+    const id = start(peggy, 24 * 60);
+    store.run(`UPDATE rehab_episode SET state = 'ACTIVE', ready_at = ?, baseline = ?, plan = ?, per_week = 5, needs = ? WHERE id = ?`, at(23 * 60),
+      'Walks 10 m with a frame and help of one; one loss of balance turning. Stands from a high chair.',
+      'Walking practice, turning, leg strength; stairs before home', 'Frame; rail by the back steps', id);
+    trans(id, 'STARTED', 'ACTIVE', 23 * 60, 'Ready');
+    step(id, 'ACTIVE', 'Ready. 2 goals; 5 sessions a week.', 23 * 60);
+    store.insert('rehab_goal', { id: newId(), episode_id: id, goal: 'Walk to the bathroom with her frame on her own', care_plan_item_id: item, state: 'WORKING', updated_at: at(23 * 60) });
+    store.insert('rehab_goal', { id: newId(), episode_id: id, goal: 'Manage the 4 back steps at home with a rail', care_plan_item_id: null, state: 'WORKING', updated_at: at(23 * 60) });
+    const session = (mins: number, delivered: boolean, done: string | null, response: string | null, reason: string | null) =>
+      store.insert('rehab_session', { id: newId(), episode_id: id, at: at(mins), by_id: lena, delivered: delivered ? 1 : 0, done, response, reason, note: null });
+    session(22 * 60, true, 'Walked 15 m with frame, supervision; sit to stand x 10', 'Tired after; no dizziness', null);
+    session(20 * 60, false, null, null, 'UNWELL');
+    session(3 * 60, true, 'Walked 20 m with frame; turning practice; 2 steps with rail', 'Steady; wants to try the stairs tomorrow', null);
+  }
+  const aroha = person('ZZZ9999');
+  if (aroha) start(aroha, 6 * 60);
 }

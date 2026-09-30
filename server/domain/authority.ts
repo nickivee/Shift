@@ -35,6 +35,7 @@ export type Operation =
   | { op: 'DEVICE'; personId: string }
   | { op: 'HANDOVER_GIVE'; personId: string }
   | { op: 'CONFERENCE'; personId: string }
+  | { op: 'REHAB'; personId: string }
   | { op: 'DEVICE_REPORT'; personId: string }
   | { op: 'COMPLAINT_RECORD'; personId: string }
   | { op: 'SAFEGUARD_RAISE'; personId: string }
@@ -397,6 +398,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'REHAB':
+      return need(ctx, 'rehab.manage') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can run their rehab`));
     case 'CONFERENCE':
       return need(ctx, 'conference.manage') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG])
