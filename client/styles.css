@@ -946,3 +946,6 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .patient-devices.warn { border-color: #b5651d; background: #fdf3e7; }
 .patient-devices.warn b, .patient-devices.warn svg { color: #9a4f10; }
 .device { border-left: 4px solid #1b6f7a; }
+
+/* Handover of responsibility for a person. */
+.person-handover { border-left: 4px solid #1b6f7a; }

@@ -59,6 +59,7 @@ import * as safeguarding from '../domain/safeguarding.ts';
 import * as residency from '../domain/residency.ts';
 import * as complaints from '../domain/complaints.ts';
 import * as devices from '../domain/devices.ts';
+import * as handovers from '../domain/handovers.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -349,6 +350,11 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('GET', '/api/work/handovers/mine', (req) => handovers.mine(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/handovers', (req) => handovers.give(store, work(req), req.params.id, {
+    to: str(req.body.to), situation: str(req.body.situation), background: str(req.body.background), watch: str(req.body.watch), todo: str(req.body.todo),
+  }));
+  r.on('POST', '/api/work/handovers/:id/:action', (req) => handovers.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/devices', (req) => devices.insert(store, work(req), req.params.id, {
     kind: str(req.body.kind), site: str(req.body.site), size: str(req.body.size), reason: str(req.body.reason), hoursAgo: req.body.hoursAgo, where: str(req.body.where), note: str(req.body.note),
   }));

@@ -4,6 +4,7 @@ import { showError, toast, ask, pageTitle, fmtDateTime, stateTag } from '../lib/
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { dialog, field, select } from '../lib/forms.js';
+import { handoverCard } from './handovers.js';
 
 // Tasks: responsibility is taken on explicitly (Accept), never by routing or by viewing.
 // Work queue: missed work goes one step up the service's ladder, and the next person
@@ -121,13 +122,16 @@ export async function receivedView() {
 export async function handoverView() {
   const root = h('div');
   const load = async () => {
-    const groups = await get('/api/work/handover');
+    const [groups, mine] = await Promise.all([get('/api/work/handover'), get('/api/work/handovers/mine')]);
     const act = async (item, action) => {
       try { await post(`/api/work/handover/${item.markId}/${action}`); load(); } catch (err) { showError(err); }
     };
     mount(root,
       workHeader(),
       pageTitle('Handover', () => go('/work/home')),
+      mine.toAccept.length ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `For you to accept (${mine.toAccept.length})`), mine.toAccept.map((x) => handoverCard(x, load, true))) : null,
+      mine.given.length ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `You handed over, not accepted yet (${mine.given.length})`), mine.given.map((x) => handoverCard(x, load, true))) : null,
+      h('h2', { class: 'section-title paua' }, 'Marked for handover'),
       groups.length ? h('div', { class: 'list' }, groups.map((g) => h('div', { class: 'card stack' },
         h('div', { class: 'spread' }, h('h3', {}, g.patient, g.location ? ` · ${g.location}` : ''), h('button', { class: 'btn small', onclick: () => go(`/work/patient/${g.personId}/handover`) }, 'Open record')),
         g.items.map((i) => h('div', { class: `entry-item${i.urgent ? ' urgent' : ''}` },

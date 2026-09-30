@@ -25,6 +25,7 @@ import { safeguardingPanel } from './safeguarding.js';
 import { residencyPanel } from './residency.js';
 import { complaintsPanel } from './complaints.js';
 import { devicesPanel } from './devices.js';
+import { handoversPanel } from './handovers.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -412,7 +413,7 @@ export async function workstationView(personId, initialView) {
       case 'events':
       case 'history':
       case 'handover':
-        return h('div', { class: 'stack' }, addButton(),
+        return h('div', { class: 'stack' }, handoversPanel(personId, d.handovers, () => go(`/work/patient/${personId}/handover`)), h('h3', {}, 'Marked for handover'), addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return overview(d);
       case 'meds': return h('div', { class: 'stack' },
@@ -675,6 +676,12 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-pref', onclick: () => openView('preferences') }, icon('preferences'),
         h('span', {}, h('b', {}, patient.preferences.count === 1 ? 'PREFERENCE' : `${patient.preferences.count} PREFERENCES`),
           patient.preferences.first.join(' · '))));
+    }
+    if (patient.handoverOpen) {
+      const x = patient.handoverOpen;
+      block.append(h('button', { class: 'patient-devices warn', onclick: () => openView('handover') }, icon('handover'),
+        h('span', {}, h('b', {}, x.question ? 'HANDOVER NOT ACCEPTED YET: QUESTION ASKED' : 'HANDOVER NOT ACCEPTED YET'),
+          `${x.from} to ${x.to}, given ${fmtDateTime(x.givenAt)} · ${x.from} is still responsible`)));
     }
     if (patient.devices?.length) {
       const ds = patient.devices;

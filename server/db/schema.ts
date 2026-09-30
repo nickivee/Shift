@@ -3757,4 +3757,40 @@ CREATE TABLE device_log (
 CREATE INDEX device_log_d ON device_log(device_id, at);
 `,
   },
+  {
+    version: 72,
+    name: 'handover acceptance',
+    sql: `
+-- Handover of responsibility for a person (entry 18; SLO 219): given to a named colleague →
+-- questions asked and answered → accepted (responsibility moves) or declined, or withdrawn.
+-- Until accepted, the giver is still responsible.
+CREATE TABLE person_handover (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- GIVEN | QUESTION | ACCEPTED | DECLINED | WITHDRAWN
+  from_id TEXT NOT NULL REFERENCES workforce_person(id),
+  to_id TEXT NOT NULL REFERENCES workforce_person(id),
+  situation TEXT NOT NULL,
+  background TEXT,
+  watch TEXT,
+  todo TEXT NOT NULL,
+  given_at TEXT NOT NULL,
+  accepted_at TEXT,
+  closed_at TEXT,
+  close_note TEXT
+);
+CREATE INDEX person_handover_person ON person_handover(person_id, service_id, state);
+CREATE INDEX person_handover_to ON person_handover(to_id, state);
+CREATE TABLE person_handover_step (
+  id TEXT PRIMARY KEY,
+  handover_id TEXT NOT NULL REFERENCES person_handover(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX person_handover_step_h ON person_handover_step(handover_id, at);
+`,
+  },
 ];
