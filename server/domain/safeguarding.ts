@@ -109,7 +109,7 @@ export function raise(store: Store, ctx: WorkContext, personId: string, b: { kin
       const taskId = newId();
       store.insert('task', {
         id: taskId, person_id: personId, source_event_id: null, service_id: ctx.serviceId, assigned_to: null, state: 'CREATED', created_by: ctx.workerId, created_at: now(), due_at: null,
-        description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents and safeguarding today. The details are private.',
+        description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents, complaints and safeguarding today. The details are private.',
       });
       recordInitial(store, 'task', taskId, 'CREATED', who, 'Safeguarding concern raised');
     }

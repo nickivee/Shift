@@ -32,7 +32,7 @@ const DESCRIPTIONS = {
   coding: () => 'Hospital episodes to code, being coded, and finalised.',
   reports: () => 'What people have told staff that a clinician should read.',
   instruments: () => 'Questionnaires due and results to interpret.',
-  incidents: () => 'Incidents waiting for review, open ones and overdue actions.',
+  incidents: () => 'Incidents waiting for review, overdue actions, and complaints to acknowledge or reply to.',
   deaths: () => 'People who have died: what is still to do before their stay ends.',
   problems: () => 'Concerns waiting to be assessed, problems getting worse and reviews due.',
   symptoms: () => 'Symptoms to look at again, anyone rating 7 or more, and ones not yet assessed.',
@@ -135,7 +135,7 @@ export async function homeView() {
     if (want.includes('symptoms')) jobs.push(get('/api/work/symptoms').then((d) => (counts.symptoms = d.reassess.filter((x) => x.reassessOverdue).length + d.severe.length + d.notAssessed.length)));
     if (want.includes('problems')) jobs.push(get('/api/work/problems').then((d) => (counts.problems = d.toAssess.length + d.dueReview.length + d.worse.length)));
     if (want.includes('deaths')) jobs.push(get('/api/work/deaths').then((d) => (counts.deaths = d.open.length)));
-    if (want.includes('incidents')) jobs.push(get('/api/work/incidents').then((d) => (counts.incidents = d.toReview.length + d.overdueActions)));
+    if (want.includes('incidents')) jobs.push(get('/api/work/incidents').then((d) => (counts.incidents = d.toReview.length + d.overdueActions + (d.complaints ? d.complaints.toAcknowledge.length + d.complaints.overdue : 0))));
     if (want.includes('deterioration')) jobs.push(get('/api/work/deterioration').then((d) => (counts.deterioration = d.notEscalated.length + d.open.length)));
     if (want.includes('acuity')) jobs.push(get('/api/work/acuity').then((d) => (counts.acuity = d.unwell.length + d.overdue.length + d.none.length)));
     if (want.includes('allocation')) jobs.push(get('/api/work/allocation').then((d) => (counts.allocation = d.toReview.length + (d.active ? 0 : 1))));

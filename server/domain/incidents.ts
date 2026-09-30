@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { CATEGORIES, HARMS, HARM_BY_ID, NOTIFY, DISCLOSURE } from '../config/incidents.ts';
+import { list as complaintsList } from './complaints.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Incident / adverse clinical event (Shared Lifecycle Object 269):
@@ -297,5 +298,6 @@ export function list(store: Store, ctx: WorkContext) {
     closed: rows.filter((r) => r.state === 'CLOSED'),
     overdueActions: rows.filter((r) => r.actions.some((a) => a.overdue)).length,
     options: options(),
+    complaints: complaintsList(store, ctx),
   };
 }

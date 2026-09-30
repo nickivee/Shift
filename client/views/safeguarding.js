@@ -96,7 +96,7 @@ function concernCard(x, o, reload) {
   );
 }
 
-// Inside the person's Incidents and safeguarding view, below their incidents.
+// Inside the person's Incidents, complaints and safeguarding view, below their complaints.
 export function safeguardingPanel(personId, s, reload) {
   const open = s.concerns.filter((x) => x.state !== 'CLOSED');
   const closed = s.concerns.filter((x) => x.state === 'CLOSED');

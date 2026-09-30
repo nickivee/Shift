@@ -3665,4 +3665,50 @@ CREATE TABLE residency_log (
 CREATE INDEX residency_log_r ON residency_log(residency_id, at);
 `,
   },
+  {
+    version: 70,
+    name: 'complaints',
+    sql: `
+-- Complaints (entries 25, 26): received → acknowledged and looked into → responded to → closed,
+-- with not satisfied sending it back. Kept apart from the clinical record. Details are private
+-- to complaint.manage and the worker who took it in. Timeframes and reporting are RR-COMPLAINT-001.
+CREATE TABLE complaint (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- RECEIVED | LOOKING | RESPONDED | CLOSED
+  from_kind TEXT NOT NULL,              -- PERSON | WHANAU | ADVOCATE | OTHER
+  from_name TEXT,
+  contact TEXT,
+  how TEXT NOT NULL,
+  about TEXT NOT NULL,
+  words TEXT NOT NULL,
+  wants TEXT,
+  handler_id TEXT REFERENCES workforce_person(id),
+  acknowledged_at TEXT,
+  advocacy INTEGER,
+  reply_by TEXT,
+  response TEXT,
+  responded_at TEXT,
+  outcome TEXT,                         -- RESOLVED | NOT_RESOLVED | WITHDRAWN | ERROR
+  close_note TEXT,
+  change TEXT,
+  received_by TEXT NOT NULL REFERENCES workforce_person(id),
+  received_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT
+);
+CREATE INDEX complaint_person ON complaint(person_id, state);
+CREATE INDEX complaint_service ON complaint(service_id, state);
+CREATE TABLE complaint_step (
+  id TEXT PRIMARY KEY,
+  complaint_id TEXT NOT NULL REFERENCES complaint(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX complaint_step_c ON complaint_step(complaint_id, at);
+`,
+  },
 ];
