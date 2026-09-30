@@ -3793,4 +3793,72 @@ CREATE TABLE person_handover_step (
 CREATE INDEX person_handover_step_h ON person_handover_step(handover_id, at);
 `,
   },
+  {
+    version: 73,
+    name: 'MDT meetings and case conferences',
+    sql: `
+-- MDT meetings and case conferences (SLO 239): planned with who is asked → held: who came, the
+-- record entries looked at, what was discussed, decisions with actions, owners and due dates →
+-- follow-up → closed, or cancelled. An action given to a colleague is a task assigned to them.
+CREATE TABLE case_conference (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- MDT | FAMILY | CARE_REVIEW
+  reason TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- PLANNED | HELD | CLOSED | CANCELLED
+  planned_for TEXT NOT NULL,
+  planned_by TEXT NOT NULL REFERENCES workforce_person(id),
+  others_invited TEXT,
+  held_at TEXT,
+  led_by TEXT REFERENCES workforce_person(id),
+  patient_there INTEGER,
+  others_there TEXT,
+  evidence_note TEXT,
+  discussion TEXT,
+  follow_up_on TEXT,
+  closed_at TEXT,
+  close_note TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX case_conference_person_i ON case_conference(person_id, state);
+CREATE TABLE case_conference_person (
+  id TEXT PRIMARY KEY,
+  conference_id TEXT NOT NULL REFERENCES case_conference(id),
+  worker_id TEXT NOT NULL REFERENCES workforce_person(id),
+  attended INTEGER
+);
+CREATE INDEX case_conference_person_c ON case_conference_person(conference_id);
+CREATE TABLE case_conference_ref (
+  id TEXT PRIMARY KEY,
+  conference_id TEXT NOT NULL REFERENCES case_conference(id),
+  event_id TEXT NOT NULL REFERENCES clinical_event(id)
+);
+CREATE INDEX case_conference_ref_c ON case_conference_ref(conference_id);
+CREATE TABLE case_conference_action (
+  id TEXT PRIMARY KEY,
+  conference_id TEXT NOT NULL REFERENCES case_conference(id),
+  decision TEXT NOT NULL,
+  action TEXT NOT NULL,
+  owner_id TEXT REFERENCES workforce_person(id),
+  owner_label TEXT,
+  due_on TEXT NOT NULL,
+  task_id TEXT REFERENCES task(id),
+  state TEXT NOT NULL,                  -- OPEN | DONE (actions with a task read the task)
+  done_at TEXT,
+  done_by TEXT REFERENCES workforce_person(id),
+  done_note TEXT
+);
+CREATE INDEX case_conference_action_c ON case_conference_action(conference_id);
+CREATE TABLE case_conference_step (
+  id TEXT PRIMARY KEY,
+  conference_id TEXT NOT NULL REFERENCES case_conference(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX case_conference_step_c ON case_conference_step(conference_id, at);
+`,
+  },
 ];

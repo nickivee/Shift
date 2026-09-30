@@ -60,6 +60,7 @@ import * as residency from '../domain/residency.ts';
 import * as complaints from '../domain/complaints.ts';
 import * as devices from '../domain/devices.ts';
 import * as handovers from '../domain/handovers.ts';
+import * as conferences from '../domain/conferences.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -83,6 +84,7 @@ import { LEGAL_REGISTER, RESEARCH_REQUIREMENTS, ORG_RULE_PACK } from '../config/
 const COOKIE = 'shift_session';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.slice(0, 50).map(String) : []);
 
 export function buildApi(store: Store): Router {
   const r = new Router();
@@ -350,6 +352,17 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/conferences', (req) => conferences.plan(store, work(req), req.params.id, {
+    kind: str(req.body.kind), reason: str(req.body.reason), when: str(req.body.when), invite: list(req.body.invite), others: str(req.body.others),
+  }));
+  r.on('POST', '/api/work/conference-actions/:id/done', (req) => conferences.actionDone(store, work(req), req.params.id, { note: str(req.body.note) }));
+  r.on('POST', '/api/work/conferences/:id/:action', (req) => conferences.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), attended: list(req.body.attended), patientThere: str(req.body.patientThere), othersThere: str(req.body.othersThere),
+    evidence: list(req.body.evidence), evidenceNote: str(req.body.evidenceNote), discussion: str(req.body.discussion), followUp: str(req.body.followUp),
+    actions: Array.isArray(req.body.actions) ? (req.body.actions as Record<string, unknown>[]).slice(0, 20).map((x) => ({
+      decision: str(x?.decision), action: str(x?.action), owner: str(x?.owner), ownerLabel: str(x?.ownerLabel), due: str(x?.due),
+    })) : [],
+  }));
   r.on('GET', '/api/work/handovers/mine', (req) => handovers.mine(store, work(req)));
   r.on('POST', '/api/work/patients/:id/handovers', (req) => handovers.give(store, work(req), req.params.id, {
     to: str(req.body.to), situation: str(req.body.situation), background: str(req.body.background), watch: str(req.body.watch), todo: str(req.body.todo),

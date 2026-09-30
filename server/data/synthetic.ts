@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 72;
+const SET = 73;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -399,6 +399,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 70) set70(store);
     if (at < 71) set71(store);
     if (at < 72) set72(store);
+    if (at < 73) set73(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4322,4 +4323,73 @@ function set72(store: Store): void {
   add({ nhi: 'ZZZ0016', service: 'svc-genmed', from: grace, fromName: 'Grace Tupou', to: nicki, toName: 'Nicki V', mins: 8 * 60, accepted: 8 * 60 - 10,
     situation: 'Sepsis settling: afebrile overnight, BP 118/70, eating a little.',
     todo: 'IV antibiotics at 8 and 4; check the cannula site; bloods at 10.' });
+}
+
+// Set 73: MDT meetings and case conferences. Elsie's family meeting was held three days ago, with
+// one action overdue in Kate's tasks; Frank's family meeting is tomorrow; Peggy's MDT on the ward
+// is later today, with Lena from physiotherapy asked.
+function set73(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const day = (d: number) => { const x = new Date(Date.now() + d * 86_400_000); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const kate = who('kate'), nicki = who('nicki'), tama = who('tama'), hannah = who('hannah'), grace = who('grace'), lena = who('lena');
+  if (!kate || !nicki || !tama || !hannah || !grace || !lena) return;
+  const trans = (id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'case_conference', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('case_conference_step', { id: newId(), conference_id: id, kind, body, by_id: by, at: at(mins) });
+  const plan = (c: { personId: string; service: string; kind: string; label: string; reason: string; when: number; by: string; plannedAgo: number; invite: string[]; others?: string }) => {
+    const id = newId();
+    store.insert('case_conference', {
+      id, person_id: c.personId, service_id: c.service, kind: c.kind, reason: c.reason, state: 'PLANNED', planned_for: at(c.when), planned_by: c.by,
+      others_invited: c.others ?? null, created_at: at(-c.plannedAgo),
+    });
+    for (const w of c.invite) store.insert('case_conference_person', { id: newId(), conference_id: id, worker_id: w, attended: null });
+    trans(id, null, 'PLANNED', c.by, -c.plannedAgo, c.label);
+    step(id, 'PLANNED', `${c.label} planned. ${c.reason}`, c.by, -c.plannedAgo);
+    return id;
+  };
+
+  const elsie = person('ZZZ0067');
+  if (elsie) {
+    const held = -3 * 24 * 60;
+    const id = plan({ personId: elsie, service: 'svc-arc', kind: 'FAMILY', label: 'Family/whānau meeting', by: kate, plannedAgo: 8 * 24 * 60, when: held, invite: [kate, tama],
+      reason: 'Now at hospital-level care; daughter wants to talk about what that means for her.', others: 'Daughter Joan' });
+    store.run(`UPDATE case_conference SET state = 'HELD', held_at = ?, led_by = ?, patient_there = 1, others_there = ?, discussion = ?, follow_up_on = ? WHERE id = ?`,
+      at(held), kate, 'Daughter Joan',
+      'Elsie is comfortable in Room 5 and wants to stay there. Joan understands she now needs two people to help her move. Elsie finds it hard to hear at mealtimes.', day(11), id);
+    store.run('UPDATE case_conference_person SET attended = 1 WHERE conference_id = ?', id);
+    for (const e of store.all<{ id: string }>("SELECT id FROM clinical_event WHERE person_id = ? AND state = 'CURRENT' ORDER BY effective_at DESC LIMIT 2", elsie)) {
+      store.insert('case_conference_ref', { id: newId(), conference_id: id, event_id: e.id });
+    }
+    trans(id, 'PLANNED', 'HELD', kate, held, 'Held');
+    step(id, 'HELD', 'Held. 2 decisions recorded.', kate, held);
+    const taskId = newId();
+    store.insert('task', {
+      id: taskId, person_id: elsie, source_event_id: null, service_id: 'svc-arc', assigned_to: `worker:${kate}`, state: 'ASSIGNED', created_by: kate, created_at: at(held),
+      due_at: new Date(`${day(-1)}T17:00:00`).toISOString(), description: 'From the Family/whānau meeting: Update her care plan for hospital-level care and two-person transfers',
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: null, to_state: 'CREATED', actor_id: kate, work_context_id: null, at: at(held), reason: 'Action from a meeting', transaction_id: null });
+    store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: 'CREATED', to_state: 'ASSIGNED', actor_id: kate, work_context_id: null, at: at(held), reason: 'Given to Kate Rowe at the meeting', transaction_id: null });
+    store.insert('case_conference_action', {
+      id: newId(), conference_id: id, decision: 'Stays in Room 5 at hospital-level care', action: 'Update her care plan for hospital-level care and two-person transfers',
+      owner_id: kate, owner_label: null, due_on: day(-1), task_id: taskId, state: 'OPEN',
+    });
+    store.insert('case_conference_action', {
+      id: newId(), conference_id: id, decision: 'Help her hear at mealtimes', action: 'Bring in new hearing aid batteries', owner_id: null, owner_label: 'Daughter Joan',
+      due_on: day(-2), task_id: null, state: 'DONE', done_at: at(-2 * 24 * 60), done_by: kate, done_note: 'Joan brought them in; Elsie is wearing her hearing aids at lunch.',
+    });
+    step(id, 'ACTION_DONE', 'Done: Bring in new hearing aid batteries. Joan brought them in; Elsie is wearing her hearing aids at lunch.', kate, -2 * 24 * 60);
+  }
+  const frank = person('ZZZ0075');
+  if (frank) {
+    plan({ personId: frank, service: 'svc-arc', kind: 'FAMILY', label: 'Family/whānau meeting', by: kate, plannedAgo: 2 * 24 * 60, when: 24 * 60 + 120, invite: [kate, nicki],
+      reason: 'Keeps saying no to his oxygen; talk with him and his son about what he wants.', others: 'Son Peter' });
+  }
+  const peggy = person('ZZZ0032');
+  if (peggy) {
+    plan({ personId: peggy, service: 'svc-genmed', kind: 'MDT', label: 'MDT meeting', by: hannah, plannedAgo: 24 * 60, when: 120, invite: [hannah, grace, lena],
+      reason: 'Plan for going home: walking with a frame, lives alone, daughter worried about the stairs.', others: 'Daughter by phone' });
+  }
 }

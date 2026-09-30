@@ -54,6 +54,7 @@ import { forPerson as residencyFor, current as residencyNow } from './residency.
 import { forPerson as complaintsFor } from './complaints.ts';
 import { forPerson as devicesFor, current as devicesNow } from './devices.ts';
 import { forPerson as handoversFor, current as handoverNow } from './handovers.ts';
+import { forPerson as conferencesFor } from './conferences.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -303,7 +304,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
         `${EVENT_SELECT} WHERE e.person_id = ? AND e.category IN (${ph}) AND e.state <> 'SUPERSEDED' ORDER BY e.effective_at DESC LIMIT 200`,
         personId, ...view.categories!,
       );
-      body = { events: rows.map((r) => shapeEvent(store, ctx, r)) };
+      body = { events: rows.map((r) => shapeEvent(store, ctx, r)), conferences: ['review', 'goals'].includes(view.code) ? conferencesFor(store, ctx, personId) : null };
       break;
     }
     case 'history': {
@@ -341,7 +342,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = allergiesFor(store, ctx, personId);
       break;
     case 'careplan':
-      body = carePlanFor(store, ctx, personId);
+      body = { ...carePlanFor(store, ctx, personId), conferences: conferencesFor(store, ctx, personId) };
       break;
     case 'tasks':
       body = { tasks: tasksFor(store, ctx, { personId }) };
