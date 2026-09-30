@@ -949,3 +949,8 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 
 /* Handover of responsibility for a person. */
 .person-handover { border-left: 4px solid #1b6f7a; }
+
+/* MDT meetings and case conferences. */
+.conference { border-left: 4px solid #5b4a8a; }
+.conference-actions { margin: 0; padding-left: 1.2rem; }
+.conference-action { gap: 2px; }
