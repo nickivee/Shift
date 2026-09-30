@@ -27,6 +27,7 @@ export type Operation =
   | { op: 'RECONCILE'; personId: string }
   | { op: 'PRECAUTION'; personId: string }
   | { op: 'ALLERGY'; personId: string }
+  | { op: 'CONSENT'; personId: string }
   | { op: 'ALLERGY_REPORT'; personId: string }
   | { op: 'OUTBREAK'; serviceId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
@@ -385,6 +386,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'CONSENT':
+      return need(ctx, 'consent.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-005', 'RR-CONSENT-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their consent`));
     case 'ALLERGY':
       return need(ctx, 'allergy.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-ALLERGY-001'])

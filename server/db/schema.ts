@@ -3497,4 +3497,44 @@ CREATE TABLE allergy_log (
 CREATE INDEX allergy_log_a ON allergy_log(allergy_id, at);
 `,
   },
+  {
+    version: 66,
+    name: 'informed consent and refusal',
+    sql: `
+-- Informed consent and refusal (entry 20): decision → information given → understanding checked →
+-- the person's own yes or no → checked again → done, or withdrawn. Who may take consent and when it
+-- must be written is RR-CONSENT-001; deciding for a person who cannot is RR-CAP-001 / RR-TP-001.
+CREATE TABLE consent (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  what TEXT NOT NULL,
+  kind TEXT NOT NULL,                   -- PROCEDURE | TEST | TREATMENT | VACCINE | CARE | PHOTO | OTHER
+  capacity_id TEXT REFERENCES capacity_assessment(id),
+  decision TEXT NOT NULL,               -- CONSENTED | REFUSED
+  state TEXT NOT NULL,                  -- CONSENTED | REFUSED | WITHDRAWN | DONE | RECONSIDERED
+  information TEXT NOT NULL,
+  understood TEXT NOT NULL,
+  support TEXT,
+  form TEXT NOT NULL,                   -- VERBAL | WRITTEN
+  form_ref TEXT,
+  their_words TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX consent_person ON consent(person_id, state);
+CREATE TABLE consent_log (
+  id TEXT PRIMARY KEY,
+  consent_id TEXT NOT NULL REFERENCES consent(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX consent_log_c ON consent_log(consent_id, at);
+`,
+  },
 ];

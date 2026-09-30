@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 65;
+const SET = 66;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -392,6 +392,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 63) set63(store);
     if (at < 64) set64(store);
     if (at < 65) set65(store);
+    if (at < 66) set66(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4059,4 +4060,24 @@ function set65(store: Store): void {
   });
   store.insert('state_transition', { id: newId(), object_type: 'allergy', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: nicki, work_context_id: null, at: ago(60 * 20), reason: say, transaction_id: null });
   store.insert('allergy_log', { id: newId(), allergy_id: id, kind: 'RECORDED', body: say, by_id: nicki, at: ago(60 * 20) });
+}
+
+// Set 66: consent. Elsie Morgan said no to this year's influenza vaccine when Kate offered it.
+function set66(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const kate = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'kate'")?.id;
+  const elsie = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0067'")?.id;
+  if (!kate || !elsie) return;
+  const id = newId();
+  const at = ago(60 * 26);
+  const say = 'Said no: Influenza vaccine this year. Said it out loud. In their words: "I have never had one and I am not starting now".';
+  store.insert('consent', {
+    id, person_id: elsie, service_id: 'svc-arc', what: 'Influenza vaccine this year', kind: 'VACCINE', capacity_id: null, decision: 'REFUSED', state: 'REFUSED',
+    information: 'Explained the flu vaccine, why it is offered to everyone in the home each autumn, the sore arm and mild fever it can cause, and that she can say no or decide later.',
+    understood: 'She said it back in her own words: "it is the flu jab, it stops you getting so sick". Asked if it would make her ill; answered.',
+    support: 'Large-print leaflet, quiet room, told her who I was first', form: 'VERBAL', form_ref: null,
+    their_words: 'I have never had one and I am not starting now', recorded_by: kate, recorded_at: at,
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'consent', object_id: id, from_state: null, to_state: 'REFUSED', actor_id: kate, work_context_id: null, at, reason: say, transaction_id: null });
+  store.insert('consent_log', { id: newId(), consent_id: id, kind: 'REFUSED', body: say, by_id: kate, at });
 }

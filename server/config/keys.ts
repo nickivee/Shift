@@ -358,7 +358,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'location', label: 'Bed and location', kind: 'location' },
   { code: 'absence', label: 'Leave and outings', kind: 'leave' },
   { code: 'preferences', label: 'Preferences', kind: 'preferences' },
-  { code: 'capacity', label: 'Capacity', kind: 'capacity' },
+  { code: 'capacity', label: 'Consent and capacity', kind: 'capacity' },
   { code: 'support', label: 'Whānau and support', kind: 'support' },
   { code: 'access', label: 'Communication needs', kind: 'access' },
   { code: 'external', label: 'From other providers', kind: 'external' },

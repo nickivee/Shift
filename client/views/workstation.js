@@ -19,6 +19,7 @@ import { locationPanel } from './locations.js';
 import { leavePanel } from './leave.js';
 import { preferencesPanel } from './preferences.js';
 import { capacityPanel } from './capacity.js';
+import { consentPanel } from './consent.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -469,7 +470,10 @@ export async function workstationView(personId, initialView) {
       case 'coding': return codingPanel(personId, d, () => go(`/work/patient/${personId}/coding`));
       case 'external': return externalPanel(personId, d, () => go(`/work/patient/${personId}/external`));
       case 'access': return accessPanel(personId, d, () => go(`/work/patient/${personId}/access`));
-      case 'capacity': return capacityPanel(personId, d, () => go(`/work/patient/${personId}/capacity`));
+      case 'capacity': {
+        const reload = () => go(`/work/patient/${personId}/capacity`);
+        return h('div', { class: 'stack' }, consentPanel(personId, d.consent, reload), h('h3', {}, 'Capacity'), capacityPanel(personId, d, reload));
+      }
       case 'preferences': return preferencesPanel(personId, d, () => go(`/work/patient/${personId}/preferences`));
       case 'leave': return leavePanel(personId, d, () => go(`/work/patient/${personId}/absence`));
       case 'location': return locationPanel(personId, d, () => go(`/work/patient/${personId}/location`));
@@ -635,6 +639,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-whanau', onclick: () => openView('support') }, icon('support'),
         h('span', {}, h('b', {}, 'WHĀNAU: LIMITS AND AUTHORITY'),
           patient.whanau.map((w) => `${w.name}: ${[w.limits, w.authority ? `${w.authority} (document seen)` : null].filter(Boolean).join('; ')}`).join(' · '))));
+    }
+    if (patient.consentNo?.length) {
+      block.append(h('button', { class: 'patient-consent', onclick: () => openView('capacity') }, icon('capacity'),
+        h('span', {}, h('b', {}, 'SAID NO'), patient.consentNo.map((c) => `${c.what}${c.state === 'WITHDRAWN' ? ' (withdrew their agreement)' : ''}`).join(' · '))));
     }
     if (patient.capacity?.length) {
       block.append(h('button', { class: 'patient-capacity', onclick: () => openView('capacity') }, icon('capacity'),
