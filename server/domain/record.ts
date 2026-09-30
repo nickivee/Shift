@@ -45,6 +45,7 @@ import { forPerson as followupsFor } from './followups.ts';
 import { forPerson as surveillanceFor } from './surveillance.ts';
 import { forPerson as screeningFor } from './screening.ts';
 import { forPerson as infectionsFor, current as resistantNow } from './infections.ts';
+import { forPerson as isolationFor, current as isolationNow } from './isolation.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -226,6 +227,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     checkExceptions: ctx.role.views.includes('checklists') ? checklistsNow(store, personId) : null,
     careOverdue: ctx.role.views.includes('caredue') ? careDueNow(store, personId) : null,
     resistantOrganisms: ctx.role.views.includes('infections') ? resistantNow(store, personId) : null,
+    precautions: isolationNow(store, personId),
     siteDiscrepancies: ctx.role.views.includes('sitechecks') ? siteNow(store, personId) : null,
     declinedCare: ctx.role.views.includes('declined') ? declinedNow(store, personId) : null,
     identityUnresolved: identityNow(store, personId),
@@ -464,7 +466,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = screeningFor(store, ctx, personId);
       break;
     case 'infections':
-      body = infectionsFor(store, ctx, personId);
+      body = { ...infectionsFor(store, ctx, personId), isolation: isolationFor(store, ctx, personId) };
       break;
     case 'antimicrobials':
       body = antimicrobialsFor(store, ctx, personId);

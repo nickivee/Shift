@@ -47,7 +47,7 @@ const DESCRIPTIONS = {
   followups: () => 'Follow-ups to take on, arrange, and record the outcome of.',
   surveillance: () => 'Surveillance results to review, and checks overdue or due this week.',
   screening: () => 'Screening results to review, people to tell, and screens to offer.',
-  infections: () => 'Suspected infections, people getting worse, and infections being treated.',
+  infections: () => 'Suspected infections, isolation precautions, outbreaks, and infections being treated.',
   antimicrobials: () => 'Antimicrobial reviews due, courses due to finish, and outcomes to record.',
   sitechecks: () => 'Procedure sites and sides that do not match, checks still to do, and sites verified.',
   readiness: () => 'Who is ready for a procedure, going home, a move or therapy, what is still to do, and reassessments due.',
@@ -120,7 +120,7 @@ export async function homeView() {
     if (want.includes('readiness')) jobs.push(get('/api/work/readiness').then((d) => (counts.readiness = d.reassess.length + (d.decides.length ? d.toDecide.length : 0))));
     if (want.includes('sitechecks')) jobs.push(get('/api/work/sitechecks').then((d) => (counts.sitechecks = d.discrepancies.length + d.checking.length)));
     if (want.includes('antimicrobials')) jobs.push(get('/api/work/antimicrobials').then((d) => (counts.antimicrobials = d.toReview.length + d.finishing.length + (d.canDecide ? d.outcome.length : 0))));
-    if (want.includes('infections')) jobs.push(get('/api/work/infections').then((d) => (counts.infections = d.suspected.length + d.attention.length)));
+    if (want.includes('infections')) jobs.push(get('/api/work/infections').then((d) => (counts.infections = d.suspected.length + d.attention.length + d.isolation.notInPlace + d.isolation.reviewDue)));
     if (want.includes('screening')) jobs.push(get('/api/work/screening').then((d) => (counts.screening = (d.canReview ? d.toReview.length : 0) + d.toTell.length + d.toOffer.filter((x) => x.overdue).length)));
     if (want.includes('surveillance')) jobs.push(get('/api/work/surveillance').then((d) => (counts.surveillance = (d.canReview ? d.toReview.length : 0) + d.overdue.length)));
     if (want.includes('followups')) jobs.push(get('/api/work/followups').then((d) => (counts.followups = d.toTake.length + d.toArrange.length + d.outcome.length)));

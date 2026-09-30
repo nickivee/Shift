@@ -306,7 +306,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'followups', label: 'Follow-ups', kind: 'followups' },
   { code: 'surveillance', label: 'Surveillance', kind: 'surveillance' },
   { code: 'screening', label: 'Screening', kind: 'screening' },
-  { code: 'infections', label: 'Infections', kind: 'infections' },
+  { code: 'infections', label: 'Infections and isolation', kind: 'infections' },
   { code: 'antimicrobials', label: 'Antimicrobials', kind: 'antimicrobials' },
   { code: 'sitechecks', label: 'Site checks', kind: 'sitechecks' },
   { code: 'readiness', label: 'Readiness', kind: 'readiness' },

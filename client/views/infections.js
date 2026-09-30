@@ -4,6 +4,7 @@ import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { formDialog as dialog, field, select } from '../lib/forms.js';
+import { isolationPanel, isolationSections } from './isolation.js';
 
 // Infections: suspected → evidence → source → organism → sensitivities and resistance → treatment →
 // response → source control → complications → resolved, ongoing, or came back.
@@ -122,6 +123,8 @@ function infectionCard(x, d, reload, showPatient = false) {
 // The person's Infections view in the Live Workstation.
 export function infectionsPanel(personId, d, reload) {
   return h('div', { class: 'stack' },
+    d.isolation ? isolationPanel(personId, d.isolation, reload) : null,
+    h('h3', {}, 'Infections'),
     d.canRaise ? h('div', {}, h('button', { class: 'btn primary', onclick: () => raiseDialog(personId, d.options, reload) }, 'Suspected infection')) : null,
     d.active.length ? d.active.map((x) => infectionCard(x, d, reload)) : h('div', { class: 'card empty' }, 'No current infection.'),
     d.ended.length ? h('details', {}, h('summary', {}, `Resolved or ruled out (${d.ended.length})`), h('div', { class: 'stack' }, d.ended.map((x) => infectionCard(x, d, reload)))) : null,
@@ -137,7 +140,8 @@ export async function infectionsView() {
   return h('div', {},
     workHeader(),
     pageTitle('Infections', () => go('/work/home')),
-    h('div', { class: 'banner' }, 'Infections in your service: suspected ones to confirm or rule out, people getting worse or waiting for source control, and the rest being treated. Open the person to act.'),
+    h('div', { class: 'banner' }, 'Infections in your service: outbreaks, who is in isolation, suspected infections to confirm or rule out, people getting worse or waiting for source control, and the rest being treated. Open the person to act on their own care.'),
+    isolationSections(d.isolation, () => go('/work/infections')),
     section('Suspected', d.suspected, 'No suspected infections.'),
     section('Getting worse or source control waiting', d.attention, 'Nobody getting worse.'),
     section('Being treated', d.treating, 'No other infections.'),

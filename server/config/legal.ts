@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-IPC-001',
+    question: 'What New Zealand requires for isolation and outbreaks in hospitals and rest homes: which precautions each infection or organism needs and for how long, how precautions are cleared, how an outbreak is defined and declared, who must be told (public health, Te Whatu Ora, families), and the Infection Prevention and Control Standard (NZS 8134) criteria a service is audited against.',
+    blocks: 'Suggesting a precaution from an organism, stopping precautions automatically, and sending any outbreak notification. SHIFT records the precautions a clinician chooses, shows them to everyone who opens the record, keeps them under review, and records outbreak cases, contacts and what the service did.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-RECONCILE-001',
     question: 'What New Zealand requires when information from another provider differs from a person\'s record: how medicines reconciliation must be done and by whom at admission, transfer and discharge, whether an allergy reported by another provider may be recorded before it is confirmed with the person, and how the sender must be told about a difference.',
     blocks: 'Changing a medicine from another provider\'s list, and removing an allergy because a sender did not list it. SHIFT compares what they list with the record, adds or changes an allergy only on a clinician\'s decision with where it came from, sends every medicine difference to a prescriber, and will not let the information be signed off until every difference is decided.',
