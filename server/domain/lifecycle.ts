@@ -473,6 +473,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'CASE',
     next: { CASE: ['RECOVERED'], WATCHING: ['CLEARED', 'BECAME_CASE'] },
   },
+  consent: {
+    table: 'consent',
+    initial: 'CONSENTED',
+    next: { CONSENTED: ['DONE', 'WITHDRAWN'], REFUSED: ['RECONSIDERED'], WITHDRAWN: ['RECONSIDERED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-CONSENT-001',
+    question: 'What New Zealand requires for informed consent (Code of Rights Rights 5, 6 and 7): who may seek consent for each kind of procedure or treatment, when consent must be in writing (Right 7(6)), what information must be given and how it is recorded, how long consent lasts before it must be checked again, and how a refusal or withdrawal must be recorded and respected.',
+    blocks: 'Deciding who may take consent for what, requiring or waiving written consent, and letting consent expire. SHIFT records the person\'s own decision, what they were told, how understanding was checked and whether it was verbal or written, and shows every "no" or withdrawal on the record.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-ALLERGY-001',
     question: 'What New Zealand requires when recording allergies and adverse reactions: how a reaction is classified (allergy, intolerance, side effect), who may confirm or rule one out and on what evidence, whether a caregiver report may stand as a suspected allergy until checked, and when a reaction must be reported to the Centre for Adverse Reactions Monitoring (CARM) or Medsafe.',
     blocks: 'Classifying a reaction automatically, ruling one out without a named clinician and reason, and sending any report to CARM. SHIFT records what was reported or seen, shows it at once on the record and in medicine checks, asks a nurse to check caregiver reports, and keeps every ended entry with who ended it and why.',

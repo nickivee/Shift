@@ -53,6 +53,7 @@ import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
 import * as isolation from '../domain/isolation.ts';
 import * as allergies from '../domain/allergies.ts';
+import * as consent from '../domain/consent.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -343,6 +344,11 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/consents', (req) => consent.record(store, work(req), req.params.id, {
+    what: str(req.body.what), kind: str(req.body.kind), decision: str(req.body.decision), information: str(req.body.information), understood: str(req.body.understood),
+    support: str(req.body.support), form: str(req.body.form), formRef: str(req.body.formRef), theirWords: str(req.body.theirWords), capacityId: str(req.body.capacityId),
+  }));
+  r.on('POST', '/api/work/consents/:id/:action', (req) => consent.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/allergies', (req) => allergies.record(store, work(req), req.params.id, {
     kind: str(req.body.kind), category: str(req.body.category), substance: str(req.body.substance), reaction: str(req.body.reaction),
     severity: str(req.body.severity), certainty: str(req.body.certainty), source: str(req.body.source), onset: str(req.body.onset),

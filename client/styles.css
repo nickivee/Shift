@@ -913,3 +913,11 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 /* Allergy list: suspected entries wait for a nurse or doctor to check them. */
 .allergy-entry { border-left: 4px solid var(--danger, #b3261e); }
 .allergy-entry.al-suspected { border-left-color: var(--warn, #b7791f); }
+
+/* A "no" or a withdrawn consent, shown to everyone who opens the record. */
+.patient-consent { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-consent svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-consent b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.consent { border-left: 4px solid var(--line, #cfd8dc); }
+.consent.cs-consented { border-left-color: #2e7d32; }
+.consent.cs-refused, .consent.cs-withdrawn { border-left-color: var(--danger); }
