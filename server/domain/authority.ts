@@ -28,6 +28,8 @@ export type Operation =
   | { op: 'PRECAUTION'; personId: string }
   | { op: 'ALLERGY'; personId: string }
   | { op: 'CONSENT'; personId: string }
+  | { op: 'PALLIATIVE'; personId: string }
+  | { op: 'PALLIATIVE_COMFORT'; personId: string }
   | { op: 'ALLERGY_REPORT'; personId: string }
   | { op: 'OUTBREAK'; serviceId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
@@ -386,6 +388,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'PALLIATIVE':
+      return need(ctx, 'palliative.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-005', 'RR-EOL-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can change their palliative care plan`));
+    case 'PALLIATIVE_COMFORT':
+      return (ctx.role.capabilities.includes('palliative.manage') ? null : need(ctx, 'palliative.comfort')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-EOL-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record comfort care`));
     case 'CONSENT':
       return need(ctx, 'consent.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-005', 'RR-CONSENT-001'])

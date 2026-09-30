@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 66;
+const SET = 67;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -393,6 +393,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 64) set64(store);
     if (at < 65) set65(store);
     if (at < 66) set66(store);
+    if (at < 67) set67(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4080,4 +4081,26 @@ function set66(store: Store): void {
   });
   store.insert('state_transition', { id: newId(), object_type: 'consent', object_id: id, from_state: null, to_state: 'REFUSED', actor_id: kate, work_context_id: null, at, reason: say, transaction_id: null });
   store.insert('consent_log', { id: newId(), consent_id: id, kind: 'REFUSED', body: say, by_id: kate, at });
+}
+
+// Set 67: palliative care. Elsie Morgan (advanced dementia) has been on a palliative care plan
+// since her GP review last week; her review is due tomorrow.
+function set67(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ahead = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const kate = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'kate'")?.id;
+  const elsie = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0067'")?.id;
+  if (!kate || !elsie) return;
+  if (store.get("SELECT 1 FROM death_event WHERE person_id = ?", elsie)) return;
+  const id = newId();
+  const at = ago(60 * 24 * 6);
+  const basis = 'Advanced dementia; eating less and sleeping more over the last few months, and more chest infections.';
+  store.insert('eol_plan', {
+    id, person_id: elsie, service_id: 'svc-arc', state: 'PALLIATIVE', basis, agreed_with: 'Dr Anna Whyte (GP) at her review',
+    discussed: 'Talked with Elsie in her room; she said she wants to stay here with her music. Her family were told by phone and agree.',
+    place_care: 'HERE', place_death: 'HERE', wishes: 'Vera Lynn records in the afternoon. Curtains open in the morning. Tell her who you are when you come in.',
+    call: 'Her next of kin, any time of day or night', anticipatory: null, review_due: ahead(60 * 20), recorded_by: kate, recorded_at: at,
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'eol_plan', object_id: id, from_state: null, to_state: 'PALLIATIVE', actor_id: kate, work_context_id: null, at, reason: basis, transaction_id: null });
+  store.insert('eol_log', { id: newId(), plan_id: id, kind: 'STARTED', body: `Palliative care. ${basis} Agreed with Dr Anna Whyte (GP) at her review.`, by_id: kate, at });
 }

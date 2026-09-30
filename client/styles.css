@@ -921,3 +921,10 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .consent { border-left: 4px solid var(--line, #cfd8dc); }
 .consent.cs-consented { border-left-color: #2e7d32; }
 .consent.cs-refused, .consent.cs-withdrawn { border-left-color: var(--danger); }
+
+/* Palliative care and the last days of life, shown to everyone who opens the record. */
+.patient-eol { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid #5b4a8a; background: #f1eefa; color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-eol svg { width: 24px; height: 24px; flex: none; color: #5b4a8a; }
+.patient-eol b { display: block; font-size: 13px; letter-spacing: .6px; color: #5b4a8a; }
+.patient-eol.last { border-width: 3px; }
+.eol { border-left: 4px solid #5b4a8a; }

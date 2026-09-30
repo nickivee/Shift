@@ -20,6 +20,7 @@ import { leavePanel } from './leave.js';
 import { preferencesPanel } from './preferences.js';
 import { capacityPanel } from './capacity.js';
 import { consentPanel } from './consent.js';
+import { endOfLifePanel } from './endoflife.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -461,7 +462,10 @@ export async function workstationView(personId, initialView) {
       case 'identity': return identityPanel(personId, d, (to = personId) => go(`/work/patient/${to}/identity`));
       case 'symptoms': return symptomsPanel(personId, d, () => go(`/work/patient/${personId}/symptoms`));
       case 'problems': return problemsPanel(personId, d, () => go(`/work/patient/${personId}/problems`), addButton());
-      case 'death': return deathPanel(personId, d, () => go(`/work/patient/${personId}/death`));
+      case 'death': {
+        const reload = () => go(`/work/patient/${personId}/death`);
+        return h('div', { class: 'stack' }, endOfLifePanel(personId, d.endOfLife, reload), h('h3', {}, 'Death'), deathPanel(personId, d, reload));
+      }
       case 'deterioration': return deteriorationPanel(personId, d, () => go(`/work/patient/${personId}/deterioration`));
       case 'acuity': return acuityPanel(personId, d, () => go(`/work/patient/${personId}/acuity`));
       case 'usual': return usualPanel(personId, d, () => go(`/work/patient/${personId}/usual`));
@@ -639,6 +643,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-whanau', onclick: () => openView('support') }, icon('support'),
         h('span', {}, h('b', {}, 'WHĀNAU: LIMITS AND AUTHORITY'),
           patient.whanau.map((w) => `${w.name}: ${[w.limits, w.authority ? `${w.authority} (document seen)` : null].filter(Boolean).join('; ')}`).join(' · '))));
+    }
+    if (patient.endOfLife) {
+      const e = patient.endOfLife;
+      block.append(h('button', { class: `patient-eol${e.state === 'LAST_DAYS' ? ' last' : ''}`, onclick: () => openView('death') }, icon('preferences'),
+        h('span', {}, h('b', {}, e.label.toUpperCase()), [e.placeDeath ? `Wants to die: ${e.placeDeath.toLowerCase()}` : null, e.call ? `Call: ${e.call}` : null].filter(Boolean).join(' · '))));
     }
     if (patient.consentNo?.length) {
       block.append(h('button', { class: 'patient-consent', onclick: () => openView('capacity') }, icon('capacity'),

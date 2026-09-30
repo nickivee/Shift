@@ -478,6 +478,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'CONSENTED',
     next: { CONSENTED: ['DONE', 'WITHDRAWN'], REFUSED: ['RECONSIDERED'], WITHDRAWN: ['RECONSIDERED'] },
   },
+  eol_plan: {
+    table: 'eol_plan',
+    initial: 'PALLIATIVE',
+    next: { PALLIATIVE: ['LAST_DAYS', 'ENDED'], LAST_DAYS: ['PALLIATIVE', 'ENDED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

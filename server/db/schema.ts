@@ -3537,4 +3537,48 @@ CREATE TABLE consent_log (
 CREATE INDEX consent_log_c ON consent_log(consent_id, at);
 `,
   },
+  {
+    version: 67,
+    name: 'palliative and end of life care',
+    sql: `
+-- Palliative and end-of-life care (entries 53, 54, 166): recognised → discussed → wishes →
+-- reviewed → last days recognised → comfort checked → death → whānau followed up. Resuscitation
+-- and treatment limits, anticipatory prescribing and assisted dying are RR-EOL-001.
+CREATE TABLE eol_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- PALLIATIVE | LAST_DAYS | ENDED
+  basis TEXT NOT NULL,
+  agreed_with TEXT NOT NULL,
+  discussed TEXT NOT NULL,
+  place_care TEXT NOT NULL,             -- HERE | HOME | HOSPICE | HOSPITAL | NOT_SAID
+  place_death TEXT NOT NULL,
+  wishes TEXT,
+  call TEXT,
+  anticipatory TEXT,                    -- where just-in-case medicines are charted, if any (reference only)
+  review_due TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  last_days_by TEXT REFERENCES workforce_person(id),
+  last_days_at TEXT,
+  last_days_note TEXT,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  end_reason TEXT,                      -- DIED | IMPROVED | LEFT | ERROR
+  end_note TEXT,
+  death_id TEXT REFERENCES death_event(id)
+);
+CREATE INDEX eol_plan_person ON eol_plan(person_id, state);
+CREATE TABLE eol_log (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES eol_plan(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX eol_log_p ON eol_log(plan_id, at);
+`,
+  },
 ];
