@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 67;
+const SET = 68;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -394,6 +394,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 65) set65(store);
     if (at < 66) set66(store);
     if (at < 67) set67(store);
+    if (at < 68) set68(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4103,4 +4104,29 @@ function set67(store: Store): void {
   });
   store.insert('state_transition', { id: newId(), object_type: 'eol_plan', object_id: id, from_state: null, to_state: 'PALLIATIVE', actor_id: kate, work_context_id: null, at, reason: basis, transaction_id: null });
   store.insert('eol_log', { id: newId(), plan_id: id, kind: 'STARTED', body: `Palliative care. ${basis} Agreed with Dr Anna Whyte (GP) at her review.`, by_id: kate, at });
+}
+
+// Set 68: safeguarding. Tama raised a concern about William Grant this morning; it is waiting for
+// a nurse. The details are private to nurses and doctors who work safeguarding concerns.
+function set68(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const tama = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'tama'")?.id;
+  const william = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0091'")?.id;
+  if (!tama || !william) return;
+  const id = newId();
+  const at = ago(60 * 3);
+  store.insert('safeguard', {
+    id, person_id: william, service_id: 'svc-arc', kind: 'OLDER_ADULT', how: 'DISCLOSED',
+    concern: 'While I helped him shave, William said his son keeps his bank card and he has no money for his newspaper or his haircut. He said "Don\'t tell anyone, he\'ll stop visiting".',
+    involved: 'His son', share: 'DECLINED', wishes: 'He wants to keep seeing his son and to have money for his paper.', risk: null, state: 'RAISED', follow_due: null,
+    raised_by: tama, raised_at: at,
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'safeguard', object_id: id, from_state: null, to_state: 'RAISED', actor_id: tama, work_context_id: null, at, reason: 'Abuse or neglect of an older or vulnerable adult', transaction_id: null });
+  store.insert('safeguard_step', { id: newId(), safeguard_id: id, kind: 'RAISED', to_whom: null, body: 'Abuse or neglect of an older or vulnerable adult. They told us. They do not want information shared.', by_id: tama, at });
+  const taskId = newId();
+  store.insert('task', {
+    id: taskId, person_id: william, source_event_id: null, service_id: 'svc-arc', assigned_to: null, state: 'CREATED', created_by: tama, created_at: at, due_at: null,
+    description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents and safeguarding today. The details are private.',
+  });
+  store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: null, to_state: 'CREATED', actor_id: tama, work_context_id: null, at, reason: 'Safeguarding concern raised', transaction_id: null });
 }

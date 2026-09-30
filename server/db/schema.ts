@@ -3581,4 +3581,45 @@ CREATE TABLE eol_log (
 CREATE INDEX eol_log_p ON eol_log(plan_id, at);
 `,
   },
+  {
+    version: 68,
+    name: 'safeguarding',
+    sql: `
+-- Safeguarding, family violence and elder abuse (entries 148, 149): concern → safe now → risk →
+-- wishes and agreement to share → referred → safety plan → followed up → closed. Details are
+-- private to safeguarding.manage and the person who raised it. Reporting and sharing without
+-- agreement are RR-SAFE-001.
+CREATE TABLE safeguard (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- FAMILY_VIOLENCE | OLDER_ADULT | CHILD | SELF_NEGLECT | OTHER
+  how TEXT NOT NULL,                    -- DISCLOSED | OBSERVED | REPORTED
+  concern TEXT NOT NULL,
+  involved TEXT,                        -- who may be causing harm, as free text: never linked to another record
+  share TEXT NOT NULL,                  -- AGREED | DECLINED | NOT_SAFE | CANNOT
+  wishes TEXT,
+  risk TEXT,                            -- IMMEDIATE | HIGH | SOME | UNCLEAR
+  state TEXT NOT NULL,                  -- RAISED | WORKING | CLOSED
+  follow_due TEXT,
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  close_reason TEXT,
+  close_note TEXT
+);
+CREATE INDEX safeguard_person ON safeguard(person_id, state);
+CREATE TABLE safeguard_step (
+  id TEXT PRIMARY KEY,
+  safeguard_id TEXT NOT NULL REFERENCES safeguard(id),
+  kind TEXT NOT NULL,
+  to_whom TEXT,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX safeguard_step_s ON safeguard_step(safeguard_id, at);
+`,
+  },
 ];

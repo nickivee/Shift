@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-SAFE-001',
+    question: 'What New Zealand requires when a health or rest home worker learns of family violence, elder abuse or neglect, or a child who may be unsafe: routine screening questions (for example family violence screening in emergency departments), when a report must or may be made to Police or Oranga Tamariki, when information may be shared without the person\'s agreement (Family Violence Act 2018, Oranga Tamariki Act 1989, HIPC 2020 rule 11), and who in a service must be told.',
+    blocks: 'Asking screening questions, deciding that a report must be made, and deciding that information may be shared without agreement. SHIFT records the concern privately, what was done to keep the person safe, the risk as judged, their wishes and agreement to sharing, who was told and who decided, the safety plan and follow-up.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-EOL-001',
     question: 'What New Zealand requires and recommends for palliative and end-of-life care in hospitals and rest homes: national last-days-of-life guidance (Te Ara Whakapiri), how resuscitation and treatment-limitation decisions are made and recorded, anticipatory (just-in-case) prescribing, advance care planning, and what the End of Life Choice Act 2019 requires of services and staff.',
     blocks: 'Recording resuscitation or treatment-limitation decisions, prescribing anticipatory medicines, and any part of assisted dying. SHIFT records who recognised the need for palliative care and who agreed, the person\'s and whānau wishes in their words, reviews, recognition of the last days of life, comfort checks, and whānau follow-up after a death.',

@@ -55,6 +55,7 @@ import * as isolation from '../domain/isolation.ts';
 import * as allergies from '../domain/allergies.ts';
 import * as consent from '../domain/consent.ts';
 import * as endoflife from '../domain/endoflife.ts';
+import * as safeguarding from '../domain/safeguarding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -345,6 +346,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/safeguarding', (req) => safeguarding.raise(store, work(req), req.params.id, {
+    kind: str(req.body.kind), how: str(req.body.how), concern: str(req.body.concern), involved: str(req.body.involved), share: str(req.body.share), wishes: str(req.body.wishes),
+  }));
+  r.on('POST', '/api/work/safeguarding/:id/:action', (req) => safeguarding.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), risk: str(req.body.risk), to: str(req.body.to), why: str(req.body.why), followDays: req.body.followDays, share: str(req.body.share), reason: str(req.body.reason),
+  }));
   r.on('POST', '/api/work/patients/:id/end-of-life', (req) => endoflife.start(store, work(req), req.params.id, {
     basis: str(req.body.basis), agreedWith: str(req.body.agreedWith), discussed: str(req.body.discussed), placeCare: str(req.body.placeCare), placeDeath: str(req.body.placeDeath),
     wishes: str(req.body.wishes), call: str(req.body.call), anticipatory: str(req.body.anticipatory), reviewHours: req.body.reviewHours,

@@ -483,6 +483,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'PALLIATIVE',
     next: { PALLIATIVE: ['LAST_DAYS', 'ENDED'], LAST_DAYS: ['PALLIATIVE', 'ENDED'] },
   },
+  safeguard: {
+    table: 'safeguard',
+    initial: 'RAISED',
+    next: { RAISED: ['WORKING', 'CLOSED'], WORKING: ['CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

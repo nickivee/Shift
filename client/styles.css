@@ -928,3 +928,10 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .patient-eol b { display: block; font-size: 13px; letter-spacing: .6px; color: #5b4a8a; }
 .patient-eol.last { border-width: 3px; }
 .eol { border-left: 4px solid #5b4a8a; }
+
+/* A safeguarding concern: everyone sees that there is one, never what it is. */
+.patient-safeguard { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid #7a1f5c; background: #fbeef6; color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-safeguard svg { width: 24px; height: 24px; flex: none; color: #7a1f5c; }
+.patient-safeguard b { display: block; font-size: 13px; letter-spacing: .6px; color: #7a1f5c; }
+.safeguard { border-left: 4px solid #7a1f5c; }
+.warn-text { color: var(--warn); }
