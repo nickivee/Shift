@@ -4,6 +4,7 @@ import { toast, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { formDialog as dialog, select } from '../lib/forms.js';
+import { complaintCard } from './complaints.js';
 
 // Incidents: reported → safety review → notified where required → investigation → findings → actions → closed.
 const TONE = { REPORTED: 'danger', REVIEWED: 'warn', INVESTIGATING: 'warn', ACTIONS: 'warn', CLOSED: 'muted' };
@@ -135,14 +136,22 @@ export async function incidentsView() {
     const d = await get('/api/work/incidents');
     const section = (title, list, empty) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${list.length})`),
       list.length ? list.map((i) => incidentTile(i, d.options, load, true)) : h('div', { class: 'card empty' }, empty));
+    const complaintSection = (title, list, empty) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${list.length})`),
+      list.length ? list.map((x) => complaintCard(x, d.complaints.options, load, true)) : h('div', { class: 'card empty' }, empty));
     mount(root,
       workHeader(),
-      pageTitle('Incidents', () => go('/work/home')),
+      pageTitle(d.complaints ? 'Incidents and complaints' : 'Incidents', () => go('/work/home')),
       h('div', { class: 'banner' }, 'Incidents in your service: reported and waiting for review, then open ones through to closure.'),
       d.overdueActions ? h('div', { class: 'notice' }, `${d.overdueActions} incident${d.overdueActions === 1 ? ' has' : 's have'} overdue actions.`) : null,
       section('Waiting for review', d.toReview, 'Nothing waiting for review.'),
       section('Open', d.open, 'No open incidents.'),
       section('Closed in the last 30 days', d.closed, 'None.'),
+      ...(d.complaints ? [
+        h('div', { class: 'banner' }, 'Complaints in your service. They are kept apart from clinical records.'),
+        complaintSection('Complaints to acknowledge', d.complaints.toAcknowledge, 'None waiting.'),
+        complaintSection('Complaints being handled', d.complaints.open, 'None open.'),
+        complaintSection('Complaints closed in the last 30 days', d.complaints.closed, 'None.'),
+      ] : []),
     );
   };
   await load();

@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-COMPLAINT-001',
+    question: 'What the Code of Rights (Right 10) and the Health and Disability Commissioner require of a provider\'s complaints process: the timeframes for acknowledging, deciding and replying, what must be in writing, what the person must be told about the advocacy service and the Commissioner, how complaints must be recorded and kept, and what aged residential care must report for certification (Ngā Paerewa).',
+    blocks: 'Deadlines for acknowledging and replying to a complaint, and any reporting of complaints. SHIFT records the complaint in their words, who took it in, acknowledgement, whether they were told about advocacy, the reply date the handler gave them, what was looked into, the response, whether they were satisfied, and what is changing.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-ARC-001',
     question: 'What the aged residential care agreement and Health New Zealand require for rest home stays: the levels of care and how each is named, who may assess or reassess a person\'s level (needs assessment services, interRAI), what must happen when needs change beyond the level a rest home provides, respite and short stays, and how long a room is held and funded while a resident is in hospital.',
     blocks: 'Deciding a level of care, deciding that a room is no longer held, and funding or charging. SHIFT records the place offered and taken, the level a needs assessment gave and where it came from, reassessment asked for and why, hospital stays and when they came back, and why they left.',

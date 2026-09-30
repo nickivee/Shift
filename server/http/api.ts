@@ -57,6 +57,7 @@ import * as consent from '../domain/consent.ts';
 import * as endoflife from '../domain/endoflife.ts';
 import * as safeguarding from '../domain/safeguarding.ts';
 import * as residency from '../domain/residency.ts';
+import * as complaints from '../domain/complaints.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -347,6 +348,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/complaints', (req) => complaints.receive(store, work(req), req.params.id, {
+    fromKind: str(req.body.fromKind), fromName: str(req.body.fromName), contact: str(req.body.contact), how: str(req.body.how), about: str(req.body.about), words: str(req.body.words), wants: str(req.body.wants),
+  }));
+  r.on('POST', '/api/work/complaints/:id/:action', (req) => complaints.act(store, work(req), req.params.id, req.params.action, {
+    ackHow: str(req.body.ackHow), advocacy: req.body.advocacy, replyDays: req.body.replyDays, note: str(req.body.note), response: str(req.body.response), change: str(req.body.change), outcome: str(req.body.outcome),
+  }));
   r.on('POST', '/api/work/patients/:id/residency', (req) => residency.start(store, work(req), req.params.id, {
     kind: str(req.body.kind), here: req.body.here, room: str(req.body.room), level: str(req.body.level), source: str(req.body.source), levelOn: str(req.body.levelOn), note: str(req.body.note),
   }));

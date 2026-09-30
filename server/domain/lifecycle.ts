@@ -493,6 +493,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OFFERED',
     next: { OFFERED: ['ACCEPTED', 'LIVING_HERE', 'DECLINED'], ACCEPTED: ['LIVING_HERE', 'DECLINED'], LIVING_HERE: ['IN_HOSPITAL', 'ENDED'], IN_HOSPITAL: ['LIVING_HERE', 'ENDED'] },
   },
+  complaint: {
+    table: 'complaint',
+    initial: 'RECEIVED',
+    next: { RECEIVED: ['LOOKING', 'CLOSED'], LOOKING: ['RESPONDED', 'CLOSED'], RESPONDED: ['LOOKING', 'CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

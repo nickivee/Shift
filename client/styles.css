@@ -935,3 +935,6 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .patient-safeguard b { display: block; font-size: 13px; letter-spacing: .6px; color: #7a1f5c; }
 .safeguard { border-left: 4px solid #7a1f5c; }
 .warn-text { color: var(--warn); }
+
+/* A complaint: kept apart from the clinical record. */
+.complaint { border-left: 4px solid #b5651d; }

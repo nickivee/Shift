@@ -23,6 +23,7 @@ import { consentPanel } from './consent.js';
 import { endOfLifePanel } from './endoflife.js';
 import { safeguardingPanel } from './safeguarding.js';
 import { residencyPanel } from './residency.js';
+import { complaintsPanel } from './complaints.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -444,7 +445,7 @@ export async function workstationView(personId, initialView) {
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
       case 'incidents': {
         const reload = () => go(`/work/patient/${personId}/incidents`);
-        return h('div', { class: 'stack' }, incidentsPanel(personId, d, reload), safeguardingPanel(personId, d.safeguarding, reload));
+        return h('div', { class: 'stack' }, incidentsPanel(personId, d, reload), complaintsPanel(personId, d.complaints, reload), safeguardingPanel(personId, d.safeguarding, reload));
       }
       case 'interventions': return interventionsPanel(personId, d, () => go(`/work/patient/${personId}/interventions`));
       case 'treatmentplans': return treatmentPlansPanel(personId, d, () => go(`/work/patient/${personId}/treatmentplans`));

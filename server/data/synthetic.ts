@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 69;
+const SET = 70;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -396,6 +396,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 67) set67(store);
     if (at < 68) set68(store);
     if (at < 69) set69(store);
+    if (at < 70) set70(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4127,7 +4128,7 @@ function set68(store: Store): void {
   const taskId = newId();
   store.insert('task', {
     id: taskId, person_id: william, source_event_id: null, service_id: 'svc-arc', assigned_to: null, state: 'CREATED', created_by: tama, created_at: at, due_at: null,
-    description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents and safeguarding today. The details are private.',
+    description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents, complaints and safeguarding today. The details are private.',
   });
   store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: null, to_state: 'CREATED', actor_id: tama, work_context_id: null, at, reason: 'Safeguarding concern raised', transaction_id: null });
 }
@@ -4174,4 +4175,77 @@ function set69(store: Store): void {
     reassess: ['Needs two staff to stand most days and is sleeping more. Dr Whyte is reviewing him.', 3 * day] });
   stay({ nhi: 'ZZZ0083', room: 'Room 11', level: 'REST_HOME', levelMins: 70 * day, inMins: 60 * day });
   stay({ nhi: 'ZZZ0091', room: 'Room 14', level: 'REST_HOME', levelMins: 1210 * day, inMins: 1200 * day });
+}
+
+// Set 70: complaints. Losa's daughter told Tama about a slow call bell last night, and it waits for
+// the nurse in charge to acknowledge. Peggy's complaint about being called Margaret is being looked
+// into by Grace. Elsie's complaint about cold meals was resolved last week.
+function set70(store: Store): void {
+  const day = 24 * 60;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ahead = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const tama = who('tama'), grace = who('grace'), kate = who('kate');
+  if (!tama || !grace || !kate) return;
+  const move = (id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'complaint', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('complaint_step', { id: newId(), complaint_id: id, kind, body, by_id: by, at: ago(mins) });
+
+  const losa = person('ZZZ0083');
+  if (losa) {
+    const id = newId();
+    const at = 60 * 5;
+    store.insert('complaint', {
+      id, person_id: losa, service_id: 'svc-arc', state: 'RECEIVED', from_kind: 'WHANAU', from_name: 'Mele Faleolo (daughter)', contact: '021 555 0183', how: 'IN_PERSON', about: 'WAITING',
+      words: 'Mum rang her bell at about 2 in the morning and nobody came for nearly half an hour. She was frightened and did not know if anyone would come.',
+      wants: 'To know why it took so long, and for the bell to be answered faster at night.', received_by: tama, received_at: ago(at),
+    });
+    move(id, null, 'RECEIVED', tama, at, 'Waiting or delays');
+    step(id, 'RECEIVED', 'Whānau or a friend: Mele Faleolo (daughter). Told us in person. About: waiting or delays.', tama, at);
+    const taskId = newId();
+    store.insert('task', {
+      id: taskId, person_id: losa, source_event_id: null, service_id: 'svc-arc', assigned_to: null, state: 'CREATED', created_by: tama, created_at: ago(at), due_at: null,
+      description: 'A complaint has been received. The nurse in charge needs to open Incidents, complaints and safeguarding and acknowledge it. The details are private.',
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: null, to_state: 'CREATED', actor_id: tama, work_context_id: null, at: ago(at), reason: 'Complaint received', transaction_id: null });
+  }
+
+  const peggy = person('ZZZ0032');
+  if (peggy) {
+    const id = newId();
+    store.insert('complaint', {
+      id, person_id: peggy, service_id: 'svc-genmed', state: 'LOOKING', from_kind: 'PERSON', from_name: null, contact: null, how: 'IN_PERSON', about: 'COMMUNICATION',
+      words: 'Staff keep calling me Margaret even though it is on my board that I am Peggy. It makes me feel like nobody listens to me.',
+      wants: 'For people to call me Peggy.', handler_id: grace, acknowledged_at: ago(day - 30), advocacy: 1, reply_by: ahead(4 * day),
+      received_by: grace, received_at: ago(day),
+    });
+    move(id, null, 'RECEIVED', grace, day, 'Communication or information');
+    move(id, 'RECEIVED', 'LOOKING', grace, day - 30, 'Acknowledged');
+    step(id, 'RECEIVED', 'The person themselves. Told us in person. About: communication or information.', grace, day);
+    step(id, 'ACKNOWLEDGED', 'Acknowledged in person. Told about the free Health and Disability Advocacy Service. Said sorry and that I would find out how it happened.', grace, day - 30);
+    step(id, 'LOOKED', 'Her preferred name was not on the printed handover sheet, only in the record. Added it and raised it at the afternoon handover.', grace, day - 240);
+  }
+
+  const elsie = person('ZZZ0067');
+  if (elsie) {
+    const id = newId();
+    store.insert('complaint', {
+      id, person_id: elsie, service_id: 'svc-arc', state: 'CLOSED', from_kind: 'PERSON', from_name: null, contact: null, how: 'IN_PERSON', about: 'FOOD',
+      words: 'My dinner is always cold by the time it gets to my room.', wants: 'A hot dinner.', handler_id: kate, acknowledged_at: ago(20 * day - 60), advocacy: 1, reply_by: ago(15 * day),
+      response: 'We found trays for rooms were plated first and sat while the dining room was served. Sorry, Elsie. From Monday, room trays go out first and are covered.',
+      responded_at: ago(16 * day), outcome: 'RESOLVED', close_note: 'Elsie says her dinners are hot now.', change: 'Room trays are served first and covered.',
+      received_by: kate, received_at: ago(20 * day), closed_by: kate, closed_at: ago(12 * day),
+    });
+    move(id, null, 'RECEIVED', kate, 20 * day, 'Food');
+    move(id, 'RECEIVED', 'LOOKING', kate, 20 * day - 60, 'Acknowledged');
+    move(id, 'LOOKING', 'RESPONDED', kate, 16 * day, 'Responded');
+    move(id, 'RESPONDED', 'CLOSED', kate, 12 * day, 'Resolved with them');
+    step(id, 'RECEIVED', 'The person themselves. Told us in person. About: food.', kate, 20 * day);
+    step(id, 'ACKNOWLEDGED', 'Acknowledged in person. Told about the free Health and Disability Advocacy Service.', kate, 20 * day - 60);
+    step(id, 'LOOKED', 'Watched dinner service: room trays plated first, then waited about 20 minutes.', kate, 18 * day);
+    step(id, 'RESPONDED', 'We found trays for rooms were plated first and sat while the dining room was served. Sorry, Elsie. From Monday, room trays go out first and are covered.', kate, 16 * day);
+    step(id, 'CLOSED', 'Resolved with them. Elsie says her dinners are hot now. What we are changing: Room trays are served first and covered.', kate, 12 * day);
+  }
 }

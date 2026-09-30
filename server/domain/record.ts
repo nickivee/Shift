@@ -51,6 +51,7 @@ import { forPerson as consentFor, current as consentNow } from './consent.ts';
 import { forPerson as endOfLifeFor, current as endOfLifeNow } from './endoflife.ts';
 import { forPerson as safeguardingFor, current as safeguardingNow } from './safeguarding.ts';
 import { forPerson as residencyFor, current as residencyNow } from './residency.ts';
+import { forPerson as complaintsFor } from './complaints.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -426,7 +427,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = usualFor(store, ctx, personId);
       break;
     case 'incidents':
-      body = { ...incidentsFor(store, ctx, personId), safeguarding: safeguardingFor(store, ctx, personId) };
+      body = { ...incidentsFor(store, ctx, personId), complaints: complaintsFor(store, ctx, personId), safeguarding: safeguardingFor(store, ctx, personId) };
       break;
     case 'death':
       body = { ...deathFor(store, ctx, personId), endOfLife: endOfLifeFor(store, ctx, personId) };
