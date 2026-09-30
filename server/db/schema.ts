@@ -3622,4 +3622,47 @@ CREATE TABLE safeguard_step (
 CREATE INDEX safeguard_step_s ON safeguard_step(safeguard_id, at);
 `,
   },
+  {
+    version: 69,
+    name: 'residency',
+    sql: `
+-- Residential care stay (entries 51, 52): place offered → accepted → moved in → assessed level of
+-- care → reassessment → hospital stay with the room held → back → left our care. The level is
+-- recorded from a needs assessment, never decided here. Levels, funding and room holding are RR-ARC-001.
+CREATE TABLE residency (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- LONG_TERM | RESPITE | OTHER
+  state TEXT NOT NULL,                  -- OFFERED | ACCEPTED | LIVING_HERE | IN_HOSPITAL | DECLINED | ENDED
+  room TEXT,
+  level TEXT NOT NULL,                  -- REST_HOME | HOSPITAL | DEMENTIA | PSYCHOGERIATRIC | NOT_KNOWN
+  level_source TEXT,                    -- NASC | HOSPITAL | OTHER
+  level_on TEXT,
+  reassess_at TEXT,
+  reassess_why TEXT,
+  offered_at TEXT,
+  moved_in_at TEXT,
+  hospital_at TEXT,
+  hospital_where TEXT,
+  hospital_why TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  end_reason TEXT,
+  end_note TEXT
+);
+CREATE INDEX residency_person ON residency(person_id, state);
+CREATE TABLE residency_log (
+  id TEXT PRIMARY KEY,
+  residency_id TEXT NOT NULL REFERENCES residency(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX residency_log_r ON residency_log(residency_id, at);
+`,
+  },
 ];

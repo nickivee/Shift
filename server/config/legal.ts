@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-ARC-001',
+    question: 'What the aged residential care agreement and Health New Zealand require for rest home stays: the levels of care and how each is named, who may assess or reassess a person\'s level (needs assessment services, interRAI), what must happen when needs change beyond the level a rest home provides, respite and short stays, and how long a room is held and funded while a resident is in hospital.',
+    blocks: 'Deciding a level of care, deciding that a room is no longer held, and funding or charging. SHIFT records the place offered and taken, the level a needs assessment gave and where it came from, reassessment asked for and why, hospital stays and when they came back, and why they left.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-SAFE-001',
     question: 'What New Zealand requires when a health or rest home worker learns of family violence, elder abuse or neglect, or a child who may be unsafe: routine screening questions (for example family violence screening in emergency departments), when a report must or may be made to Police or Oranga Tamariki, when information may be shared without the person\'s agreement (Family Violence Act 2018, Oranga Tamariki Act 1989, HIPC 2020 rule 11), and who in a service must be told.',
     blocks: 'Asking screening questions, deciding that a report must be made, and deciding that information may be shared without agreement. SHIFT records the concern privately, what was done to keep the person safe, the risk as judged, their wishes and agreement to sharing, who was told and who decided, the safety plan and follow-up.',

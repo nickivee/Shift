@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 68;
+const SET = 69;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -395,6 +395,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 66) set66(store);
     if (at < 67) set67(store);
     if (at < 68) set68(store);
+    if (at < 69) set69(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4129,4 +4130,48 @@ function set68(store: Store): void {
     description: 'A safeguarding concern has been raised. A nurse or doctor needs to open Incidents and safeguarding today. The details are private.',
   });
   store.insert('state_transition', { id: newId(), object_type: 'task', object_id: taskId, from_state: null, to_state: 'CREATED', actor_id: tama, work_context_id: null, at, reason: 'Safeguarding concern raised', transaction_id: null });
+}
+
+// Set 69: rest home places and care levels. Each Kōwhai House resident has a long-term place at
+// the level their needs assessment gave. Frank's nurse has asked for a reassessment, and Rua went to
+// Te Awa Hospital this afternoon with new confusion, so her room is held.
+function set69(store: Store): void {
+  const day = 24 * 60;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const date = (mins: number) => ago(mins).slice(0, 10);
+  const kate = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'kate'")?.id;
+  const nicki = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'nicki'")?.id;
+  if (!kate || !nicki) return;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const log = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('residency_log', { id: newId(), residency_id: id, kind, body, by_id: by, at: ago(mins) });
+  const stay = (s: { nhi: string; room: string; level: string; levelMins: number; inMins: number; reassess?: [string, number]; hospital?: [string, string, number] }) => {
+    const personId = person(s.nhi);
+    if (!personId) return;
+    const id = newId();
+    const state = s.hospital ? 'IN_HOSPITAL' : 'LIVING_HERE';
+    const level = { REST_HOME: 'Rest home', HOSPITAL: 'Hospital level' }[s.level];
+    store.insert('residency', {
+      id, person_id: personId, service_id: 'svc-arc', kind: 'LONG_TERM', state, room: s.room, level: s.level, level_source: 'NASC', level_on: date(s.levelMins),
+      reassess_at: s.reassess ? ago(s.reassess[1]) : null, reassess_why: s.reassess?.[0] ?? null, offered_at: ago(s.inMins + 7 * day), moved_in_at: ago(s.inMins),
+      hospital_at: s.hospital ? ago(s.hospital[2]) : null, hospital_where: s.hospital?.[0] ?? null, hospital_why: s.hospital?.[1] ?? null,
+      recorded_by: kate, recorded_at: ago(s.inMins + 7 * day),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'residency', object_id: id, from_state: null, to_state: 'OFFERED', actor_id: kate, work_context_id: null, at: ago(s.inMins + 7 * day), reason: 'Long-term place', transaction_id: null });
+    store.insert('state_transition', { id: newId(), object_type: 'residency', object_id: id, from_state: 'OFFERED', to_state: 'LIVING_HERE', actor_id: kate, work_context_id: null, at: ago(s.inMins), reason: 'Moved in', transaction_id: null });
+    log(id, 'OFFERED', `Long-term place, ${s.room}. Level: ${level} (Needs assessment service, ${date(s.levelMins)}).`, kate, s.inMins + 7 * day);
+    log(id, 'MOVED_IN', `Moved into ${s.room}.`, kate, s.inMins);
+    if (s.reassess) log(id, 'REASSESS', s.reassess[0], kate, s.reassess[1]);
+    if (s.hospital) {
+      store.insert('state_transition', { id: newId(), object_type: 'residency', object_id: id, from_state: 'LIVING_HERE', to_state: 'IN_HOSPITAL', actor_id: nicki, work_context_id: null, at: ago(s.hospital[2]), reason: 'Went to hospital', transaction_id: null });
+      log(id, 'HOSPITAL', `To ${s.hospital[0]}. ${s.hospital[1]} Room held.`, nicki, s.hospital[2]);
+    }
+  };
+  stay({ nhi: 'ZZZ0059', room: 'Room 3', level: 'REST_HOME', levelMins: 430 * day, inMins: 420 * day,
+    hospital: ['Te Awa Hospital', 'New confusion and more drowsy since this morning, two days after a fall. Dr Whyte asked for a hospital assessment; ambulance to the emergency department.', 40] });
+  stay({ nhi: 'ZZZ0067', room: 'Room 5', level: 'HOSPITAL', levelMins: 200 * day, inMins: 910 * day });
+  stay({ nhi: 'ZZZ0075', room: 'Room 8', level: 'REST_HOME', levelMins: 160 * day, inMins: 150 * day,
+    reassess: ['Needs two staff to stand most days and is sleeping more. Dr Whyte is reviewing him.', 3 * day] });
+  stay({ nhi: 'ZZZ0083', room: 'Room 11', level: 'REST_HOME', levelMins: 70 * day, inMins: 60 * day });
+  stay({ nhi: 'ZZZ0091', room: 'Room 14', level: 'REST_HOME', levelMins: 1210 * day, inMins: 1200 * day });
 }

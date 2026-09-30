@@ -56,6 +56,7 @@ import * as allergies from '../domain/allergies.ts';
 import * as consent from '../domain/consent.ts';
 import * as endoflife from '../domain/endoflife.ts';
 import * as safeguarding from '../domain/safeguarding.ts';
+import * as residency from '../domain/residency.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -346,6 +347,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/residency', (req) => residency.start(store, work(req), req.params.id, {
+    kind: str(req.body.kind), here: req.body.here, room: str(req.body.room), level: str(req.body.level), source: str(req.body.source), levelOn: str(req.body.levelOn), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/residency/:id/:action', (req) => residency.act(store, work(req), req.params.id, req.params.action, {
+    room: str(req.body.room), level: str(req.body.level), source: str(req.body.source), levelOn: str(req.body.levelOn), note: str(req.body.note), where: str(req.body.where), reason: str(req.body.reason),
+  }));
   r.on('POST', '/api/work/patients/:id/safeguarding', (req) => safeguarding.raise(store, work(req), req.params.id, {
     kind: str(req.body.kind), how: str(req.body.how), concern: str(req.body.concern), involved: str(req.body.involved), share: str(req.body.share), wishes: str(req.body.wishes),
   }));

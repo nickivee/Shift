@@ -8,6 +8,7 @@ import { vacate, bedTo } from './locations.ts';
 import { endForService } from './assignments.ts';
 import { requireCoding } from './coding.ts';
 import { endForDeath } from './endoflife.ts';
+import { endForDeath as endStayForDeath } from './residency.ts';
 import { EXPECTED, CERT, NOTIFY, NOTIFY_BY_ID, DONATION, RELEASE } from '../config/deaths.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
@@ -140,6 +141,7 @@ export function identify(store: Store, ctx: WorkContext, personId: string,
     recordInitial(store, 'death', id, 'IDENTIFIED', { actorId: ctx.workerId, workContextId: ctx.id }, `${EXPECTED[expected]}: ${circumstances.slice(0, 200)}`);
     addStep(store, ctx, id, 'IDENTIFIED', `${EXPECTED[expected]}. ${circumstances}`);
     endForDeath(store, ctx, personId, id);
+    endStayForDeath(store, ctx, personId);
     logged(store, ctx, 'DEATH_IDENTIFY', personId, id, EXPECTED[expected]);
   });
   return forPerson(store, ctx, personId);
