@@ -54,6 +54,7 @@ import * as infections from '../domain/infections.ts';
 import * as isolation from '../domain/isolation.ts';
 import * as allergies from '../domain/allergies.ts';
 import * as consent from '../domain/consent.ts';
+import * as endoflife from '../domain/endoflife.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -344,6 +345,14 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/end-of-life', (req) => endoflife.start(store, work(req), req.params.id, {
+    basis: str(req.body.basis), agreedWith: str(req.body.agreedWith), discussed: str(req.body.discussed), placeCare: str(req.body.placeCare), placeDeath: str(req.body.placeDeath),
+    wishes: str(req.body.wishes), call: str(req.body.call), anticipatory: str(req.body.anticipatory), reviewHours: req.body.reviewHours,
+  }));
+  r.on('POST', '/api/work/end-of-life/:id/:action', (req) => endoflife.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), placeCare: str(req.body.placeCare), placeDeath: str(req.body.placeDeath), wishes: str(req.body.wishes), call: str(req.body.call),
+    reviewHours: req.body.reviewHours, whanauTold: str(req.body.whanauTold), reason: str(req.body.reason),
+  }));
   r.on('POST', '/api/work/patients/:id/consents', (req) => consent.record(store, work(req), req.params.id, {
     what: str(req.body.what), kind: str(req.body.kind), decision: str(req.body.decision), information: str(req.body.information), understood: str(req.body.understood),
     support: str(req.body.support), form: str(req.body.form), formRef: str(req.body.formRef), theirWords: str(req.body.theirWords), capacityId: str(req.body.capacityId),

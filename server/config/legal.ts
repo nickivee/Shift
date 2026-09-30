@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-EOL-001',
+    question: 'What New Zealand requires and recommends for palliative and end-of-life care in hospitals and rest homes: national last-days-of-life guidance (Te Ara Whakapiri), how resuscitation and treatment-limitation decisions are made and recorded, anticipatory (just-in-case) prescribing, advance care planning, and what the End of Life Choice Act 2019 requires of services and staff.',
+    blocks: 'Recording resuscitation or treatment-limitation decisions, prescribing anticipatory medicines, and any part of assisted dying. SHIFT records who recognised the need for palliative care and who agreed, the person\'s and whānau wishes in their words, reviews, recognition of the last days of life, comfort checks, and whānau follow-up after a death.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-CONSENT-001',
     question: 'What New Zealand requires for informed consent (Code of Rights Rights 5, 6 and 7): who may seek consent for each kind of procedure or treatment, when consent must be in writing (Right 7(6)), what information must be given and how it is recorded, how long consent lasts before it must be checked again, and how a refusal or withdrawal must be recorded and respected.',
     blocks: 'Deciding who may take consent for what, requiring or waiving written consent, and letting consent expire. SHIFT records the person\'s own decision, what they were told, how understanding was checked and whether it was verbal or written, and shows every "no" or withdrawal on the record.',
