@@ -25,6 +25,8 @@ export type Operation =
   | { op: 'ROSTER_DECIDE'; serviceId: string }
   | { op: 'DOWNTIME'; serviceId: string }
   | { op: 'RECONCILE'; personId: string }
+  | { op: 'PRECAUTION'; personId: string }
+  | { op: 'OUTBREAK'; serviceId: string }
   | { op: 'ALLOCATION'; serviceId: string; cap: 'allocation.plan' | 'allocation.confirm' }
   | { op: 'TRANSFER_REQUEST'; personId: string }
   | { op: 'TRANSFER_RESPOND'; toServiceId: string; step: 'accept' | 'arrive' | 'responsibility' }
@@ -161,6 +163,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
         : block('That allocation belongs to another service'));
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
+    case 'OUTBREAK':
+      return need(ctx, 'outbreak.manage') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-IPC-001']) : block('That outbreak belongs to another service'));
     case 'DOWNTIME':
       return need(ctx, 'downtime.manage') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-DOWNTIME-001']) : block('That downtime belongs to another service'));
     case 'TASK':
@@ -379,6 +383,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'PRECAUTION':
+      return need(ctx, 'precaution.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'RR-IPC-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can set or change their isolation precautions`));
     case 'RECONCILE':
       return need(ctx, 'record.reconcile') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-RECONCILE-001'])

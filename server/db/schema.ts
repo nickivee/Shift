@@ -3396,4 +3396,81 @@ CREATE INDEX reconciliation_person ON reconciliation(person_id, decided_at);
 ALTER TABLE allergy ADD COLUMN reconciliation_id TEXT REFERENCES reconciliation(id);
 `,
   },
+  {
+    version: 64,
+    name: 'isolation precautions and outbreaks',
+    sql: `
+-- Isolation / transmission precaution (Shared Lifecycle Object 235): transmission concern → IPC
+-- assessment → precaution requirement → type → implementation → location → review → modification →
+-- cessation. Which organism needs which precaution is the organisation's policy (RR-IPC-001).
+CREATE TABLE outbreak (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  what TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- DECLARED | CLOSED
+  declared_by TEXT NOT NULL REFERENCES workforce_person(id),
+  declared_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  close_note TEXT
+);
+CREATE INDEX outbreak_service ON outbreak(service_id, state);
+CREATE TABLE outbreak_person (
+  id TEXT PRIMARY KEY,
+  outbreak_id TEXT NOT NULL REFERENCES outbreak(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- CASE | RECOVERED | WATCHING | CLEARED | BECAME_CASE
+  exposure TEXT NOT NULL,
+  watch_until TEXT,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  added_at TEXT NOT NULL,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  end_note TEXT
+);
+CREATE INDEX outbreak_person_o ON outbreak_person(outbreak_id);
+CREATE INDEX outbreak_person_p ON outbreak_person(person_id, state);
+CREATE TABLE outbreak_log (
+  id TEXT PRIMARY KEY,
+  outbreak_id TEXT NOT NULL REFERENCES outbreak(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX outbreak_log_o ON outbreak_log(outbreak_id, at);
+CREATE TABLE precaution (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  infection_id TEXT REFERENCES infection(id),
+  outbreak_id TEXT REFERENCES outbreak(id),
+  concern TEXT NOT NULL,
+  types TEXT NOT NULL,                  -- comma list: CONTACT | DROPLET | AIRBORNE
+  room TEXT NOT NULL,                   -- SINGLE | SINGLE_TOILET | NEGATIVE_PRESSURE | COHORT | OWN_ROOM | NONE
+  state TEXT NOT NULL,                  -- REQUIRED | IN_PLACE | CEASED
+  review_due TEXT,
+  required_by TEXT NOT NULL REFERENCES workforce_person(id),
+  required_at TEXT NOT NULL,
+  placed_by TEXT REFERENCES workforce_person(id),
+  placed_at TEXT,
+  place_note TEXT,
+  ceased_by TEXT REFERENCES workforce_person(id),
+  ceased_at TEXT,
+  cease_reason TEXT,
+  cease_note TEXT
+);
+CREATE INDEX precaution_person ON precaution(person_id, state);
+CREATE INDEX precaution_service ON precaution(service_id, state);
+CREATE TABLE precaution_log (
+  id TEXT PRIMARY KEY,
+  precaution_id TEXT NOT NULL REFERENCES precaution(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX precaution_log_p ON precaution_log(precaution_id, at);
+`,
+  },
 ];

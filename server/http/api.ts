@@ -51,6 +51,7 @@ import * as followups from '../domain/followups.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
+import * as isolation from '../domain/isolation.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -340,7 +341,18 @@ export function buildApi(store: Store): Router {
     outcome: str(req.body.outcome), agent: str(req.body.agent), route: str(req.body.route), dose: str(req.body.dose), orderRef: str(req.body.orderRef),
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
-  r.on('GET', '/api/work/infections', (req) => infections.list(store, work(req)));
+  r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/precautions', (req) => isolation.start(store, work(req), req.params.id, {
+    concern: str(req.body.concern), types: req.body.types, room: str(req.body.room), reviewHours: req.body.reviewHours, infectionId: str(req.body.infectionId), outbreakId: str(req.body.outbreakId),
+  }));
+  r.on('POST', '/api/work/precautions/:id/:action', (req) => isolation.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), types: req.body.types, room: str(req.body.room), reviewHours: req.body.reviewHours, reason: str(req.body.reason),
+  }));
+  r.on('POST', '/api/work/outbreaks', (req) => isolation.declare(store, work(req), { what: str(req.body.what), note: str(req.body.note) }));
+  r.on('POST', '/api/work/outbreaks/:id/:action', (req) => isolation.outbreakAct(store, work(req), req.params.id, req.params.action, {
+    personId: str(req.body.personId), role: str(req.body.role), exposure: str(req.body.exposure), watchDays: req.body.watchDays,
+    entryId: str(req.body.entryId), to: str(req.body.to), note: str(req.body.note),
+  }));
   r.on('POST', '/api/work/patients/:id/infections', (req) => infections.raise(store, work(req), req.params.id, {
     site: str(req.body.site), siteDetail: str(req.body.siteDetail), suspicion: str(req.body.suspicion),
   }));

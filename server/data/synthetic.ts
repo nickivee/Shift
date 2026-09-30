@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 63;
+const SET = 64;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -390,6 +390,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 60) set60(store);
     if (at < 62) set62(store);
     if (at < 63) set63(store);
+    if (at < 64) set64(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -3988,4 +3989,56 @@ function set63(store: Store): void {
   fact('MEDICINE', 'Amlodipine', '5 mg Daily', null);
   fact('ALLERGY', 'Codeine', 'Vomiting', 'Mild');
   fact('ALLERGY', 'Aspirin', 'Wheeze', 'Moderate');
+}
+
+// Isolation and outbreaks: a gastro outbreak in the rest home with two residents ill in their rooms
+// and a table-mate being watched; on the ward, James needs a single room for droplet precautions.
+function set64(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ahead = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id ?? null;
+  const [kate, nicki] = [who('kate'), who('nicki')];
+  const [rua, william, frank, james] = [person('ZZZ0059'), person('ZZZ0091'), person('ZZZ0075'), person('ZZZ0040')];
+  const step = (type: string, id: string, from: string | null, to: string, by: string, at: string, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at, reason, transaction_id: null });
+  const plog = (id: string, kind: string, body: string, by: string, at: string) => store.insert('precaution_log', { id: newId(), precaution_id: id, kind, body, by_id: by, at });
+  if (kate && rua && william && frank) {
+    const ob = newId();
+    store.insert('outbreak', { id: ob, service_id: 'svc-arc', what: 'Gastroenteritis (suspected norovirus)', state: 'DECLARED', declared_by: kate, declared_at: ago(60 * 30) });
+    step('outbreak', ob, null, 'DECLARED', kate, ago(60 * 30), 'Two residents vomiting within 12 hours, both in the east wing');
+    const olog = (kind: string, body: string, at: string) => store.insert('outbreak_log', { id: newId(), outbreak_id: ob, kind, body, by_id: kate, at });
+    olog('DECLARED', 'Two residents vomiting within 12 hours, both in the east wing', ago(60 * 30));
+    const add = (pid: string, name: string, state: string, exposure: string, mins: number, until: string | null) => {
+      const x = newId();
+      store.insert('outbreak_person', { id: x, outbreak_id: ob, person_id: pid, state, exposure, watch_until: until, added_by: kate, added_at: ago(mins) });
+      step('outbreak_person', x, null, state, kate, ago(mins), exposure);
+      olog(state === 'CASE' ? 'CASE' : 'CONTACT', `${name}: ${exposure}`, ago(mins));
+    };
+    add(rua, 'Rua Hēnare', 'CASE', 'Vomiting and diarrhoea since 02:00 yesterday', 60 * 30, null);
+    add(william, 'William Grant', 'CASE', 'Vomiting since 13:00 yesterday', 60 * 22, null);
+    add(frank, 'Frank Dawson', 'WATCHING', 'Shares a table with William at meals', 60 * 22, ahead(60 * 26));
+    olog('RESPONSE', 'Dining room closed; meals in rooms for the east wing. Visitors asked to wait until it is over.', ago(60 * 21));
+    for (const [pid, mins] of [[rua, 60 * 30], [william, 60 * 22]] as [string, number][]) {
+      const id = newId();
+      store.insert('precaution', {
+        id, person_id: pid, service_id: 'svc-arc', infection_id: null, outbreak_id: ob, concern: 'Vomiting and diarrhoea in the gastro outbreak', types: 'CONTACT', room: 'OWN_ROOM',
+        state: 'IN_PLACE', review_due: ahead(60 * 18), required_by: kate, required_at: ago(mins), placed_by: kate, placed_at: ago(mins - 20),
+        place_note: 'In own room with the door closed; sign on door; gowns, gloves and bleach wipes at the door',
+      });
+      step('precaution', id, null, 'REQUIRED', kate, ago(mins), 'Vomiting and diarrhoea in the gastro outbreak');
+      plog(id, 'REQUIRED', 'Contact precautions; stays in their own room. Vomiting and diarrhoea in the gastro outbreak', kate, ago(mins));
+      step('precaution', id, 'REQUIRED', 'IN_PLACE', kate, ago(mins - 20), 'In own room with the door closed');
+      plog(id, 'IN_PLACE', 'In own room with the door closed; sign on door; gowns, gloves and bleach wipes at the door', kate, ago(mins - 20));
+    }
+  }
+  if (nicki && james) {
+    const id = newId();
+    store.insert('precaution', {
+      id, person_id: james, service_id: 'svc-genmed', infection_id: null, outbreak_id: null, concern: 'Fever and new cough; flu swab sent', types: 'DROPLET', room: 'SINGLE',
+      state: 'REQUIRED', review_due: ahead(60 * 20), required_by: nicki, required_at: ago(90),
+    });
+    step('precaution', id, null, 'REQUIRED', nicki, ago(90), 'Fever and new cough; flu swab sent');
+    plog(id, 'REQUIRED', 'Droplet precautions; single room. Fever and new cough; flu swab sent. Waiting for a side room; mask on James and curtains drawn meanwhile.', nicki, ago(90));
+  }
 }

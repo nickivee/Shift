@@ -900,3 +900,12 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 .rec-item.rec-decided { border-left-color: #2e7d4f; }
 .rec-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .rec-compare > div { background: var(--tint); border-radius: 6px; padding: 8px 10px; }
+
+/* Isolation precautions: shown on the record to everyone who opens it. */
+.patient-isolation { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid #b8860b; background: #fff6dd; color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-isolation svg { width: 24px; height: 24px; flex: none; color: #8a6200; }
+.patient-isolation b { display: block; font-size: 13px; letter-spacing: .6px; color: #8a6200; }
+.precaution.pc-required { border-left: 6px solid #c0392b; }
+.precaution.pc-in_place { border-left: 6px solid #b8860b; }
+.ob-people { list-style: none; margin: 0; padding: 0; }
+.ob-people li { border-top: 1px solid var(--tint); padding-top: 6px; flex-wrap: wrap; gap: 8px; }

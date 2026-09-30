@@ -458,6 +458,21 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['INACTIVE', 'ENTERED_IN_ERROR'], INACTIVE: ['ACTIVE'] },
   },
+  precaution: {
+    table: 'precaution',
+    initial: 'REQUIRED',
+    next: { REQUIRED: ['IN_PLACE', 'CEASED'], IN_PLACE: ['CEASED'] },
+  },
+  outbreak: {
+    table: 'outbreak',
+    initial: 'DECLARED',
+    next: { DECLARED: ['CLOSED'] },
+  },
+  outbreak_person: {
+    table: 'outbreak_person',
+    initial: 'CASE',
+    next: { CASE: ['RECOVERED'], WATCHING: ['CLEARED', 'BECAME_CASE'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

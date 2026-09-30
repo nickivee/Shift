@@ -559,6 +559,10 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-checks', onclick: () => openView('checklists') }, icon('checklists'),
         h('span', {}, h('b', {}, 'CHECK NOT MET'), patient.checkExceptions.join(' · '))));
     }
+    if (patient.precautions?.length) {
+      block.append(h('div', { class: 'patient-isolation' }, icon('infections'),
+        h('span', {}, h('b', {}, 'ISOLATION'), patient.precautions.join(' · '))));
+    }
     if (patient.resistantOrganisms?.length) {
       block.append(h('button', { class: 'patient-resistant', onclick: () => openView('infections') }, icon('infections'),
         h('span', {}, h('b', {}, 'RESISTANT ORGANISM'), patient.resistantOrganisms.join(' · '))));
