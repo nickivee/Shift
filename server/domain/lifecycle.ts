@@ -503,6 +503,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'IN_PLACE',
     next: { NEEDS_CHECK: ['IN_PLACE', 'REMOVED'], IN_PLACE: ['REMOVED'] },
   },
+  person_handover: {
+    table: 'person_handover',
+    initial: 'GIVEN',
+    next: { GIVEN: ['QUESTION', 'ACCEPTED', 'DECLINED', 'WITHDRAWN'], QUESTION: ['GIVEN', 'ACCEPTED', 'DECLINED', 'WITHDRAWN'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

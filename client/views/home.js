@@ -158,7 +158,7 @@ export async function homeView() {
     if (want.includes('wounds')) jobs.push(get('/api/work/wounds').then((rows) => (counts.wounds = rows.filter((w) => w.state === 'IDENTIFIED' || w.due).length)));
     if (want.includes('careplans')) jobs.push(get('/api/work/careplan-reviews').then((rows) => (counts.careplans = rows.length)));
     if (want.includes('flow')) jobs.push(get('/api/work/beds').then((rows) => (counts.flow = rows.filter((b) => b.state === 'AVAILABLE').length)));
-    if (want.includes('handover')) jobs.push(get('/api/work/handover').then((g) => (counts.handover = g.reduce((a, p) => a + p.items.filter((i) => !i.myReceipt).length, 0))));
+    if (want.includes('handover')) jobs.push(Promise.all([get('/api/work/handover'), get('/api/work/handovers/mine')]).then(([g, m]) => (counts.handover = g.reduce((a, p) => a + p.items.filter((i) => !i.myReceipt).length, 0) + m.toAccept.length)));
     await Promise.allSettled(jobs);
   };
 

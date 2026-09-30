@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 71;
+const SET = 72;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -398,6 +398,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 69) set69(store);
     if (at < 70) set70(store);
     if (at < 71) set71(store);
+    if (at < 72) set72(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4286,4 +4287,39 @@ function set71(store: Store): void {
     checkHours: 24, checks: [{ u: 'kate', mins: 2 * day }, { u: 'kate', mins: day }, { u: 'nicki', mins: 6 * 60, body: 'Draining clear urine; catheter care done.' }] });
   device({ nhi: 'ZZZ0105', service: 'svc-ed', kind: 'PIVC', site: 'Left elbow crease', size: '18G', reason: 'Bloods and IV access for chest pain', u: 'mere', mins: 30,
     checkHours: 8, checks: [] });
+}
+
+// Set 72: handover acceptance. Kate has handed Frank over to Nicki at Kōwhai House and is waiting
+// for her to accept. On the ward, Nicki accepted Wiremu from Grace this morning.
+function set72(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const kate = who('kate'), nicki = who('nicki'), grace = who('grace');
+  if (!kate || !nicki || !grace) return;
+  const add = (h: { nhi: string; service: string; from: string; fromName: string; to: string; toName: string; mins: number; accepted?: number;
+    situation: string; background?: string; watch?: string; todo: string }) => {
+    const personId = person(h.nhi);
+    if (!personId) return;
+    const id = newId();
+    const state = h.accepted ? 'ACCEPTED' : 'GIVEN';
+    store.insert('person_handover', {
+      id, person_id: personId, service_id: h.service, state, from_id: h.from, to_id: h.to, situation: h.situation, background: h.background ?? null, watch: h.watch ?? null,
+      todo: h.todo, given_at: ago(h.mins), accepted_at: h.accepted ? ago(h.accepted) : null, closed_at: h.accepted ? ago(h.accepted) : null, close_note: null,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'person_handover', object_id: id, from_state: null, to_state: 'GIVEN', actor_id: h.from, work_context_id: null, at: ago(h.mins), reason: `To ${h.toName}`, transaction_id: null });
+    store.insert('person_handover_step', { id: newId(), handover_id: id, kind: 'GIVEN', body: `Handed over to ${h.toName}.`, by_id: h.from, at: ago(h.mins) });
+    if (h.accepted) {
+      store.insert('state_transition', { id: newId(), object_type: 'person_handover', object_id: id, from_state: 'GIVEN', to_state: 'ACCEPTED', actor_id: h.to, work_context_id: null, at: ago(h.accepted), reason: 'Accepted', transaction_id: null });
+      store.insert('person_handover_step', { id: newId(), handover_id: id, kind: 'ACCEPTED', body: `Accepted. ${h.toName} is now responsible.`, by_id: h.to, at: ago(h.accepted) });
+    }
+  };
+  add({ nhi: 'ZZZ0075', service: 'svc-arc', from: kate, fromName: 'Kate Rowe', to: nicki, toName: 'Nicki V', mins: 20,
+    situation: 'Drowsy this afternoon but rousable; ate half his lunch. Still saying no to his oxygen.',
+    background: 'Waiting for a needs reassessment; Dr Whyte is reviewing him.',
+    watch: 'More drowsy or oxygen below 88%: call Dr Whyte or the after-hours GP.',
+    todo: 'Obs at 6pm; offer oxygen again; update his daughter if anything changes.' });
+  add({ nhi: 'ZZZ0016', service: 'svc-genmed', from: grace, fromName: 'Grace Tupou', to: nicki, toName: 'Nicki V', mins: 8 * 60, accepted: 8 * 60 - 10,
+    situation: 'Sepsis settling: afebrile overnight, BP 118/70, eating a little.',
+    todo: 'IV antibiotics at 8 and 4; check the cannula site; bloods at 10.' });
 }

@@ -53,6 +53,7 @@ import { forPerson as safeguardingFor, current as safeguardingNow } from './safe
 import { forPerson as residencyFor, current as residencyNow } from './residency.ts';
 import { forPerson as complaintsFor } from './complaints.ts';
 import { forPerson as devicesFor, current as devicesNow } from './devices.ts';
+import { forPerson as handoversFor, current as handoverNow } from './handovers.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -225,6 +226,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     safeguarding: safeguardingNow(store, personId),
     inHospital: residencyNow(store, personId),
     devices: devicesNow(store, personId),
+    handoverOpen: handoverNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -350,7 +352,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
           WHERE e.person_id = ? AND h.service_id = ? AND h.cleared_at IS NULL AND e.state = 'CURRENT' ORDER BY e.effective_at DESC`,
         personId, ctx.serviceId,
       );
-      body = { events: rows.map((r) => shapeEvent(store, ctx, r)) };
+      body = { events: rows.map((r) => shapeEvent(store, ctx, r)), handovers: handoversFor(store, ctx, personId) };
       break;
     }
     case 'transfers':
