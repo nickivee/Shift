@@ -938,3 +938,11 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 
 /* A complaint: kept apart from the clinical record. */
 .complaint { border-left: 4px solid #b5651d; }
+
+/* Lines, tubes and catheters in place. */
+.patient-devices { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid #1b6f7a; background: #eaf6f7; color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-devices svg { width: 24px; height: 24px; flex: none; color: #1b6f7a; }
+.patient-devices b { display: block; font-size: 13px; letter-spacing: .6px; color: #1b6f7a; }
+.patient-devices.warn { border-color: #b5651d; background: #fdf3e7; }
+.patient-devices.warn b, .patient-devices.warn svg { color: #9a4f10; }
+.device { border-left: 4px solid #1b6f7a; }

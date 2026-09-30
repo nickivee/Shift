@@ -58,6 +58,7 @@ import * as endoflife from '../domain/endoflife.ts';
 import * as safeguarding from '../domain/safeguarding.ts';
 import * as residency from '../domain/residency.ts';
 import * as complaints from '../domain/complaints.ts';
+import * as devices from '../domain/devices.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -348,6 +349,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/devices', (req) => devices.insert(store, work(req), req.params.id, {
+    kind: str(req.body.kind), site: str(req.body.site), size: str(req.body.size), reason: str(req.body.reason), hoursAgo: req.body.hoursAgo, where: str(req.body.where), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/devices/:id/:action', (req) => devices.act(store, work(req), req.params.id, req.params.action, {
+    how: str(req.body.how), note: str(req.body.note), siteLook: str(req.body.siteLook), needed: str(req.body.needed), reasonRemoved: str(req.body.reasonRemoved), intact: str(req.body.intact),
+  }));
   r.on('POST', '/api/work/patients/:id/complaints', (req) => complaints.receive(store, work(req), req.params.id, {
     fromKind: str(req.body.fromKind), fromName: str(req.body.fromName), contact: str(req.body.contact), how: str(req.body.how), about: str(req.body.about), words: str(req.body.words), wants: str(req.body.wants),
   }));

@@ -24,6 +24,7 @@ import { endOfLifePanel } from './endoflife.js';
 import { safeguardingPanel } from './safeguarding.js';
 import { residencyPanel } from './residency.js';
 import { complaintsPanel } from './complaints.js';
+import { devicesPanel } from './devices.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -490,7 +491,7 @@ export async function workstationView(personId, initialView) {
         return h('div', { class: 'stack' }, residencyPanel(personId, d.residency, reload), leavePanel(personId, d, reload));
       }
       case 'location': return locationPanel(personId, d, () => go(`/work/patient/${personId}/location`));
-      case 'equipment': return equipmentPanel(personId, d, () => openView('equipment'));
+      case 'equipment': return h('div', { class: 'stack' }, devicesPanel(personId, d.devices, () => go(`/work/patient/${personId}/equipment`)), equipmentPanel(personId, d, () => openView('equipment')));
       case 'diet': return dietPanel(personId, d, () => go(`/work/patient/${personId}/diet`));
       case 'restrictions': return restrictionsPanel(personId, d, () => go(`/work/patient/${personId}/restrictions`));
       case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));
@@ -674,6 +675,13 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-pref', onclick: () => openView('preferences') }, icon('preferences'),
         h('span', {}, h('b', {}, patient.preferences.count === 1 ? 'PREFERENCE' : `${patient.preferences.count} PREFERENCES`),
           patient.preferences.first.join(' · '))));
+    }
+    if (patient.devices?.length) {
+      const ds = patient.devices;
+      const warn = ds.some((x) => x.needsCheck || x.overdue || x.problem);
+      block.append(h('button', { class: `patient-devices${warn ? ' warn' : ''}`, onclick: () => openView('equipment') }, icon('equipment'),
+        h('span', {}, h('b', {}, ds.some((x) => x.needsCheck) ? 'LINES AND TUBES: POSITION NOT CONFIRMED' : ds.some((x) => x.overdue) ? 'LINES AND TUBES: CHECK OVERDUE' : 'LINES AND TUBES'),
+          ds.map((x) => `${x.short} (day ${x.day})${x.needsCheck ? ', do not use yet' : x.problem ? ', problem at last check' : ''}`).join(' · '))));
     }
     if (patient.inHospital) {
       const x = patient.inHospital;

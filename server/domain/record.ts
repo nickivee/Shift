@@ -52,6 +52,7 @@ import { forPerson as endOfLifeFor, current as endOfLifeNow } from './endoflife.
 import { forPerson as safeguardingFor, current as safeguardingNow } from './safeguarding.ts';
 import { forPerson as residencyFor, current as residencyNow } from './residency.ts';
 import { forPerson as complaintsFor } from './complaints.ts';
+import { forPerson as devicesFor, current as devicesNow } from './devices.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -223,6 +224,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     endOfLife: endOfLifeNow(store, personId),
     safeguarding: safeguardingNow(store, personId),
     inHospital: residencyNow(store, personId),
+    devices: devicesNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -388,7 +390,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = dietFor(store, ctx, personId);
       break;
     case 'equipment':
-      body = equipmentFor(store, ctx, personId);
+      body = { ...equipmentFor(store, ctx, personId), devices: devicesFor(store, ctx, personId) };
       break;
     case 'location':
       body = locationFor(store, ctx, personId);

@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 70;
+const SET = 71;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -397,6 +397,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 68) set68(store);
     if (at < 69) set69(store);
     if (at < 70) set70(store);
+    if (at < 71) set71(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4248,4 +4249,41 @@ function set70(store: Store): void {
     step(id, 'RESPONDED', 'We found trays for rooms were plated first and sat while the dining room was served. Sorry, Elsie. From Monday, room trays go out first and are covered.', kate, 16 * day);
     step(id, 'CLOSED', 'Resolved with them. Elsie says her dinners are hot now. What we are changing: Room trays are served first and covered.', kate, 12 * day);
   }
+}
+
+// Set 71: lines, tubes and catheters. Wiremu has had his IV cannula from the emergency department
+// for four days and its check is overdue. Elsie has a urinary catheter for comfort. The chest pain
+// patient in the emergency department had a cannula put in on arrival.
+function set71(store: Store): void {
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const device = (d: { nhi: string; service: string; kind: string; site: string | null; size: string | null; reason: string; u: string; mins: number; where?: string;
+    checkHours: number; checks: { u: string; mins: number; body?: string }[]; needed?: { u: string; mins: number; why: string } }) => {
+    const personId = person(d.nhi);
+    const by = who(d.u);
+    if (!personId || !by) return;
+    const id = newId();
+    const last = d.checks.length ? Math.min(...d.checks.map((c) => c.mins)) : d.mins;
+    store.insert('device', {
+      id, person_id: personId, service_id: d.service, kind: d.kind, site: d.site, size: d.size, reason: d.reason, state: 'IN_PLACE',
+      inserted_by: by, inserted_at: ago(d.mins), inserted_where: d.where ?? null, check_due: new Date(Date.now() - last * 60_000 + d.checkHours * 3600_000).toISOString(),
+      last_check_at: d.checks.length ? ago(last) : null, last_site: d.checks.length ? 'OK' : null,
+      needed_at: d.needed ? ago(d.needed.mins) : null, needed_why: d.needed?.why ?? null, recorded_at: ago(d.mins),
+    });
+    const log = (kind: string, body: string, u: string, mins: number) => store.insert('device_log', { id: newId(), device_id: id, kind, body, by_id: who(u) ?? by, at: ago(mins) });
+    store.insert('state_transition', { id: newId(), object_type: 'device', object_id: id, from_state: null, to_state: 'IN_PLACE', actor_id: by, work_context_id: null, at: ago(d.mins), reason: d.reason, transaction_id: null });
+    const label = { PIVC: 'Peripheral IV cannula', IDC: 'Urinary catheter' }[d.kind];
+    log('INSERTED', `${label}${d.site ? `, ${d.site}` : ''}${d.size ? ` (${d.size})` : ''}. For: ${d.reason}.${d.where ? ` Put in: ${d.where}.` : ''}`, d.u, d.mins);
+    for (const c of d.checks.sort((a, b) => b.mins - a.mins)) log('CHECKED', `Looks fine.${c.body ? ` ${c.body}` : ''}`, c.u, c.mins);
+    if (d.needed) log('NEEDED', `Still needed: ${d.needed.why}`, d.needed.u, d.needed.mins);
+  };
+  const day = 24 * 60;
+  device({ nhi: 'ZZZ0016', service: 'svc-genmed', kind: 'PIVC', site: 'Right forearm', size: '20G', reason: 'IV antibiotics and fluids', u: 'grace', mins: 4 * day, where: 'Emergency department',
+    checkHours: 8, checks: [{ u: 'grace', mins: 3 * day }, { u: 'grace', mins: 2 * day }, { u: 'grace', mins: day }, { u: 'grace', mins: 11 * 60, body: 'Flushed easily.' }],
+    needed: { u: 'grace', mins: day, why: 'IV ceftriaxone until the team reviews switching to tablets.' } });
+  device({ nhi: 'ZZZ0067', service: 'svc-arc', kind: 'IDC', site: null, size: '14Fr', reason: 'Comfort at the end of life; agreed with Elsie and her GP', u: 'kate', mins: 3 * day,
+    checkHours: 24, checks: [{ u: 'kate', mins: 2 * day }, { u: 'kate', mins: day }, { u: 'nicki', mins: 6 * 60, body: 'Draining clear urine; catheter care done.' }] });
+  device({ nhi: 'ZZZ0105', service: 'svc-ed', kind: 'PIVC', site: 'Left elbow crease', size: '18G', reason: 'Bloods and IV access for chest pain', u: 'mere', mins: 30,
+    checkHours: 8, checks: [] });
 }
