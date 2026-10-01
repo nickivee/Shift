@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { nilByMouth } from './restrictions.ts';
+import { nothingByMouth } from './feeding.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Nutrition / diet order (Shared Lifecycle Object 244):
@@ -199,6 +200,7 @@ export function meal(store: Store, ctx: WorkContext, id: string, b: { meal?: str
   if (!OUTCOMES[outcome]) throw new HttpError(400, 'OUTCOME_REQUIRED', 'Choose what happened.');
   const nbm = nilByMouth(store, personId);
   if (nbm && outcome === 'GIVEN') throw new HttpError(409, 'NIL_BY_MOUTH', `Nil by mouth is in force: ${nbm.detail}. Record the meal as withheld.`);
+  if (outcome === 'GIVEN' && nothingByMouth(store, personId)) throw new HttpError(409, 'TUBE_FED', 'They are tube fed with nothing by mouth. Record the meal as withheld.');
   const given = outcome === 'GIVEN';
   const intake = given ? (INTAKE[String(b.intake)] ? String(b.intake) : null) : null;
   if (given && !intake) throw new HttpError(400, 'INTAKE_REQUIRED', 'Choose how much was eaten.');

@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-FEED-001',
+    question: 'What New Zealand requires for tube feeding in hospital and aged residential care: how and when a nasogastric tube position must be confirmed before use (including pH thresholds and X-ray rules), who may prescribe enteral feeds and change rates, refeeding syndrome risk assessment and monitoring, and the competencies needed for registered nurses and caregivers to give feeds through a PEG.',
+    blocks: 'Tube position check methods and thresholds, refeeding risk rules, feed prescribing authority and caregiver delegation for tube feeds. SHIFT records the feed, rate, volumes, flushes and daily amount exactly as prescribed and by whom, what they may have by mouth, each feed, flush or hold and how it was tolerated, and reviews. It uses the tube position status from Lines and tubes and never feeds through a tube marked do not use.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-TRAUMA-001',
     question: 'What New Zealand requires for major trauma care in an emergency department: trauma call activation criteria and team make-up (National Trauma Network and Te Whatu Ora guidance), primary, secondary and tertiary survey standards and timing, injury severity scoring and what must be submitted to the New Zealand Trauma Registry, transfer criteria to a major trauma centre, and ACC and Police notification requirements.',
     blocks: 'Trauma activation criteria, survey timing standards, injury severity scores, registry submission and transfer criteria. SHIFT records the kind of trauma call, how and when they were injured, what the ambulance found, the primary survey (airway, breathing, circulation, disability, exposure), the secondary and tertiary surveys, each injury and how it was found, and where they went next.',

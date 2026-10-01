@@ -63,6 +63,8 @@ import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
 import { forPerson as poisoningFor, current as poisoningNow } from './poisoning.ts';
 import { forPerson as traumaFor, current as traumaNow } from './trauma.ts';
 import { PLACE as TRAUMA_IN } from '../config/trauma.ts';
+import { forPerson as feedingFor, current as feedingNow } from './feeding.ts';
+import { PLACE as FEED_IN } from '../config/feeding.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -239,6 +241,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     criticalResults: criticalNow(store, personId),
     recovering: recoveringNow(store, personId),
     trauma: ((x) => x && { ...x, view: TRAUMA_IN[ctx.role.roleKey] ?? null })(traumaNow(store, personId)),
+    feeding: ((x) => x && { ...x, view: FEED_IN[ctx.role.roleKey] ?? null })(feedingNow(store, personId)),
     poisoning: ((x) => x && { ...x, view: (ctx.role.capabilities as string[]).includes('poison.manage') ? 'medical' : 'monitoring' })(poisoningNow(store, personId)),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
@@ -321,7 +324,8 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
         procedures: view.code === 'procedures' ? proceduresFor(store, ctx, personId) : null,
         decisions: DECISIONS_IN[ctx.role.roleKey] === view.code ? decisionsFor(store, ctx, personId) : null,
         poisoning: view.code === 'medical' ? poisoningFor(store, ctx, personId) : null,
-        trauma: TRAUMA_IN[ctx.role.roleKey] === view.code ? traumaFor(store, ctx, personId) : null };
+        trauma: TRAUMA_IN[ctx.role.roleKey] === view.code ? traumaFor(store, ctx, personId) : null,
+        feeding: FEED_IN[ctx.role.roleKey] === view.code ? feedingFor(store, ctx, personId) : null };
       break;
     }
     case 'history': {
@@ -399,7 +403,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = restrictionsFor(store, ctx, personId);
       break;
     case 'diet':
-      body = dietFor(store, ctx, personId);
+      body = { ...dietFor(store, ctx, personId), feeding: FEED_IN[ctx.role.roleKey] === 'diet' ? feedingFor(store, ctx, personId) : null };
       break;
     case 'equipment':
       body = { ...equipmentFor(store, ctx, personId), devices: devicesFor(store, ctx, personId) };

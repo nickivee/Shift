@@ -67,6 +67,7 @@ import * as procedures from '../domain/procedures.ts';
 import * as decisions from '../domain/decisions.ts';
 import * as poisoning from '../domain/poisoning.ts';
 import * as trauma from '../domain/trauma.ts';
+import * as feeding from '../domain/feeding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -358,6 +359,15 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/feeding', (req) => feeding.start(store, work(req), req.params.id, {
+    deviceId: str(req.body.deviceId), feed: str(req.body.feed), method: str(req.body.method), regimen: str(req.body.regimen), flushes: str(req.body.flushes),
+    targetMl: str(req.body.targetMl), oral: str(req.body.oral), prescribedBy: str(req.body.prescribedBy), reason: str(req.body.reason), reviewDate: str(req.body.reviewDate),
+  }));
+  r.on('POST', '/api/work/feeding/:id/:action', (req) => feeding.act(store, work(req), req.params.id, req.params.action, {
+    kind: str(req.body.kind), ml: str(req.body.ml), tolerance: str(req.body.tolerance), note: str(req.body.note), outcome: str(req.body.outcome), finding: str(req.body.finding),
+    deviceId: str(req.body.deviceId), feed: str(req.body.feed), method: str(req.body.method), regimen: str(req.body.regimen), flushes: str(req.body.flushes),
+    targetMl: str(req.body.targetMl), oral: str(req.body.oral), prescribedBy: str(req.body.prescribedBy), reviewDate: str(req.body.reviewDate),
+  }));
   r.on('POST', '/api/work/patients/:id/trauma', (req) => trauma.activate(store, work(req), req.params.id, {
     teamCall: str(req.body.teamCall), mechanism: str(req.body.mechanism), injuredAt: str(req.body.injuredAt), prehospital: str(req.body.prehospital),
   }));
