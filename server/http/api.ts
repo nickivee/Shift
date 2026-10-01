@@ -62,6 +62,7 @@ import * as devices from '../domain/devices.ts';
 import * as handovers from '../domain/handovers.ts';
 import * as conferences from '../domain/conferences.ts';
 import * as rehab from '../domain/rehab.ts';
+import * as diagnostics from '../domain/diagnostics.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -353,6 +354,16 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/tests', (req) => diagnostics.order(store, work(req), req.params.id, { test: str(req.body.test), priority: str(req.body.priority), reason: str(req.body.reason) }));
+  r.on('POST', '/api/work/tests/:id/:action', (req) => diagnostics.orderAct(store, work(req), req.params.id, req.params.action, { idChecked: str(req.body.idChecked), note: str(req.body.note) }));
+  r.on('POST', '/api/work/patients/:id/results', (req) => diagnostics.receive(store, work(req), req.params.id, {
+    orderId: str(req.body.orderId), test: str(req.body.test), value: str(req.body.value), units: str(req.body.units), range: str(req.body.range),
+    critical: str(req.body.critical), readBack: str(req.body.readBack), from: str(req.body.from), toldDoctor: str(req.body.toldDoctor),
+  }));
+  r.on('POST', '/api/work/results/:id/acknowledge', (req) => diagnostics.resultAct(store, work(req), req.params.id, 'acknowledge', { plan: str(req.body.plan), doctor: str(req.body.doctor) }));
+  r.on('POST', '/api/work/results/:id/correct', (req) => diagnostics.resultAct(store, work(req), req.params.id, 'correct', {
+    value: str(req.body.value), reason: str(req.body.reason), from: str(req.body.from), critical: str(req.body.critical),
+  }));
   r.on('POST', '/api/work/patients/:id/rehab', (req) => rehab.start(store, work(req), req.params.id));
   r.on('POST', '/api/work/rehab/:id/:action', (req) => rehab.act(store, work(req), req.params.id, req.params.action, {
     ready: str(req.body.ready), reason: str(req.body.reason), recheck: str(req.body.recheck), baseline: str(req.body.baseline), plan: str(req.body.plan),

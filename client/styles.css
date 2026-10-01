@@ -958,3 +958,10 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 /* Rehab episode. */
 .rehab { border-left: 4px solid #2f7d4f; }
 .rehab-goals { margin: 0; padding-left: 0; list-style: none; gap: 4px; }
+
+/* Tests and results. */
+.test-order { border-left: 4px solid #3a6ea5; }
+.flag-C { color: var(--danger); font-weight: 900; }
+tr.critical-row td { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+tr.corrected td { text-decoration: line-through; opacity: 0.7; }
+tr.corrected td:last-child, tr.corrected td:nth-child(5) { text-decoration: none; }

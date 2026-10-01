@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-RESULT-001',
+    question: 'What New Zealand requires for laboratory results: who may order which tests (including nurse-initiated tests under standing orders), how a sample must be labelled and the person identified at collection, how critical results must be communicated (who the laboratory must reach, how fast, read-back, and what happens if the requesting clinician cannot be reached, including for rest home residents whose GP orders their tests), how results must be acknowledged and by whom, and how corrected results must be handled and kept.',
+    blocks: 'Required timeframes for taking samples and for acknowledging critical results, and any reporting when a critical result is not acknowledged. SHIFT records the order, the bedside identity check, the sample going to the lab, the result (including who phoned it and that it was read back), which doctor a nurse told, the doctor\'s plan, and corrections that keep the original.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-DEVICE-001',
     question: 'What New Zealand requires for lines, tubes and catheters in each setting: who may insert each kind (including rest home nurses and caregivers), how a nasogastric tube or central line position must be confirmed before use, how often sites must be checked and what with, how long each may stay in (dwell time), how line-related bloodstream infections and catheter-associated urinary infections must be monitored and reported (Health Quality & Safety Commission programmes), and who may remove them.',
     blocks: 'Required check intervals, dwell limits and position-confirmation methods, and reporting of line or catheter infections. SHIFT records what was put in, where, why and by whom, the position check where the organisation asks for one, site checks by the organisation\'s usual interval, whether it is still needed and why, problems reported, and removal, including whether it came out whole.',

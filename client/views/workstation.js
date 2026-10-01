@@ -28,6 +28,7 @@ import { devicesPanel } from './devices.js';
 import { handoversPanel } from './handovers.js';
 import { conferencesPanel } from './conferences.js';
 import { rehabPanel } from './rehab.js';
+import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -426,19 +427,8 @@ export async function workstationView(personId, initialView) {
           h('thead', {}, h('tr', {}, ['Medicine', 'Dose', 'Route', 'Frequency', 'Indication', 'State', 'Prescriber'].map((c) => h('th', {}, c)))),
           h('tbody', {}, d.medicines.map((m) => h('tr', {}, h('td', {}, h('b', {}, m.medicine)), h('td', {}, m.dose), h('td', {}, m.route), h('td', {}, m.frequency), h('td', {}, m.indication), h('td', {}, stateTag(m.state)), h('td', {}, m.prescriber)))),
         )) : h('div', { class: 'empty' }, 'No medicines recorded.'));
-      case 'results': return h('div', { class: 'table-wrap' }, h('table', { class: 'data' },
-        h('thead', {}, h('tr', {}, ['Test', 'Result', 'Range', 'Taken', 'State', ''].map((c) => h('th', {}, c)))),
-        h('tbody', {}, d.results.map((r) => h('tr', {},
-          h('td', {}, h('b', {}, r.test)),
-          h('td', { class: r.flag ? `flag-${r.flag}` : '' }, `${r.value} ${r.units ?? ''}${r.flag ? ` ${r.flag}` : ''}`),
-          h('td', {}, r.referenceRange),
-          h('td', {}, fmtDateTime(r.performedAt)),
-          h('td', {}, stateTag(r.state), r.reviewedBy ? h('div', { class: 'small muted' }, `${r.reviewedBy}`) : null),
-          h('td', {}, d.canReview && r.state === 'AVAILABLE' ? h('button', { class: 'btn small', onclick: async () => {
-            try { await post(`/api/work/results/${r.id}/review`); toast('Marked reviewed.'); openView('results'); } catch (err) { showError(err); }
-          } }, 'Mark reviewed') : null),
-        ))),
-      ));
+      // A critical result changes the record banner, so the whole record redraws.
+      case 'results': return resultsPanel(personId, d, () => go(`/work/patient/${personId}/results`));
       case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
       case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
@@ -680,6 +670,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-pref', onclick: () => openView('preferences') }, icon('preferences'),
         h('span', {}, h('b', {}, patient.preferences.count === 1 ? 'PREFERENCE' : `${patient.preferences.count} PREFERENCES`),
           patient.preferences.first.join(' · '))));
+    }
+    if (patient.criticalResults?.length) {
+      block.append(h('button', { class: 'patient-devices warn critical-result', onclick: () => openView('results') }, icon('alert'),
+        h('span', {}, h('b', {}, 'CRITICAL RESULT NOT ACKNOWLEDGED'),
+          patient.criticalResults.map((r) => `${r.test} ${r.value} ${r.units ?? ''} (${fmtDateTime(r.at)})${r.toldDoctor ? `, told ${r.toldDoctor}` : ''}`).join(' · '))));
     }
     if (patient.handoverOpen) {
       const x = patient.handoverOpen;
