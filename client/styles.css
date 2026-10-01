@@ -1008,3 +1008,5 @@ tr.chosen td { background: var(--ok-bg); }
 .patient-feed.blocked b, .patient-feed.blocked svg { color: var(--danger); }
 .patient-feed svg { width: 26px; height: 26px; flex: none; }
 .patient-feed b { display: block; font-size: 13px; letter-spacing: .6px; }
+.safety-notice ul.notice-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.safety-notice ul.notice-items li { border-top: 1px solid var(--line); padding-top: 6px; }

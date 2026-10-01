@@ -4261,4 +4261,37 @@ CREATE INDEX equipment_loan_person ON equipment_loan(person_id, returned_at);
 CREATE INDEX equipment_loan_equipment ON equipment_loan(equipment_id, cleaned_at);
 `,
   },
+  {
+    version: 82,
+    name: 'equipment safety notices',
+    sql: `
+-- Equipment safety (entry 135): new equipment waits for an acceptance check before first use;
+-- a safety notice covers chosen items and either stops their use now or needs an action by a date.
+CREATE TABLE equipment_notice (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- STOP | ACT
+  title TEXT NOT NULL,
+  source TEXT NOT NULL,
+  action TEXT NOT NULL,
+  due_date TEXT,
+  state TEXT NOT NULL,                  -- OPEN | CLOSED
+  issued_by TEXT NOT NULL REFERENCES workforce_person(id),
+  issued_at TEXT NOT NULL,
+  closed_at TEXT
+);
+CREATE INDEX equipment_notice_service ON equipment_notice(service_id, state);
+CREATE TABLE equipment_notice_item (
+  id TEXT PRIMARY KEY,
+  notice_id TEXT NOT NULL REFERENCES equipment_notice(id),
+  equipment_id TEXT NOT NULL REFERENCES equipment(id),
+  stopped INTEGER NOT NULL DEFAULT 0,   -- 1 when the notice took it out of use
+  done_by TEXT REFERENCES workforce_person(id),
+  done_at TEXT,
+  done_note TEXT
+);
+CREATE INDEX equipment_notice_item_e ON equipment_notice_item(equipment_id, done_at);
+CREATE INDEX equipment_notice_item_n ON equipment_notice_item(notice_id);
+`,
+  },
 ];

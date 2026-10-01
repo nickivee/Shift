@@ -709,6 +709,10 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/equipment', (req) => equipment.add(store, work(req), {
     assetTag: str(req.body.assetTag), kind: str(req.body.kind), description: str(req.body.description), serviceDue: str(req.body.serviceDue),
   }));
+  r.on('POST', '/api/work/equipment-notices', (req) => equipment.notice(store, work(req), {
+    kind: str(req.body.kind), title: str(req.body.title), source: str(req.body.source), action: str(req.body.action), dueDate: str(req.body.dueDate), equipmentIds: str(req.body.equipmentIds),
+  }));
+  r.on('POST', '/api/work/equipment-notices/:id/done', (req) => equipment.noticeDone(store, work(req), req.params.id, { equipmentId: str(req.body.equipmentId), note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/loans', (req) => equipment.lend(store, work(req), req.params.id, {
     equipmentId: str(req.body.equipmentId), purpose: str(req.body.purpose), fitted: str(req.body.fitted), returnBy: str(req.body.returnBy),
   }));
