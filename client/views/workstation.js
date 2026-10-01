@@ -30,6 +30,7 @@ import { conferencesPanel } from './conferences.js';
 import { rehabPanel } from './rehab.js';
 import { proceduresPanel } from './procedures.js';
 import { decisionsPanel } from './decisions.js';
+import { poisoningPanel } from './poisoning.js';
 import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
@@ -420,7 +421,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
@@ -437,7 +438,7 @@ export async function workstationView(personId, initialView) {
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
-      case 'monitoring': return monitoringPanel(personId, d, () => openView('monitoring'));
+      case 'monitoring': return h('div', { class: 'stack' }, poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/monitoring`)), monitoringPanel(personId, d, () => openView('monitoring')));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
@@ -677,6 +678,12 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-critical critical-result', onclick: () => openView('results') }, icon('alert'),
         h('span', {}, h('b', {}, 'CRITICAL RESULT NOT ACKNOWLEDGED'),
           patient.criticalResults.map((r) => `${r.test} ${r.value} ${r.units ?? ''} (${fmtDateTime(r.at)})${r.toldDoctor ? `, told ${r.toldDoctor}` : ''}`).join(' · '))));
+    }
+    if (patient.poisoning) {
+      const x = patient.poisoning;
+      const next = x.next ? `${x.next.overdue ? 'OVERDUE: ' : 'Next: '}${x.next.what} ${fmtDateTime(x.next.dueAt)}` : x.state;
+      block.append(h('button', { class: `patient-poison${x.next?.overdue ? ' overdue' : ''}`, onclick: () => openView(x.view) }, icon('alert'),
+        h('span', {}, h('b', {}, `POISONING: ${String(x.substances).toUpperCase()}`), `${x.intent} · ${next}`)));
     }
     if (patient.recovering) {
       const x = patient.recovering;

@@ -60,6 +60,7 @@ import { forPerson as diagnosticsFor, current as criticalNow } from './diagnosti
 import { forPerson as proceduresFor, current as recoveringNow } from './procedures.ts';
 import { forPerson as decisionsFor } from './decisions.ts';
 import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
+import { forPerson as poisoningFor, current as poisoningNow } from './poisoning.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -235,6 +236,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     handoverOpen: handoverNow(store, personId),
     criticalResults: criticalNow(store, personId),
     recovering: recoveringNow(store, personId),
+    poisoning: ((x) => x && { ...x, view: (ctx.role.capabilities as string[]).includes('poison.manage') ? 'medical' : 'monitoring' })(poisoningNow(store, personId)),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -314,7 +316,8 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = { events: rows.map((r) => shapeEvent(store, ctx, r)), conferences: ['review', 'goals'].includes(view.code) ? conferencesFor(store, ctx, personId) : null,
         rehab: ['review', 'treatment'].includes(view.code) ? rehabFor(store, ctx, personId) : null,
         procedures: view.code === 'procedures' ? proceduresFor(store, ctx, personId) : null,
-        decisions: DECISIONS_IN[ctx.role.roleKey] === view.code ? decisionsFor(store, ctx, personId) : null };
+        decisions: DECISIONS_IN[ctx.role.roleKey] === view.code ? decisionsFor(store, ctx, personId) : null,
+        poisoning: view.code === 'medical' ? poisoningFor(store, ctx, personId) : null };
       break;
     }
     case 'history': {
@@ -385,7 +388,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = communicationsFor(store, ctx, personId);
       break;
     case 'monitoring':
-      body = monitoringFor(store, ctx, personId);
+      body = { ...monitoringFor(store, ctx, personId), poisoning: poisoningFor(store, ctx, personId) };
       break;
     case 'restrictions':
       body = restrictionsFor(store, ctx, personId);

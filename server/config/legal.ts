@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-POISON-001',
+    question: 'What New Zealand requires when someone presents to an emergency department after a poisoning or overdose: when the National Poisons Centre or a toxicologist must be consulted and how their advice is recorded, required observations and timed tests, the assessment required after deliberate self-harm before discharge (including Ministry of Health guidance), when notification is needed (for example workplace or hazardous-substance exposures under the Health Act 1956 and HSNO), and what must be recorded before someone is medically cleared.',
+    blocks: 'Toxic doses, treatment thresholds, antidote rules, required observations and timed tests, and assessment rules after deliberate self-harm. SHIFT records what was taken, how much, how, when and why, who told us, advice as given and by whom, the doctor\'s plan and timed checks, who assessed safety after deliberate self-harm, and whether they were medically cleared or admitted.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-DECISION-001',
     question: 'What New Zealand requires when a doctor makes a significant treatment decision with a patient: the information that must be given about options, benefits and risks (Code of Rights Rights 6 and 7), which decisions must be documented and how, what must happen when the patient does not agree, and how decisions are made and recorded when the patient cannot take part (see RR-CAP-001).',
     blocks: 'Rules on which decisions must be recorded, what must be explained, and who may decide when the patient cannot take part. SHIFT records the question, why now, each option with its benefits and risks, what the person wants and whether they could take part, who else was involved, the option chosen and why, whether they agree, and when to look at it again.',

@@ -533,6 +533,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OPEN',
     next: { OPEN: ['DECIDED', 'CLOSED'], DECIDED: ['OPEN', 'CLOSED'] },
   },
+  toxic_exposure: {
+    table: 'toxic_exposure',
+    initial: 'ASSESSING',
+    next: { ASSESSING: ['MONITORING', 'CLEARED', 'ADMITTED'], MONITORING: ['CLEARED', 'ADMITTED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

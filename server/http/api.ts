@@ -65,6 +65,7 @@ import * as rehab from '../domain/rehab.ts';
 import * as diagnostics from '../domain/diagnostics.ts';
 import * as procedures from '../domain/procedures.ts';
 import * as decisions from '../domain/decisions.ts';
+import * as poisoning from '../domain/poisoning.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -356,6 +357,15 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/poisoning', (req) => poisoning.record(store, work(req), req.params.id, {
+    substances: str(req.body.substances), amount: str(req.body.amount), route: str(req.body.route), takenAt: str(req.body.takenAt), timeKnown: str(req.body.timeKnown),
+    intent: str(req.body.intent), source: str(req.body.source),
+  }));
+  r.on('POST', '/api/work/poisoning/:id/:action', (req) => poisoning.act(store, work(req), req.params.id, req.params.action, {
+    from: str(req.body.from), who: str(req.body.who), advice: str(req.body.advice), plan: str(req.body.plan), watchUntil: str(req.body.watchUntil),
+    checks: Array.isArray(req.body.checks) ? req.body.checks.slice(0, 6).map((c: any) => ({ what: str(c?.what), dueAt: str(c?.dueAt) })) : [],
+    checkId: str(req.body.checkId), safety: str(req.body.safety), note: str(req.body.note), admittedTo: str(req.body.admittedTo),
+  }));
   r.on('POST', '/api/work/patients/:id/decisions', (req) => decisions.raise(store, work(req), req.params.id, { question: str(req.body.question), background: str(req.body.background) }));
   r.on('POST', '/api/work/decisions/:id/:action', (req) => decisions.act(store, work(req), req.params.id, req.params.action, {
     option: str(req.body.option), benefits: str(req.body.benefits), risks: str(req.body.risks), theirView: str(req.body.theirView), tookPart: str(req.body.tookPart),
