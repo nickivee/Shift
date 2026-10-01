@@ -4061,4 +4061,68 @@ CREATE TABLE clinical_decision_step (
 CREATE INDEX clinical_decision_step_d ON clinical_decision_step(decision_id, at);
 `,
   },
+  {
+    version: 78,
+    name: 'poisoning',
+    sql: `
+-- Poisoning and overdose (entry 117): what, how much, how, when and why → advice as given →
+-- the doctor's plan with timed checks → checks done → medically cleared, or admitted.
+CREATE TABLE toxic_exposure (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ASSESSING | MONITORING | CLEARED | ADMITTED
+  substances TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  route TEXT NOT NULL,
+  taken_at TEXT,
+  time_known TEXT NOT NULL,             -- KNOWN | ESTIMATED | UNKNOWN
+  intent TEXT NOT NULL,                 -- ACCIDENTAL | DELIBERATE | RECREATIONAL | WORK | UNKNOWN
+  source TEXT NOT NULL,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  plan TEXT,
+  planned_by TEXT REFERENCES workforce_person(id),
+  watch_until TEXT,
+  safety TEXT,
+  safety_by TEXT REFERENCES workforce_person(id),
+  safety_at TEXT,
+  admitted_to TEXT,
+  outcome_note TEXT,
+  outcome_by TEXT REFERENCES workforce_person(id),
+  outcome_at TEXT
+);
+CREATE INDEX toxic_exposure_person ON toxic_exposure(person_id, state);
+CREATE TABLE toxic_advice (
+  id TEXT PRIMARY KEY,
+  exposure_id TEXT NOT NULL REFERENCES toxic_exposure(id),
+  source TEXT NOT NULL,                 -- POISONS_CENTRE | TOXICOLOGIST | OTHER
+  who TEXT NOT NULL,
+  advice TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX toxic_advice_e ON toxic_advice(exposure_id);
+CREATE TABLE toxic_check (
+  id TEXT PRIMARY KEY,
+  exposure_id TEXT NOT NULL REFERENCES toxic_exposure(id),
+  what TEXT NOT NULL,
+  due_at TEXT NOT NULL,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  done_by TEXT REFERENCES workforce_person(id),
+  done_at TEXT,
+  note TEXT
+);
+CREATE INDEX toxic_check_e ON toxic_check(exposure_id, due_at);
+CREATE TABLE toxic_step (
+  id TEXT PRIMARY KEY,
+  exposure_id TEXT NOT NULL REFERENCES toxic_exposure(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX toxic_step_e ON toxic_step(exposure_id, at);
+`,
+  },
 ];

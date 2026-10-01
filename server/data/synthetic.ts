@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 77;
+const SET = 78;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -404,6 +404,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 75) set75(store);
     if (at < 76) set76(store);
     if (at < 77) set77(store);
+    if (at < 78) set78(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4643,4 +4644,48 @@ function set77(store: Store): void {
     options: [
       ['Stay in for a second troponin and a heart review', 'Rules out a heart attack before going home', 'A night in hospital; he is worried about his job'],
     ] });
+}
+
+// Set 78: poisoning in ED. Jess took about 20 paracetamol tablets deliberately; the Poisons Centre
+// advised a level at 4 hours, which is due soon, and her safety assessment is not done yet. Rangi
+// has just arrived after oven cleaner splashed in his eye; nothing is recorded yet.
+function set78(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const ravi = who('ravi'), mere = who('mere');
+  if (!ravi || !mere) return;
+  if (!store.get("SELECT 1 FROM service WHERE id = 'svc-ed'")) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (p: { given: string; family: string; dob: string; gender: string; ethnicity: string; nhi: string; location: string; arrivedMinsAgo: number }) => {
+    const existing = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", p.nhi);
+    if (existing) return null;
+    const id = newId();
+    store.insert('person', { id, family_name: p.family, given_name: p.given, date_of_birth: p.dob, gender: p.gender, ethnicity: p.ethnicity, iwi: null, data_source: 'SYNTHETIC', created_at: at(p.arrivedMinsAgo) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'NHI', value: p.nhi, verification: 'SYNTHETIC', created_at: at(p.arrivedMinsAgo) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(p.arrivedMinsAgo) });
+    store.insert('encounter', { id: newId(), person_id: id, service_id: 'svc-ed', location: p.location, kind: 'EMERGENCY', started_at: at(p.arrivedMinsAgo), state: 'ACTIVE' });
+    return id;
+  };
+  const jess = patient({ given: 'Jess', family: 'Walker', dob: '2004-04-11', gender: 'Female', ethnicity: 'NZ European', nhi: 'ZZZ0180', location: 'Minors 4', arrivedMinsAgo: 100 });
+  patient({ given: 'Rangi', family: 'Tane', dob: '1985-09-30', gender: 'Male', ethnicity: 'Māori', nhi: 'ZZZ0188', location: 'Minors 1', arrivedMinsAgo: 15 });
+  if (!jess) return;
+  const id = newId();
+  const taken = 210;
+  const step = (kind: string, body: string, by: string, mins: number) => store.insert('toxic_step', { id: newId(), exposure_id: id, kind, body, by_id: by, at: at(mins) });
+  const trans = (from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'toxic_exposure', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const plan = 'Obs hourly; tell me if vomiting, drowsy or right-sided tummy pain. Level at 4 hours after she took them, then I will decide on acetylcysteine with the Poisons Centre advice.';
+  store.insert('toxic_exposure', {
+    id, person_id: jess, service_id: 'svc-ed', state: 'MONITORING', substances: 'Paracetamol 500 mg tablets', amount: 'About 20 tablets; packet of 24 found with 4 left', route: 'ORAL',
+    taken_at: at(taken), time_known: 'ESTIMATED', intent: 'DELIBERATE', source: 'Jess, and her flatmate who found her', recorded_by: mere, recorded_at: at(95),
+    plan, planned_by: ravi, watch_until: null,
+  });
+  trans(null, 'ASSESSING', mere, 95, 'Paracetamol 500 mg tablets');
+  step('RECORDED', 'Paracetamol 500 mg tablets: About 20 tablets; packet of 24 found with 4 left. Swallowed. Time estimated. Deliberate self-harm. Told by Jess, and her flatmate who found her.', mere, 95);
+  store.insert('toxic_advice', { id: newId(), exposure_id: id, source: 'POISONS_CENTRE', who: 'Sam, by phone', advice: 'Single ingestion, time estimated about 3.5 hours ago. Paracetamol level at 4 hours after ingestion and plot it; treat if on or above the line. Obs hourly. Call back if the time turns out to be unclear or she becomes unwell.', by_id: mere, at: at(80) });
+  step('ADVICE', 'National Poisons Centre (Sam, by phone): Paracetamol level at 4 hours after ingestion and plot it; treat if on or above the line. Obs hourly.', mere, 80);
+  trans('ASSESSING', 'MONITORING', ravi, 70, 'Plan made');
+  store.insert('toxic_check', { id: newId(), exposure_id: id, what: 'Paracetamol level (4 hours after)', due_at: new Date(Date.now() + (240 - taken) * 60_000).toISOString(), added_by: ravi });
+  store.insert('toxic_check', { id: newId(), exposure_id: id, what: 'Liver tests and INR with the level', due_at: new Date(Date.now() + (240 - taken) * 60_000).toISOString(), added_by: ravi });
+  step('PLAN', `Plan: ${plan} Checks: Paracetamol level (4 hours after); Liver tests and INR with the level.`, ravi, 70);
 }

@@ -39,6 +39,8 @@ export type Operation =
   | { op: 'TEST_ORDER'; personId: string }
   | { op: 'PROCEDURE'; personId: string }
   | { op: 'DECISION'; personId: string }
+  | { op: 'POISON'; personId: string }
+  | { op: 'POISON_MANAGE'; personId: string }
   | { op: 'PROCEDURE_RECOVERY'; personId: string }
   | { op: 'TEST_COLLECT'; personId: string }
   | { op: 'RESULT_RECEIVE'; personId: string }
@@ -404,6 +406,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'POISON':
+      return (ctx.role.capabilities.includes('poison.manage') ? null : need(ctx, 'poison.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-POISON-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record a poisoning`));
+    case 'POISON_MANAGE':
+      return need(ctx, 'poison.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-POISON-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their poisoning care`));
     case 'DECISION':
       return need(ctx, 'decision.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-DECISION-001'])
