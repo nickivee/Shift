@@ -37,6 +37,8 @@ export type Operation =
   | { op: 'CONFERENCE'; personId: string }
   | { op: 'REHAB'; personId: string }
   | { op: 'TEST_ORDER'; personId: string }
+  | { op: 'PROCEDURE'; personId: string }
+  | { op: 'PROCEDURE_RECOVERY'; personId: string }
   | { op: 'TEST_COLLECT'; personId: string }
   | { op: 'RESULT_RECEIVE'; personId: string }
   | { op: 'DEVICE_REPORT'; personId: string }
@@ -401,6 +403,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'PROCEDURE':
+      return need(ctx, 'procedure.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-PROC-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can do their procedures`));
+    case 'PROCEDURE_RECOVERY':
+      return (ctx.role.capabilities.includes('procedure.manage') ? null : need(ctx, 'procedure.recover')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-PROC-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can look after their recovery`));
     case 'TEST_ORDER':
       return need(ctx, 'test.order') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG])

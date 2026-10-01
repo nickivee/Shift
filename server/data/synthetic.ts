@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 75;
+const SET = 76;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -402,6 +402,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 73) set73(store);
     if (at < 74) set74(store);
     if (at < 75) set75(store);
+    if (at < 76) set76(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4496,5 +4497,83 @@ function set75(store: Store): void {
   if (frank) {
     phoned({ personId: frank, test: 'Sodium', value: '119', units: 'mmol/L', range: '135–145', by: kate, mins: 6 * 60, from: 'Sam, lab scientist', told: 'Dr Whyte (GP), by phone',
       ack: { by: kate, mins: 5 * 60 + 45, plan: 'Dr Whyte (GP), by phone: Limit fluids to 1 litre a day; GP to review his medicines tomorrow; repeat sodium tomorrow; call if more drowsy or confused.' } });
+  }
+}
+
+// Set 76: procedures. Sione's toe debridement is planned with his written consent and the verified
+// site check; Wiremu's pleural tap is proposed (his site check does not match the X-ray). In ED, Ana
+// is recovering after her finger was put back in place.
+function set76(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const hannah = who('hannah'), ravi = who('ravi');
+  if (!hannah || !ravi) return;
+  const trans = (type: string, id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('clinical_procedure_step', { id: newId(), procedure_id: id, kind, body, by_id: by, at: at(mins) });
+  const consent = (c: { personId: string; service: string; what: string; information: string; understood: string; form: string; formRef?: string; by: string; mins: number; state?: string }) => {
+    const id = newId();
+    const say = `Said yes: ${c.what}. ${c.form === 'WRITTEN' ? 'Signed a consent form' : 'Said it out loud'}${c.formRef ? ` (${c.formRef})` : ''}.`;
+    store.insert('consent', {
+      id, person_id: c.personId, service_id: c.service, what: c.what, kind: 'PROCEDURE', capacity_id: null, decision: 'CONSENTED', state: c.state ?? 'CONSENTED',
+      information: c.information, understood: c.understood, support: null, form: c.form, form_ref: c.formRef ?? null, their_words: null, recorded_by: c.by, recorded_at: at(c.mins),
+    });
+    trans('consent', id, null, 'CONSENTED', c.by, c.mins, say);
+    store.insert('consent_log', { id: newId(), consent_id: id, kind: 'CONSENTED', body: say, by_id: c.by, at: at(c.mins) });
+    return id;
+  };
+
+  const sione = person('ZZZ0024');
+  if (sione && !store.get('SELECT 1 FROM clinical_procedure WHERE person_id = ?', sione)) {
+    const site = store.get<{ id: string }>("SELECT id FROM site_verification WHERE person_id = ? AND procedure = 'Debridement of toe ulcer'", sione)?.id ?? null;
+    const c = consent({ personId: sione, service: 'svc-genmed', what: 'Debridement of toe ulcer', form: 'WRITTEN', formRef: 'Form C-12', by: hannah, mins: 280,
+      information: 'Explained cleaning away the dead tissue on his right big toe under local anaesthetic, why it helps it heal, the risks of bleeding, infection and that more may be needed later, and that he can say no.',
+      understood: 'He said back that it is to clean the ulcer so it heals, and that it might bleed. Asked if he would be awake; answered yes.' });
+    const id = newId();
+    store.insert('clinical_procedure', {
+      id, person_id: sione, service_id: 'svc-genmed', what: 'Debridement of toe ulcer', why: 'Diabetic ulcer on the right big toe with dead tissue; not healing.', state: 'PLANNED',
+      proposed_by: hannah, proposed_at: at(300), consent_id: c, site_id: site, planned_for: at(-60), place: 'Ward K treatment room', operator_id: hannah,
+    });
+    trans('clinical_procedure', id, null, 'PROPOSED', hannah, 300, 'Debridement of toe ulcer');
+    step(id, 'PROPOSED', 'Proposed: Debridement of toe ulcer. Diabetic ulcer on the right big toe with dead tissue; not healing.', hannah, 300);
+    trans('clinical_procedure', id, 'PROPOSED', 'PLANNED', hannah, 270, 'Planned');
+    step(id, 'PLANNED', 'Planned for this afternoon at Ward K treatment room, by Dr Hannah Li. Consent: Debridement of toe ulcer.', hannah, 270);
+  }
+
+  const wiremu = person('ZZZ0016');
+  if (wiremu && !store.get('SELECT 1 FROM clinical_procedure WHERE person_id = ?', wiremu)) {
+    const id = newId();
+    store.insert('clinical_procedure', {
+      id, person_id: wiremu, service_id: 'svc-genmed', what: 'Diagnostic pleural tap', why: 'New pleural effusion on the chest X-ray; need to know whether it is infected.', state: 'PROPOSED',
+      proposed_by: hannah, proposed_at: at(240),
+    });
+    trans('clinical_procedure', id, null, 'PROPOSED', hannah, 240, 'Diagnostic pleural tap');
+    step(id, 'PROPOSED', 'Proposed: Diagnostic pleural tap. New pleural effusion on the chest X-ray; need to know whether it is infected.', hannah, 240);
+  }
+
+  const ana = person('ZZZ0121');
+  if (ana && !store.get('SELECT 1 FROM clinical_procedure WHERE person_id = ?', ana)) {
+    const c = consent({ personId: ana, service: 'svc-ed', what: 'Putting her finger back in place', form: 'VERBAL', by: ravi, mins: 70, state: 'DONE',
+      information: 'Explained pulling the dislocated finger back into place after a numbing injection, that it would hurt briefly, and that an X-ray comes after.',
+      understood: 'She said it back and asked how long it takes; answered a few seconds.' });
+    trans('consent', c, 'CONSENTED', 'DONE', ravi, 40, 'Putting her finger back in place: done as planned');
+    store.insert('consent_log', { id: newId(), consent_id: c, kind: 'DONE', body: 'Reduction of dislocated finger: done as planned.', by_id: ravi, at: at(40) });
+    const id = newId();
+    const plan = 'Check circulation and feeling in the finger every 30 min for 1 hour; X-ray after.';
+    store.insert('clinical_procedure', {
+      id, person_id: ana, service_id: 'svc-ed', what: 'Reduction of dislocated finger', why: 'Left ring finger dislocated at the middle joint playing netball.', state: 'RECOVERY',
+      proposed_by: ravi, proposed_at: at(75), consent_id: c, planned_for: at(50), place: 'ED procedure room', operator_id: ravi, started_at: at(48), ended_at: at(40),
+      how: 'COMPLETED', findings: 'Ring block; reduced first attempt; joint stable afterwards; buddy-strapped.', complications: null, recovery_plan: plan,
+    });
+    trans('clinical_procedure', id, null, 'PROPOSED', ravi, 75, 'Reduction of dislocated finger');
+    trans('clinical_procedure', id, 'PROPOSED', 'PLANNED', ravi, 60, 'Planned');
+    trans('clinical_procedure', id, 'PLANNED', 'IN_PROGRESS', ravi, 48, 'Started');
+    trans('clinical_procedure', id, 'IN_PROGRESS', 'RECOVERY', ravi, 40, 'Done as planned');
+    step(id, 'PROPOSED', 'Proposed: Reduction of dislocated finger. Left ring finger dislocated at the middle joint playing netball.', ravi, 75);
+    step(id, 'PLANNED', 'Planned now at ED procedure room, by Dr Ravi Singh. Consent: Putting her finger back in place.', ravi, 60);
+    step(id, 'STARTED', 'Started.', ravi, 48);
+    step(id, 'DONE', `Done as planned. Ring block; reduced first attempt; joint stable afterwards; buddy-strapped. No complications. Recovery: ${plan}`, ravi, 40);
   }
 }

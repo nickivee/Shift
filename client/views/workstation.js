@@ -28,6 +28,7 @@ import { devicesPanel } from './devices.js';
 import { handoversPanel } from './handovers.js';
 import { conferencesPanel } from './conferences.js';
 import { rehabPanel } from './rehab.js';
+import { proceduresPanel } from './procedures.js';
 import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
@@ -418,8 +419,8 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab ? h('h3', {}, d.view.label) : null, addButton(),
-          d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
+        return h('div', { class: 'stack' }, proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+          d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return overview(d);
       case 'meds': return h('div', { class: 'stack' },
         restriction(d.prescribing, 'Prescribing'), restriction(d.administration, 'Administration recording'),
@@ -675,6 +676,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-critical critical-result', onclick: () => openView('results') }, icon('alert'),
         h('span', {}, h('b', {}, 'CRITICAL RESULT NOT ACKNOWLEDGED'),
           patient.criticalResults.map((r) => `${r.test} ${r.value} ${r.units ?? ''} (${fmtDateTime(r.at)})${r.toldDoctor ? `, told ${r.toldDoctor}` : ''}`).join(' · '))));
+    }
+    if (patient.recovering) {
+      const x = patient.recovering;
+      block.append(h('button', { class: 'patient-procedure', onclick: () => openView('procedures') }, icon('alert'),
+        h('span', {}, h('b', {}, `RECOVERING AFTER ${String(x.what).toUpperCase()}`), `Since ${fmtDateTime(x.endedAt)} · ${x.plan}`)));
     }
     if (patient.handoverOpen) {
       const x = patient.handoverOpen;
