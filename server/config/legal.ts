@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-DECISION-001',
+    question: 'What New Zealand requires when a doctor makes a significant treatment decision with a patient: the information that must be given about options, benefits and risks (Code of Rights Rights 6 and 7), which decisions must be documented and how, what must happen when the patient does not agree, and how decisions are made and recorded when the patient cannot take part (see RR-CAP-001).',
+    blocks: 'Rules on which decisions must be recorded, what must be explained, and who may decide when the patient cannot take part. SHIFT records the question, why now, each option with its benefits and risks, what the person wants and whether they could take part, who else was involved, the option chosen and why, whether they agree, and when to look at it again.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-PROC-001',
     question: 'What New Zealand requires around procedures done on wards and in emergency departments: which procedures need written rather than verbal consent (Code of Rights Right 7(6)), when treatment may go ahead without consent in an emergency (Right 7(4)) and what must be recorded, who may perform each procedure, the safety checks required before starting (including the surgical safety checklist and time-out), recovery observation requirements, and how complications must be recorded and reported.',
     blocks: 'Rules on which procedures need written consent, emergency treatment without consent, required pre-procedure checks and recovery observations. SHIFT records the procedure, why, the linked consent or the doctor\'s reason it could not wait, the linked site check, who did it, how it went, findings and complications, the recovery plan, when they recovered and any follow-up.',

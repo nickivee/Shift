@@ -972,3 +972,7 @@ tr.corrected td:last-child, tr.corrected td:nth-child(5) { text-decoration: none
 .patient-procedure svg { width: 24px; height: 24px; flex: none; color: var(--warn); }
 .patient-procedure b { display: block; font-size: 13px; letter-spacing: .6px; }
 .procedure { border-left: 4px solid var(--line); }
+.decision { border-left: 4px solid var(--ink-soft); }
+.decision-chosen { border: 1px solid var(--ok); background: var(--ok-bg); border-radius: 12px; padding: 8px 12px; }
+.decision-chosen > b { color: var(--ok); }
+tr.chosen td { background: var(--ok-bg); }

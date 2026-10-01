@@ -4011,4 +4011,54 @@ CREATE TABLE clinical_procedure_step (
 CREATE INDEX clinical_procedure_step_p ON clinical_procedure_step(procedure_id, at);
 `,
   },
+  {
+    version: 77,
+    name: 'clinical decisions',
+    sql: `
+-- Clinical decision (SLO 238): question and why now → options with benefits and risks → what the
+-- person wants and whether they could take part → decided, why, whether they agree, when to look
+-- again → still right, or think again.
+CREATE TABLE clinical_decision (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  question TEXT NOT NULL,
+  background TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- OPEN | DECIDED | CLOSED
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL,
+  their_view TEXT,
+  took_part TEXT,                       -- YES | PARTLY | NO
+  took_part_note TEXT,
+  others TEXT,
+  chosen_id TEXT,
+  reason TEXT,
+  agreed TEXT,                          -- AGREED | NOT_AGREED | COULD_NOT_SAY
+  decided_by TEXT REFERENCES workforce_person(id),
+  decided_at TEXT,
+  review_on TEXT,
+  closed_note TEXT
+);
+CREATE INDEX clinical_decision_person ON clinical_decision(person_id, state);
+CREATE TABLE clinical_decision_option (
+  id TEXT PRIMARY KEY,
+  decision_id TEXT NOT NULL REFERENCES clinical_decision(id),
+  option TEXT NOT NULL,
+  benefits TEXT NOT NULL,
+  risks TEXT NOT NULL,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  added_at TEXT NOT NULL
+);
+CREATE INDEX clinical_decision_option_d ON clinical_decision_option(decision_id);
+CREATE TABLE clinical_decision_step (
+  id TEXT PRIMARY KEY,
+  decision_id TEXT NOT NULL REFERENCES clinical_decision(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX clinical_decision_step_d ON clinical_decision_step(decision_id, at);
+`,
+  },
 ];

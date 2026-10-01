@@ -58,6 +58,8 @@ import { forPerson as conferencesFor } from './conferences.ts';
 import { forPerson as rehabFor } from './rehab.ts';
 import { forPerson as diagnosticsFor, current as criticalNow } from './diagnostics.ts';
 import { forPerson as proceduresFor, current as recoveringNow } from './procedures.ts';
+import { forPerson as decisionsFor } from './decisions.ts';
+import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -311,7 +313,8 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       );
       body = { events: rows.map((r) => shapeEvent(store, ctx, r)), conferences: ['review', 'goals'].includes(view.code) ? conferencesFor(store, ctx, personId) : null,
         rehab: ['review', 'treatment'].includes(view.code) ? rehabFor(store, ctx, personId) : null,
-        procedures: view.code === 'procedures' ? proceduresFor(store, ctx, personId) : null };
+        procedures: view.code === 'procedures' ? proceduresFor(store, ctx, personId) : null,
+        decisions: DECISIONS_IN[ctx.role.roleKey] === view.code ? decisionsFor(store, ctx, personId) : null };
       break;
     }
     case 'history': {
@@ -320,7 +323,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     }
     case 'overview':
-      body = overview(store, ctx, personId);
+      body = { ...overview(store, ctx, personId), decisions: DECISIONS_IN[ctx.role.roleKey] === 'overview' ? decisionsFor(store, ctx, personId) : null };
       break;
     case 'meds':
       body = {
@@ -340,7 +343,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = allergiesFor(store, ctx, personId);
       break;
     case 'careplan':
-      body = { ...carePlanFor(store, ctx, personId), conferences: conferencesFor(store, ctx, personId), rehab: rehabFor(store, ctx, personId) };
+      body = { ...carePlanFor(store, ctx, personId), conferences: conferencesFor(store, ctx, personId), rehab: rehabFor(store, ctx, personId), decisions: DECISIONS_IN[ctx.role.roleKey] === 'careplan' ? decisionsFor(store, ctx, personId) : null };
       break;
     case 'tasks':
       body = { tasks: tasksFor(store, ctx, { personId }) };
