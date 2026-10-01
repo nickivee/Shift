@@ -40,6 +40,9 @@ export type Operation =
   | { op: 'PROCEDURE'; personId: string }
   | { op: 'DECISION'; personId: string }
   | { op: 'POISON'; personId: string }
+  | { op: 'TRAUMA'; personId: string }
+  | { op: 'TRAUMA_MANAGE'; personId: string }
+  | { op: 'TRAUMA_TERTIARY'; personId: string }
   | { op: 'POISON_MANAGE'; personId: string }
   | { op: 'PROCEDURE_RECOVERY'; personId: string }
   | { op: 'TEST_COLLECT'; personId: string }
@@ -406,6 +409,18 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'TRAUMA':
+      return (ctx.role.capabilities.includes('trauma.manage') ? null : need(ctx, 'trauma.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-TRAUMA-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can make a trauma call`));
+    case 'TRAUMA_MANAGE':
+      return need(ctx, 'trauma.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-TRAUMA-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their trauma surveys`));
+    case 'TRAUMA_TERTIARY':
+      return (ctx.role.capabilities.includes('trauma.manage') ? null : need(ctx, 'trauma.tertiary')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-TRAUMA-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can do their tertiary survey`));
     case 'POISON':
       return (ctx.role.capabilities.includes('poison.manage') ? null : need(ctx, 'poison.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-POISON-001'])

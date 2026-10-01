@@ -4125,4 +4125,62 @@ CREATE TABLE toxic_step (
 CREATE INDEX toxic_step_e ON toxic_step(exposure_id, at);
 `,
   },
+  {
+    version: 79,
+    name: 'major trauma',
+    sql: `
+-- Major trauma (entry 118): trauma call → primary survey → secondary survey → injuries → where
+-- next (admitted, transferred, home) → tertiary survey on the ward → complete.
+CREATE TABLE trauma_case (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ACTIVE | ADMITTED | COMPLETE
+  team_call TEXT NOT NULL,              -- FULL | ALERT
+  mechanism TEXT NOT NULL,
+  injured_at TEXT,
+  prehospital TEXT,
+  activated_by TEXT NOT NULL REFERENCES workforce_person(id),
+  activated_at TEXT NOT NULL,
+  next TEXT,                            -- ADMITTED | TRANSFERRED | HOME
+  next_note TEXT,
+  next_by TEXT REFERENCES workforce_person(id),
+  next_at TEXT
+);
+CREATE INDEX trauma_case_person ON trauma_case(person_id, state);
+CREATE TABLE trauma_survey (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES trauma_case(id),
+  kind TEXT NOT NULL,                   -- PRIMARY | SECONDARY | TERTIARY
+  airway TEXT,
+  breathing TEXT,
+  circulation TEXT,
+  disability TEXT,
+  exposure TEXT,
+  findings TEXT,
+  actions TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX trauma_survey_c ON trauma_survey(case_id, at);
+CREATE TABLE trauma_injury (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES trauma_case(id),
+  injury TEXT NOT NULL,
+  found_by TEXT NOT NULL,               -- PRIMARY | SECONDARY | IMAGING | TERTIARY
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX trauma_injury_c ON trauma_injury(case_id);
+CREATE TABLE trauma_step (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES trauma_case(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX trauma_step_c ON trauma_step(case_id, at);
+`,
+  },
 ];
