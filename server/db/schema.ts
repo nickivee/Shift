@@ -4233,4 +4233,32 @@ CREATE TABLE feed_step (
 CREATE INDEX feed_step_p ON feed_step(plan_id, at);
 `,
   },
+  {
+    version: 81,
+    name: 'equipment lent for home',
+    sql: `
+-- Equipment lent to a person to take home (entry 198): lent with how it was fitted and when it is
+-- due back → returned and its condition → cleaned before reuse, or taken out of use, or written off.
+CREATE TABLE equipment_loan (
+  id TEXT PRIMARY KEY,
+  equipment_id TEXT NOT NULL REFERENCES equipment(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  purpose TEXT NOT NULL,
+  fitted TEXT NOT NULL,
+  return_by TEXT,
+  lent_by TEXT NOT NULL REFERENCES workforce_person(id),
+  lent_at TEXT NOT NULL,
+  returned_by TEXT REFERENCES workforce_person(id),
+  returned_at TEXT,
+  condition TEXT,                       -- GOOD | DAMAGED | INCOMPLETE | LOST
+  return_note TEXT,
+  cleaned_by TEXT REFERENCES workforce_person(id),
+  cleaned_at TEXT,
+  clean_note TEXT
+);
+CREATE INDEX equipment_loan_person ON equipment_loan(person_id, returned_at);
+CREATE INDEX equipment_loan_equipment ON equipment_loan(equipment_id, cleaned_at);
+`,
+  },
 ];

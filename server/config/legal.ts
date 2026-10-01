@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-LOAN-001',
+    question: 'What New Zealand requires when a hospital lends equipment such as walking frames, crutches, shower stools and wheelchairs for use at home: who funds it and who is eligible (ACC, Whaikaha – Ministry of Disabled People equipment services, Te Whatu Ora short-term loans), the cleaning and decontamination standard for reusable equipment between people, and how long a loan may run before a long-term assessment is needed.',
+    blocks: 'Funding and eligibility decisions, loan length limits and the cleaning standard. SHIFT records what was lent, to whom, what it is for, how it was fitted and what they were shown, when it is due back, the condition it came back in, and who cleaned it and how before anyone else has it.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-FEED-001',
     question: 'What New Zealand requires for tube feeding in hospital and aged residential care: how and when a nasogastric tube position must be confirmed before use (including pH thresholds and X-ray rules), who may prescribe enteral feeds and change rates, refeeding syndrome risk assessment and monitoring, and the competencies needed for registered nurses and caregivers to give feeds through a PEG.',
     blocks: 'Tube position check methods and thresholds, refeeding risk rules, feed prescribing authority and caregiver delegation for tube feeds. SHIFT records the feed, rate, volumes, flushes and daily amount exactly as prescribed and by whom, what they may have by mouth, each feed, flush or hold and how it was tolerated, and reviews. It uses the tube position status from Lines and tubes and never feeds through a tube marked do not use.',

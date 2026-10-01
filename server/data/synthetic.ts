@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 80;
+const SET = 81;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -407,6 +407,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 78) set78(store);
     if (at < 79) set79(store);
     if (at < 80) set80(store);
+    if (at < 81) set81(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4843,4 +4844,53 @@ function set80(store: Store): void {
       store.insert('allocation', { id: newId(), workforce_person_id: tama, person_id: betty, service_id: 'svc-arc', shift_date: date, created_at: at(0) });
     }
   }
+}
+
+// Set 81: equipment lent for home. Physiotherapy keeps a small stock of aids. Peggy was lent a
+// walking frame this morning ahead of going home. Sione still has a shower stool from his last
+// admission, now overdue back. James's crutches came back yesterday and wait to be cleaned.
+function set81(store: Store): void {
+  if (store.get("SELECT 1 FROM equipment WHERE asset_tag = 'PT-WF01'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 1440;
+  const date = (days: number) => new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA');
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const nhi = (v: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", v)?.id;
+  const lena = who('lena');
+  if (!lena) return;
+  const items: [string, string, string, number][] = [
+    ['PT-WF01', 'WALKING_FRAME', 'Four-wheeled walker with seat, adjustable height', 300],
+    ['PT-WF02', 'WALKING_FRAME', 'Pick-up frame, adjustable height', 200],
+    ['PT-WF03', 'WALKING_FRAME', 'Two-wheeled frame, adjustable height', 250],
+    ['PT-CR01', 'CRUTCHES', 'Elbow crutches, pair, adjustable', 180],
+    ['PT-CR02', 'CRUTCHES', 'Elbow crutches, pair, adjustable', 180],
+    ['PT-ST01', 'WALKING_STICK', 'Walking stick, adjustable, with wrist strap', 365],
+    ['PT-SS01', 'SHOWER_STOOL', 'Shower stool with back, height adjustable', 120],
+    ['PT-TF01', 'TOILET_FRAME', 'Toilet surround frame with raised seat', 150],
+  ];
+  const ids: Record<string, string> = {};
+  for (const [tag, kind, description, due] of items) {
+    const id = newId();
+    ids[tag] = id;
+    store.insert('equipment', { id, organisation_id: 'org-hosp', service_id: 'svc-physio', asset_tag: tag, kind, description, service_due: date(due), state: 'AVAILABLE', added_by: lena, added_at: at(400 * day) });
+    store.insert('state_transition', { id: newId(), object_type: 'equipment', object_id: id, from_state: null, to_state: 'AVAILABLE', actor_id: lena, work_context_id: null, at: at(400 * day), reason: 'Added to the register', transaction_id: null });
+  }
+  const move = (tag: string, from: string, to: string, mins: number, reason: string) => {
+    store.run('UPDATE equipment SET state = ? WHERE id = ?', to, ids[tag]);
+    store.insert('state_transition', { id: newId(), object_type: 'equipment', object_id: ids[tag], from_state: from, to_state: to, actor_id: lena, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  };
+  const lend = (tag: string, personId: string | undefined, purpose: string, fitted: string, mins: number, back: number, returned?: { mins: number; note?: string }) => {
+    if (!personId) return;
+    store.insert('equipment_loan', { id: newId(), equipment_id: ids[tag], person_id: personId, service_id: 'svc-physio', purpose, fitted, return_by: date(back), lent_by: lena, lent_at: at(mins),
+      returned_by: returned ? lena : null, returned_at: returned ? at(returned.mins) : null, condition: returned ? 'GOOD' : null, return_note: returned?.note ?? null });
+    store.insert('equipment_event', { id: newId(), equipment_id: ids[tag], kind: 'LENT', note: `${purpose}. ${fitted}`, person_id: personId, patient_affected: null, by_id: lena, at: at(mins) });
+    move(tag, 'AVAILABLE', 'ON_LOAN', mins, purpose);
+    if (returned) {
+      store.insert('equipment_event', { id: newId(), equipment_id: ids[tag], kind: 'BACK', note: returned.note ?? '', person_id: personId, patient_affected: null, by_id: lena, at: at(returned.mins) });
+      move(tag, 'ON_LOAN', 'CLEANING', returned.mins, 'Returned; to be cleaned');
+    }
+  };
+  lend('PT-WF01', nhi('ZZZ0032'), 'Walking indoors and to the letterbox while her knee settles', 'Handle height set to her wrist crease; practised turning, sitting on the seat and the front step with her daughter', 90, 42);
+  lend('PT-SS01', nhi('ZZZ0024'), 'Sitting to shower after his last admission', 'Height set so his knees are level with his hips; showed his wife how to lock the legs', 70 * day, -14);
+  lend('PT-CR01', nhi('ZZZ0040'), 'Non-weight-bearing on the right after his ankle sprain', 'Set for his height; practised stairs, one at a time, rail on the left', 30 * day, 5, { mins: day, note: 'Brought back by his son; all four ferrules on' });
 }
