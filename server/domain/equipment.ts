@@ -4,6 +4,7 @@ import { enforce } from './record.ts';
 import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
+import { LOANABLE, CONDITION, REFS as LOAN_REFS } from '../config/loans.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Clinical equipment (Shared Lifecycle Object 246):
@@ -16,11 +17,14 @@ import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 type Row = Record<string, string | number | null>;
 export const KINDS: Record<string, string> = {
   INFUSION_PUMP: 'Infusion pump', FEEDING_PUMP: 'Feeding pump', PRESSURE_MATTRESS: 'Pressure-relieving mattress', HOIST: 'Hoist',
-  OBS_MONITOR: 'Observation monitor', SUCTION: 'Suction unit', OTHER: 'Other',
+  OBS_MONITOR: 'Observation monitor', SUCTION: 'Suction unit', ...LOANABLE, OTHER: 'Other',
 };
-const STATES: Record<string, string> = { AVAILABLE: 'Available', IN_USE: 'In use', QUARANTINED: 'Do not use', IN_REPAIR: 'Away for repair', RETIRED: 'Retired' };
+const STATES: Record<string, string> = {
+  AVAILABLE: 'Available', IN_USE: 'In use', ON_LOAN: 'Lent for home', CLEANING: 'Back: clean before reuse', QUARANTINED: 'Do not use', IN_REPAIR: 'Away for repair', RETIRED: 'Retired',
+};
 const EVENTS: Record<string, string> = {
   FAULT: 'Fault reported', SENT_FOR_REPAIR: 'Sent for repair', RETURNED: 'Back in service', NO_FAULT_FOUND: 'No fault found', SERVICED: 'Serviced',
+  LENT: 'Lent for home', BACK: 'Returned from loan', CLEANED: 'Cleaned', LOST: 'Not returned',
 };
 const REFS = ['ORG-SYN-001 v1'];
 
@@ -41,6 +45,19 @@ const USE = `
     JOIN workforce_person sb ON sb.id = u.started_by
     LEFT JOIN workforce_person eb ON eb.id = u.ended_by`;
 
+const LOAN = `
+  SELECT l.id, l.equipment_id AS equipmentId, l.person_id AS personId, p.given_name || ' ' || p.family_name AS patient,
+         l.purpose, l.fitted, l.return_by AS returnBy, lb.display_name AS lentBy, l.lent_at AS lentAt,
+         rb.display_name AS returnedBy, l.returned_at AS returnedAt, l.condition, l.return_note AS returnNote,
+         cb.display_name AS cleanedBy, l.cleaned_at AS cleanedAt, l.clean_note AS cleanNote
+    FROM equipment_loan l
+    JOIN person p ON p.id = l.person_id
+    JOIN workforce_person lb ON lb.id = l.lent_by
+    LEFT JOIN workforce_person rb ON rb.id = l.returned_by
+    LEFT JOIN workforce_person cb ON cb.id = l.cleaned_by`;
+const loanShape = (l: Row | undefined | null) => l ? { ...l, overdue: !l.returnedAt && !!l.returnBy && String(l.returnBy) < todayLocal(), conditionLabel: l.condition ? CONDITION[String(l.condition)] ?? 'Not returned' : null } : null;
+const lends = (ctx: WorkContext) => ctx.role.capabilities.includes('equipment.lend');
+
 const overdue = (q: Row) => !!q.serviceDue && String(q.serviceDue) < todayLocal();
 const dueSoon = (q: Row) => {
   if (!q.serviceDue) return false;
@@ -57,8 +74,12 @@ function shape(store: Store, ctx: WorkContext, q: Row) {
   ).map((v) => ({ ...v, kindLabel: EVENTS[String(v.kind)], patientAffected: v.patientAffected === 1 }));
   const mine = q.serviceId === ctx.serviceId;
   const canUse = ctx.role.capabilities.includes('equipment.use');
+  const loan = ['ON_LOAN', 'CLEANING'].includes(String(q.state)) ? loanShape(store.get<Row>(`${LOAN} WHERE l.equipment_id = ? AND l.cleaned_at IS NULL ORDER BY l.lent_at DESC LIMIT 1`, id)) : null;
+  const loanable = !!LOANABLE[String(q.kind)];
   const manage = mine && ctx.role.capabilities.includes('equipment.manage');
   const actions: string[] = [];
+  if (q.state === 'ON_LOAN' && mine && lends(ctx)) actions.push('back', 'lost');
+  if (q.state === 'CLEANING' && mine && (lends(ctx) || ctx.role.capabilities.includes('equipment.manage'))) actions.push('cleaned');
   if (q.state === 'IN_USE' && canUse) actions.push('end');
   if ((q.state === 'IN_USE' || q.state === 'AVAILABLE') && canUse) actions.push('fault');
   if (q.state === 'QUARANTINED' && manage) actions.push('repair', 'clear');
@@ -67,7 +88,7 @@ function shape(store: Store, ctx: WorkContext, q: Row) {
   if (['AVAILABLE', 'QUARANTINED', 'IN_REPAIR'].includes(String(q.state)) && manage) actions.push('retire');
   return {
     ...q, kindLabel: KINDS[String(q.kind)], stateLabel: STATES[String(q.state)], serviceOverdue: overdue(q), serviceSoon: dueSoon(q),
-    use, events, actions, history: history(store, 'equipment', id),
+    use, loan, loanable, conditionOptions: loanable ? CONDITION : null, events, actions, history: history(store, 'equipment', id),
   };
 }
 
@@ -78,23 +99,36 @@ function logged(store: Store, ctx: WorkContext, operation: string, id: string, p
   });
 }
 
-const options = () => ({ kinds: KINDS });
+const options = () => ({ kinds: KINDS, condition: CONDITION });
 
 // Available equipment this worker may set up for the person: their own service's, and the
 // service where the person is staying.
 function available(store: Store, ctx: WorkContext, personId: string) {
   return store.all<Row>(
-    `${SELECT} WHERE q.state = 'AVAILABLE' AND (q.service_id = ?
+    `${SELECT} WHERE q.state = 'AVAILABLE' AND q.kind NOT IN (${Object.keys(LOANABLE).map(() => '?').join(',')}) AND (q.service_id = ?
        OR q.service_id IN (SELECT service_id FROM encounter WHERE person_id = ? AND state = 'ACTIVE')) ORDER BY q.kind, q.asset_tag`,
-    ctx.serviceId, personId,
+    ...Object.keys(LOANABLE), ctx.serviceId, personId,
   ).map((q) => ({ id: q.id, assetTag: q.assetTag, kindLabel: KINDS[String(q.kind)], description: q.description, service: q.service, serviceOverdue: overdue(q) }));
+}
+
+// Aids this worker's service can lend to take home.
+function lendable(store: Store, ctx: WorkContext) {
+  return store.all<Row>(`${SELECT} WHERE q.state = 'AVAILABLE' AND q.service_id = ? AND q.kind IN (${Object.keys(LOANABLE).map(() => '?').join(',')}) ORDER BY q.kind, q.asset_tag`,
+    ctx.serviceId, ...Object.keys(LOANABLE),
+  ).map((q) => ({ id: q.id, assetTag: q.assetTag, kindLabel: KINDS[String(q.kind)], description: q.description, serviceOverdue: overdue(q) }));
 }
 
 export function forPerson(store: Store, ctx: WorkContext, personId: string) {
   const current = store.all<{ equipmentId: string }>(`${USE} WHERE u.person_id = ? AND u.ended_at IS NULL ORDER BY u.started_at`, personId);
   const past = store.all<Row>(`${USE} WHERE u.person_id = ? AND u.ended_at IS NOT NULL ORDER BY u.ended_at DESC LIMIT 5`, personId);
   const canUse = evaluate(store, ctx, { op: 'EQUIPMENT_USE', personId }).decision === 'ALLOW';
+  const canLend = lends(ctx) && evaluate(store, ctx, { op: 'EQUIPMENT_LEND', personId }).decision === 'ALLOW';
+  const loans = store.all<Row>(`${LOAN} WHERE l.person_id = ? AND l.returned_at IS NULL ORDER BY l.lent_at`, personId)
+    .map((l) => ({ ...loanShape(l), equipment: shape(store, ctx, store.get<Row>(`${SELECT} WHERE q.id = ?`, String(l.equipmentId))!) }));
+  const loansPast = store.all<Row>(`${LOAN} WHERE l.person_id = ? AND l.returned_at IS NOT NULL ORDER BY l.returned_at DESC LIMIT 5`, personId)
+    .map((l) => ({ ...loanShape(l), equipment: store.get<Row>('SELECT asset_tag AS assetTag, kind FROM equipment WHERE id = ?', String(l.equipmentId)) }));
   return {
+    loans, loansPast, canLend, lendable: canLend ? lendable(store, ctx) : [],
     equipment: current.map((u) => shape(store, ctx, store.get<Row>(`${SELECT} WHERE q.id = ?`, u.equipmentId)!)),
     past: past.map((u) => ({ ...u, equipment: store.get<Row>('SELECT asset_tag AS assetTag, kind FROM equipment WHERE id = ?', String(u.equipmentId)) })),
     available: canUse ? available(store, ctx, personId) : [], canUse, options: options(),
@@ -129,7 +163,31 @@ export function start(store: Store, ctx: WorkContext, personId: string, b: { equ
   return shape(store, ctx, load(store, String(q.id)));
 }
 
-export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string; patientAffected?: boolean; serviceDue?: string }) {
+// Lend an aid to take home: fitted, shown how to use it, and when it is due back.
+export function lend(store: Store, ctx: WorkContext, personId: string, b: { equipmentId?: string; purpose?: string; fitted?: string; returnBy?: string }) {
+  enforce(store, ctx, { op: 'EQUIPMENT_LEND', personId }, personId);
+  const q = load(store, String(b.equipmentId));
+  if (!lendable(store, ctx).some((a) => a.id === q.id)) throw new HttpError(409, 'NOT_AVAILABLE', `${q.assetTag} is not available for you to lend.`);
+  if (overdue(q)) throw new HttpError(409, 'SERVICE_OVERDUE', `${q.assetTag} was due for servicing on ${q.serviceDue}. Choose another, and tell the person in charge.`);
+  const purpose = (b.purpose ?? '').trim().slice(0, 300);
+  if (purpose.length < 3) throw new HttpError(400, 'PURPOSE_REQUIRED', 'Write what it is for at home, e.g. "Walking indoors until her knee settles".');
+  const fitted = (b.fitted ?? '').trim().slice(0, 500);
+  if (fitted.length < 5) throw new HttpError(400, 'FITTED_REQUIRED', 'Write how it was fitted and what they were shown, e.g. "Height set to wrist crease; practised stairs with daughter".');
+  const returnBy = /^\d{4}-\d{2}-\d{2}$/.test(String(b.returnBy)) ? String(b.returnBy) : null;
+  if (returnBy && returnBy < todayLocal()) throw new HttpError(400, 'RETURN_BY', 'The return date cannot be in the past.');
+  store.tx(() => {
+    store.insert('equipment_loan', { id: newId(), equipment_id: q.id, person_id: personId, service_id: ctx.serviceId, purpose, fitted, return_by: returnBy, lent_by: ctx.workerId, lent_at: now() });
+    store.insert('equipment_event', { id: newId(), equipment_id: String(q.id), kind: 'LENT', note: `${purpose}. ${fitted}`, person_id: personId, patient_affected: null, by_id: ctx.workerId, at: now() });
+    transition(store, 'equipment', String(q.id), 'ON_LOAN', { actorId: ctx.workerId, workContextId: ctx.id }, purpose);
+    audit(store, {
+      actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', subjectPersonId: personId,
+      operation: 'EQUIPMENT_LEND', objectType: 'equipment', objectId: String(q.id), decision: 'ALLOW', outcome: 'COMMITTED', reason: purpose, ruleRefs: LOAN_REFS, engines: [198],
+    });
+  });
+  return forPerson(store, ctx, personId);
+}
+
+export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string; patientAffected?: boolean; serviceDue?: string; condition?: string }) {
   const q = load(store, id);
   const note = (b.note ?? '').trim().slice(0, 1000);
   const who = { actorId: ctx.workerId, workContextId: ctx.id };
@@ -144,7 +202,61 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
     if (q.serviceId !== ctx.serviceId) throw new HttpError(403, 'BLOCK', `${q.assetTag} belongs to ${q.service}.`);
   };
   const needNote = (msg: string) => { if (note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', msg); };
+  const loan = store.get<{ id: string; personId: string }>('SELECT id, person_id AS personId FROM equipment_loan WHERE equipment_id = ? AND cleaned_at IS NULL ORDER BY lent_at DESC LIMIT 1', id);
+  const lender = () => {
+    if (!lends(ctx) && !(action === 'cleaned' && ctx.role.capabilities.includes('equipment.manage'))) throw new HttpError(403, 'BLOCK', `Your ${ctx.role.label} workstation does not lend equipment`);
+    if (q.serviceId !== ctx.serviceId) throw new HttpError(403, 'BLOCK', `${q.assetTag} belongs to ${q.service}.`);
+    if (!loan) throw new HttpError(409, 'NOT_ON_LOAN', `${q.assetTag} is not on loan.`);
+  };
+  const loanLog = (operation: string, reason: string) => audit(store, {
+    actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', subjectPersonId: loan?.personId ?? null,
+    operation, objectType: 'equipment', objectId: id, decision: 'ALLOW', outcome: 'COMMITTED', reason: reason.slice(0, 300), ruleRefs: LOAN_REFS, engines: [198],
+  });
   switch (action) {
+    case 'back': {
+      lender();
+      if (q.state !== 'ON_LOAN') throw new HttpError(409, 'WRONG_STATE', `${q.assetTag} is ${STATES[String(q.state)].toLowerCase()}.`);
+      const condition = CONDITION[String(b.condition)] ? String(b.condition) : '';
+      if (!condition) throw new HttpError(400, 'CONDITION_REQUIRED', 'Choose what condition it came back in.');
+      if (condition !== 'GOOD') needNote('Write what is wrong with it.');
+      store.tx(() => {
+        store.run('UPDATE equipment_loan SET returned_by = ?, returned_at = ?, condition = ?, return_note = ? WHERE id = ?', ctx.workerId, now(), condition, note || null, loan!.id);
+        event('BACK', loan!.personId);
+        if (condition === 'GOOD') transition(store, 'equipment', id, 'CLEANING', who, 'Returned; to be cleaned');
+        else {
+          event('FAULT', loan!.personId, false);
+          store.run('UPDATE equipment_loan SET cleaned_by = ?, cleaned_at = ?, clean_note = ? WHERE id = ?', ctx.workerId, now(), 'Taken out of use instead', loan!.id);
+          transition(store, 'equipment', id, 'QUARANTINED', who, note);
+        }
+        loanLog('EQUIPMENT_LOAN_BACK', `${CONDITION[condition]}${note ? `: ${note}` : ''}`);
+      });
+      break;
+    }
+    case 'cleaned': {
+      lender();
+      if (q.state !== 'CLEANING') throw new HttpError(409, 'WRONG_STATE', `${q.assetTag} is ${STATES[String(q.state)].toLowerCase()}.`);
+      needNote('Write how it was cleaned and checked, e.g. "Detergent wipe then disinfectant; ferrules and brakes checked".');
+      store.tx(() => {
+        store.run('UPDATE equipment_loan SET cleaned_by = ?, cleaned_at = ?, clean_note = ? WHERE id = ?', ctx.workerId, now(), note, loan!.id);
+        event('CLEANED');
+        transition(store, 'equipment', id, 'AVAILABLE', who, 'Cleaned and checked');
+        loanLog('EQUIPMENT_CLEANED', note);
+      });
+      break;
+    }
+    case 'lost': {
+      lender();
+      if (q.state !== 'ON_LOAN') throw new HttpError(409, 'WRONG_STATE', `${q.assetTag} is ${STATES[String(q.state)].toLowerCase()}.`);
+      needNote('Write what was tried to get it back.');
+      store.tx(() => {
+        store.run('UPDATE equipment_loan SET returned_by = ?, returned_at = ?, condition = ?, return_note = ?, cleaned_at = ? WHERE id = ?', ctx.workerId, now(), 'LOST', note, now(), loan!.id);
+        event('LOST', loan!.personId);
+        transition(store, 'equipment', id, 'RETIRED', who, `Not returned: ${note}`);
+        store.run('UPDATE equipment SET retired_by = ?, retired_at = ?, retire_reason = ? WHERE id = ?', ctx.workerId, now(), `Not returned: ${note}`, id);
+        loanLog('EQUIPMENT_LOAN_LOST', note);
+      });
+      break;
+    }
     case 'end': {
       if (!use) throw new HttpError(409, 'NOT_IN_USE', `${q.assetTag} is not in use.`);
       enforce(store, ctx, { op: 'EQUIPMENT_USE', personId: use.personId }, use.personId);

@@ -709,11 +709,14 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/equipment', (req) => equipment.add(store, work(req), {
     assetTag: str(req.body.assetTag), kind: str(req.body.kind), description: str(req.body.description), serviceDue: str(req.body.serviceDue),
   }));
+  r.on('POST', '/api/work/patients/:id/loans', (req) => equipment.lend(store, work(req), req.params.id, {
+    equipmentId: str(req.body.equipmentId), purpose: str(req.body.purpose), fitted: str(req.body.fitted), returnBy: str(req.body.returnBy),
+  }));
   r.on('POST', '/api/work/patients/:id/equipment', (req) => equipment.start(store, work(req), req.params.id, {
     equipmentId: str(req.body.equipmentId), purpose: str(req.body.purpose), settings: str(req.body.settings), checked: str(req.body.checked),
   }));
   r.on('POST', '/api/work/equipment/:id/:action', (req) => equipment.act(store, work(req), req.params.id, req.params.action, {
-    note: str(req.body.note), patientAffected: req.body.patientAffected === true || req.body.patientAffected === 'true', serviceDue: str(req.body.serviceDue),
+    note: str(req.body.note), patientAffected: req.body.patientAffected === true || req.body.patientAffected === 'true', serviceDue: str(req.body.serviceDue), condition: str(req.body.condition),
   }));
   r.on('GET', '/api/work/meals', (req) => diets.list(store, work(req)));
   const dietFields = (b: Record<string, unknown>) => ({
