@@ -20,4 +20,12 @@ export const AGREED: Record<string, string> = {
   COULD_NOT_SAY: 'They could not say',
 };
 
+// Where each department sees decisions, in screens it already uses.
+export const PLACE: Record<string, string> = {
+  'genmed-physician': 'review',
+  'ed-doctor': 'medical',
+  'genmed-rn': 'careplan',
+  'ed-rn': 'overview',
+};
+
 export const REFS = ['ORG-SYN-001 v1', 'RR-DECISION-001'];

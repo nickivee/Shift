@@ -422,7 +422,7 @@ export async function workstationView(personId, initialView) {
       case 'history':
         return h('div', { class: 'stack' }, decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
-      case 'overview': return overview(d);
+      case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
         restriction(d.prescribing, 'Prescribing'), restriction(d.administration, 'Administration recording'),
         d.medicines.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'data' },
