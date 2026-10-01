@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 76;
+const SET = 77;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -403,6 +403,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 74) set74(store);
     if (at < 75) set75(store);
     if (at < 76) set76(store);
+    if (at < 77) set77(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4576,4 +4577,70 @@ function set76(store: Store): void {
     step(id, 'STARTED', 'Started.', ravi, 48);
     step(id, 'DONE', `Done as planned. Ring block; reduced first attempt; joint stable afterwards; buddy-strapped. No complications. Recovery: ${plan}`, ravi, 40);
   }
+}
+
+// Set 77: decisions made with the patient. Wiremu's gastroscopy is being talked through with him and
+// his son; Sione decided to keep treating his toe ulcer rather than be referred for amputation; in
+// ED, Dr Singh has started talking with Daniel about staying in for more heart tests.
+function set77(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = (days: number) => { const d = new Date(Date.now() + days * 86_400_000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const hannah = who('hannah'), ravi = who('ravi');
+  if (!hannah || !ravi) return;
+  const trans = (id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'clinical_decision', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const step = (id: string, kind: string, body: string, by: string, mins: number) =>
+    store.insert('clinical_decision_step', { id: newId(), decision_id: id, kind, body, by_id: by, at: at(mins) });
+  interface D { nhi: string; svc: string; by: string; mins: number; question: string; background: string; options: [string, string, string][];
+    view?: { tookPart: string; theirView: string | null; note?: string; others?: string; mins: number };
+    decided?: { option: number; reason: string; agreed: string; reviewDays?: number; mins: number } }
+  const add = (d: D) => {
+    const pid = person(d.nhi);
+    if (!pid || store.get('SELECT 1 FROM clinical_decision WHERE person_id = ?', pid)) return;
+    const id = newId();
+    store.insert('clinical_decision', { id, person_id: pid, service_id: d.svc, question: d.question, background: d.background, state: 'OPEN', raised_by: d.by, raised_at: at(d.mins) });
+    trans(id, null, 'OPEN', d.by, d.mins, d.question);
+    step(id, 'RAISED', `${d.question}. ${d.background}`, d.by, d.mins);
+    const ids = d.options.map(([option, benefits, risks], i) => {
+      const oid = newId();
+      store.insert('clinical_decision_option', { id: oid, decision_id: id, option, benefits, risks, added_by: d.by, added_at: at(d.mins - 1 - i) });
+      step(id, 'OPTION', `Option: ${option}. Benefits: ${benefits}. Risks: ${risks}.`, d.by, d.mins - 1 - i);
+      return oid;
+    });
+    if (d.view) {
+      const v = d.view;
+      store.run('UPDATE clinical_decision SET their_view = ?, took_part = ?, took_part_note = ?, others = ? WHERE id = ?', v.theirView, v.tookPart, v.note ?? null, v.others ?? null, id);
+      const label = ({ YES: 'Yes, they took part', PARTLY: 'Partly (for example drowsy, or needed whānau to help)', NO: 'No, they could not take part' } as Record<string, string>)[v.tookPart];
+      step(id, 'THEIR_VIEW', `${label}.${v.note ? ` ${v.note}.` : ''}${v.theirView ? ` What they want: ${v.theirView}` : ''}${v.others ? ` Also involved: ${v.others}.` : ''}`, d.by, v.mins);
+    }
+    if (d.decided) {
+      const x = d.decided;
+      const review = x.reviewDays ? day(x.reviewDays) : null;
+      store.run("UPDATE clinical_decision SET state = 'DECIDED', chosen_id = ?, reason = ?, agreed = ?, decided_by = ?, decided_at = ?, review_on = ? WHERE id = ?", ids[x.option], x.reason, x.agreed, d.by, at(x.mins), review, id);
+      trans(id, 'OPEN', 'DECIDED', d.by, x.mins, d.options[x.option][0]);
+      step(id, 'DECIDED', `Decided: ${d.options[x.option][0]}. ${x.reason} ${x.agreed === 'AGREED' ? 'They agree' : 'They do not agree'}.${review ? ` Look again on ${review}.` : ''}`, d.by, x.mins);
+    }
+  };
+  add({ nhi: 'ZZZ0016', svc: 'svc-genmed', by: hannah, mins: 50, question: 'Whether to have a gastroscopy for the bleeding',
+    background: 'Black stools overnight and haemoglobin 62. He is on enoxaparin, frail, and more confused with the chest infection.',
+    options: [
+      ['Gastroscopy today', 'Finds the cause and can stop the bleeding', 'Sedation while confused; small risk of a tear or of breathing problems'],
+      ['Blood and wait', 'No procedure; enoxaparin stopped and a tablet to protect the stomach', 'Bleeding may carry on or come back; may need more blood'],
+    ],
+    view: { tookPart: 'PARTLY', theirView: '"I don\'t want a camera down if I can help it, but I don\'t want to bleed either. Ask Rawiri."', note: 'More confused this morning; understood the main points', others: 'Son Rawiri (enduring power of attorney), by phone', mins: 35 } });
+  add({ nhi: 'ZZZ0024', svc: 'svc-genmed', by: hannah, mins: 60 * 20, question: 'Whether to keep treating the toe ulcer or be referred for amputation',
+    background: 'Diabetic ulcer on the right big toe for 3 months; X-ray shows no bone infection; foot pulses present.',
+    options: [
+      ['Keep treating', 'Keeps the toe; debridement and antibiotics often work when the blood supply is good', 'Slow; may still need surgery later if it gets worse'],
+      ['Refer to the vascular surgeons for amputation of the toe', 'Removes the infected toe', 'Surgery; harder to walk; his feet may get other ulcers'],
+    ],
+    view: { tookPart: 'YES', theirView: '"I want to keep my toe if there is a chance. I\'ll do the dressings."', others: 'Wife Ana', mins: 60 * 20 - 10 },
+    decided: { option: 0, reason: 'Good blood supply and no bone infection, so worth trying; Sione wants to keep his toe.', agreed: 'AGREED', reviewDays: 7, mins: 60 * 20 - 15 } });
+  add({ nhi: 'ZZZ0113', svc: 'svc-ed', by: ravi, mins: 25, question: 'Whether to stay in for more heart tests or go home',
+    background: 'Chest tightness on walking for a week; ECG normal; troponin not back yet.',
+    options: [
+      ['Stay in for a second troponin and a heart review', 'Rules out a heart attack before going home', 'A night in hospital; he is worried about his job'],
+    ] });
 }

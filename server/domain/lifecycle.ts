@@ -528,6 +528,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'PROPOSED',
     next: { PROPOSED: ['PLANNED', 'CANCELLED'], PLANNED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['RECOVERY'], RECOVERY: ['FINISHED'] },
   },
+  clinical_decision: {
+    table: 'clinical_decision',
+    initial: 'OPEN',
+    next: { OPEN: ['DECIDED', 'CLOSED'], DECIDED: ['OPEN', 'CLOSED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',

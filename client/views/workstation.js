@@ -29,6 +29,7 @@ import { handoversPanel } from './handovers.js';
 import { conferencesPanel } from './conferences.js';
 import { rehabPanel } from './rehab.js';
 import { proceduresPanel } from './procedures.js';
+import { decisionsPanel } from './decisions.js';
 import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
@@ -419,7 +420,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return overview(d);
       case 'meds': return h('div', { class: 'stack' },
@@ -431,7 +432,7 @@ export async function workstationView(personId, initialView) {
       // A critical result changes the record banner, so the whole record redraws.
       case 'results': return resultsPanel(personId, d, () => go(`/work/patient/${personId}/results`));
       case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
-      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
+      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), decisionsPanel(personId, d.decisions, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.

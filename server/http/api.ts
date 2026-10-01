@@ -64,6 +64,7 @@ import * as conferences from '../domain/conferences.ts';
 import * as rehab from '../domain/rehab.ts';
 import * as diagnostics from '../domain/diagnostics.ts';
 import * as procedures from '../domain/procedures.ts';
+import * as decisions from '../domain/decisions.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -355,6 +356,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/decisions', (req) => decisions.raise(store, work(req), req.params.id, { question: str(req.body.question), background: str(req.body.background) }));
+  r.on('POST', '/api/work/decisions/:id/:action', (req) => decisions.act(store, work(req), req.params.id, req.params.action, {
+    option: str(req.body.option), benefits: str(req.body.benefits), risks: str(req.body.risks), theirView: str(req.body.theirView), tookPart: str(req.body.tookPart),
+    tookPartNote: str(req.body.tookPartNote), others: str(req.body.others), chosen: str(req.body.chosen), reason: str(req.body.reason), agreed: str(req.body.agreed),
+    reviewOn: str(req.body.reviewOn), still: str(req.body.still), note: str(req.body.note),
+  }));
   r.on('POST', '/api/work/patients/:id/procedures', (req) => procedures.propose(store, work(req), req.params.id, { what: str(req.body.what), why: str(req.body.why) }));
   r.on('POST', '/api/work/procedures/:id/:action', (req) => procedures.act(store, work(req), req.params.id, req.params.action, {
     when: str(req.body.when), place: str(req.body.place), operator: str(req.body.operator), consent: str(req.body.consent), noConsent: str(req.body.noConsent),
