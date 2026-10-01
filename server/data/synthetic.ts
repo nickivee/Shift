@@ -4819,6 +4819,14 @@ function set80(store: Store): void {
       reviewed: { by: hannah, mins: day, finding: 'Tolerating feeds, bowels open, weight 74 kg. Swallow to be reassessed by the speech-language therapist.' },
       given: [['FEED', 1150, 'FINE', null, grace, day + 180], ['FLUSH', 300, null, null, grace, day + 170], ['FEED', 240, 'FINE', null, nicki, today(240)], ['FLUSH', 100, null, null, nicki, today(230)]] });
   }
+  // Their current status, so the ward and home know how closely to watch them.
+  const status = (personId: string, service: string, by: string, mins: number, basis: string) => {
+    const id = newId();
+    store.insert('acuity_assessment', { id, person_id: personId, service_id: service, level: 'STABLE', basis, evidence_json: null, change: 'FIRST',
+      review_due: new Date(Date.now() + (24 * 60 - mins) * 60_000).toISOString(), state: 'CURRENT', assessed_by: by, assessed_at: at(mins), supersedes: null });
+    store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: id, from_state: null, to_state: 'CURRENT', actor_id: by, work_context_id: null, at: at(mins), reason: `Stable: ${basis}`, transaction_id: null });
+  };
+  if (tom) status(tom, 'svc-genmed', grace, 180, 'Observations steady; tolerating NG feeds; nothing by mouth');
   const betty = patient('ZZZ0212', 'Betty', 'Clarke', '1938-11-20', 'Female', 'NZ European', 'svc-arc', 'Room 15', arcKind, 200 * day);
   if (betty) {
     const peg = tube(betty, 'svc-arc', 'PEG', 'Feeding tube into the stomach (PEG)', 'Upper abdomen', '15Fr', 'Long-term feeding; swallow unsafe after motor neurone disease progressed', kate, 180 * day, 'Te Awa Hospital endoscopy', null, 24);
@@ -4828,6 +4836,7 @@ function set80(store: Store): void {
       review: 20, by: kate, mins: 50 * day,
       given: [['FEED', 1000, 'FINE', null, kate, day + 360], ['WATER', 200, 'FINE', null, nicki, day + 120], ['FEED', 1000, 'BLOATED', 'Felt full at 4am; slowed to 80 mL/hour as the dietitian letter allows. Settled by 6am.', kate, 360],
         ['FLUSH', 200, null, null, kate, 350]] });
+    status(betty, 'svc-arc', kate, 240, 'Settled; overnight PEG feed tolerated; usual self');
     const tama = who('tama');
     for (let d = -1; d < 30 && tama; d++) {
       const date = new Date(Date.now() + d * 86_400_000).toLocaleDateString('en-CA');
