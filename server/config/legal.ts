@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-EQUIP-001',
+    question: 'What New Zealand requires of a hospital or rest home for medical equipment safety: acceptance and electrical safety testing before first use (including which joint AS/NZS standard applies and how often to retest), how manufacturer field safety notices and recalls must be received, acted on and closed, and Medsafe reporting of device adverse events.',
+    blocks: 'Testing standards and intervals, recall handling rules and device adverse-event reporting. SHIFT records new equipment as waiting for its acceptance check until someone records who checked it and what they checked, and records each safety notice as issued: who issued it, its reference, what it says to do, whether it stops use now or needs action by a date, the items it covers, and who did the action for each.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-LOAN-001',
     question: 'What New Zealand requires when a hospital lends equipment such as walking frames, crutches, shower stools and wheelchairs for use at home: who funds it and who is eligible (ACC, Whaikaha – Ministry of Disabled People equipment services, Te Whatu Ora short-term loans), the cleaning and decontamination standard for reusable equipment between people, and how long a loan may run before a long-term assessment is needed.',
     blocks: 'Funding and eligibility decisions, loan length limits and the cleaning standard. SHIFT records what was lent, to whom, what it is for, how it was fitted and what they were shown, when it is due back, the condition it came back in, and who cleaned it and how before anyone else has it.',

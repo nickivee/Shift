@@ -8,7 +8,8 @@ import { formDialog as dialog } from '../lib/forms.js';
 // Clinical equipment: on the register → available → set up for a patient after a check →
 // in use → finished with, or a fault takes it out of use → repair → back in service → retired.
 // Aids such as frames and crutches can also be lent to take home → returned → cleaned before reuse.
-const TONE = { AVAILABLE: 'ok', IN_USE: 'warn', ON_LOAN: 'warn', CLEANING: 'warn', QUARANTINED: 'danger', IN_REPAIR: 'muted', RETIRED: 'muted' };
+// New equipment waits for an acceptance check; a safety notice stops use now or needs an action by a date.
+const TONE = { NEW: 'warn', AVAILABLE: 'ok', IN_USE: 'warn', ON_LOAN: 'warn', CLEANING: 'warn', QUARANTINED: 'danger', IN_REPAIR: 'muted', RETIRED: 'muted' };
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
 
 const ACTION = {
@@ -21,6 +22,7 @@ const ACTION = {
   retire: { label: 'Retire', title: 'Retire from use', field: 'Why', placeholder: 'Why it is being retired', done: 'Retired.' },
   back: { label: 'Returned', title: 'Returned from loan', field: 'Note', placeholder: 'Needed if damaged or parts are missing: what is wrong', done: 'Recorded. Clean it before anyone else has it.', condition: true },
   cleaned: { label: 'Cleaned', title: 'Cleaned and checked', field: 'How it was cleaned and checked', placeholder: 'e.g. Detergent wipe then disinfectant; ferrules and brakes checked', done: 'Available again.' },
+  accept: { label: 'Acceptance check', title: 'Acceptance check before first use', field: 'Who checked it and what they checked', placeholder: 'e.g. Electrical safety tag in date, self-test passed, alarms work, user guide on the ward', done: 'Accepted. It is available now.' },
   lost: { label: 'Not coming back', title: 'Not coming back', field: 'What was tried', placeholder: 'e.g. Phoned twice and wrote; family say it was thrown out', done: 'Written off.' },
 };
 
@@ -61,6 +63,7 @@ export function equipmentCard(q, reload, { showPatient = true } = {}) {
       h('div', { class: 'row' },
         q.serviceOverdue && q.state !== 'RETIRED' ? h('span', { class: 'tag danger' }, 'Service overdue') : q.serviceSoon && q.state !== 'RETIRED' ? h('span', { class: 'tag warn' }, 'Service due soon') : null,
         q.loan?.overdue && q.state === 'ON_LOAN' ? h('span', { class: 'tag danger' }, 'Overdue back') : null,
+        q.notices?.length ? h('span', { class: `tag ${q.notices.some((n) => n.kind === 'STOP' || n.overdue) ? 'danger' : 'warn'}` }, 'Safety notice') : null,
         h('span', { class: `tag ${TONE[q.state] ?? ''}` }, q.stateLabel),
       ),
     ),
@@ -72,6 +75,8 @@ export function equipmentCard(q, reload, { showPatient = true } = {}) {
       h('div', { class: 'small' }, `Checked by ${q.use.startedBy} ${fmtDateTime(q.use.startedAt)}: ${q.use.checkedNote}`),
     ) : null,
     q.loan ? loanSummary(q.loan, showPatient) : null,
+    (q.notices ?? []).map((n) => h('div', { class: `small ${n.kind === 'STOP' || n.overdue ? 'warn-text' : ''}` },
+      h('b', {}, `Safety notice (${n.kindLabel.toLowerCase()}): `), `${n.title}. ${n.action}${n.dueDate ? ` By ${fmtDate(n.dueDate)}${n.overdue ? ' (overdue)' : ''}.` : ''}`)),
     q.events.length && ['QUARANTINED', 'IN_REPAIR'].includes(q.state) ? h('div', { class: 'small' }, h('b', {}, `${q.events[0].kindLabel} (${q.events[0].by}, ${fmtDateTime(q.events[0].at)}): `), q.events[0].note) : null,
     q.events.length ? h('details', {}, h('summary', {}, 'History'),
       h('ul', { class: 'small stack' }, q.events.map((v) => h('li', {}, h('b', {}, `${fmtDateTime(v.at)}, ${v.kindLabel} (${v.by}): `), v.note, v.patientAffected ? ' Patient affected.' : ''))))
@@ -146,6 +151,7 @@ function addDialog(options, reload) {
   const description = h('input', { type: 'text', placeholder: 'Make and model' });
   const due = h('input', { type: 'date', value: inDays(365) });
   dialog('Add to the register', h('div', { class: 'stack' },
+    h('p', { class: 'small muted' }, 'New equipment waits for its acceptance check before anyone can use it.'),
     h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Asset tag', tag), h('label', { class: 'field grow' }, 'Kind', kind)),
     h('label', { class: 'field' }, 'What it is', description),
     h('label', { class: 'field' }, 'Next service due', due),
@@ -156,11 +162,67 @@ function addDialog(options, reload) {
   });
 }
 
+function noticeDialog(rows, reload) {
+  const kind = h('select', { 'aria-label': 'What it asks' }, h('option', { value: '' }, 'Choose…'), h('option', { value: 'STOP' }, 'Stop using now'), h('option', { value: 'ACT' }, 'Keep using; action needed by a date'));
+  const title = h('input', { type: 'text', 'aria-label': 'What it is about', placeholder: 'e.g. Battery may fail without an alarm' });
+  const source = h('input', { type: 'text', 'aria-label': 'Issued by and reference', placeholder: 'e.g. Manufacturer field safety notice FSN-2026-114' });
+  const action = h('textarea', { 'aria-label': 'What it says to do', placeholder: 'Word for word where you can' });
+  const due = h('input', { type: 'date', 'aria-label': 'Needed by', value: inDays(14) });
+  const dueField = h('label', { class: 'field' }, 'Needed by', due);
+  const sync = () => { dueField.hidden = kind.value !== 'ACT'; };
+  kind.addEventListener('change', sync);
+  sync();
+  const boxes = rows.filter((q) => q.state !== 'RETIRED').map((q) => {
+    const box = h('input', { type: 'checkbox', value: q.id });
+    return h('label', { class: 'check' }, box, ` ${q.assetTag} · ${q.kindLabel}, ${q.description}`);
+  });
+  dialog('Record a safety notice', h('div', { class: 'stack' },
+    h('label', { class: 'field' }, 'What it asks', kind),
+    h('label', { class: 'field' }, 'What it is about', title),
+    h('label', { class: 'field' }, 'Issued by and reference', source),
+    h('label', { class: 'field' }, 'What it says to do', action),
+    dueField,
+    h('div', { class: 'field' }, 'Equipment it covers', h('div', { class: 'checks stack' }, boxes)),
+    h('p', { class: 'small muted' }, '"Stop using now" takes each item out of use straight away, even if a patient is using it. Recall and reporting duties are set nationally (RR-EQUIP-001).'),
+  ), 'Record', async () => {
+    const ids = boxes.map((b) => b.querySelector('input')).filter((b) => b.checked).map((b) => b.value).join(',');
+    await post('/api/work/equipment-notices', { kind: kind.value, title: title.value, source: source.value, action: action.value, dueDate: due.value, equipmentIds: ids });
+    toast(kind.value === 'STOP' ? 'Recorded. Those items are out of use: label them "do not use".' : 'Recorded.');
+    reload();
+  }, { wide: true });
+}
+
+function doneDialog(n, i, reload) {
+  const note = h('textarea', { 'aria-label': 'What was done', placeholder: 'e.g. Firmware 4.2 installed by clinical engineering, job 8812' });
+  dialog(`Done: ${i.assetTag}`, h('div', { class: 'stack' }, h('p', { class: 'muted' }, `${n.title}. ${n.action}`), h('label', { class: 'field' }, 'What was done', note)), 'Done', async () => {
+    await post(`/api/work/equipment-notices/${n.id}/done`, { equipmentId: i.equipmentId, note: note.value });
+    toast('Recorded.');
+    reload();
+  });
+}
+
+function noticeCard(n, reload) {
+  return h('div', { class: `tile stack safety-notice${n.kind === 'STOP' && n.state === 'OPEN' ? ' alert-raised' : ''}` },
+    h('div', { class: 'spread' }, h('div', {}, h('b', {}, n.title), h('div', { class: 'muted small' }, `${n.source} · recorded by ${n.issuedBy} ${fmtDateTime(n.issuedAt)}`)),
+      h('div', { class: 'row' }, n.overdue ? h('span', { class: 'tag danger' }, 'Overdue') : null,
+        h('span', { class: `tag ${n.state === 'CLOSED' ? 'ok' : n.kind === 'STOP' ? 'danger' : 'warn'}` }, n.state === 'CLOSED' ? n.stateLabel : n.kindLabel))),
+    h('div', {}, h('b', {}, 'What to do: '), n.action, n.dueDate ? ` By ${fmtDate(n.dueDate)}.` : ''),
+    h('div', { class: 'small' }, `${n.done} of ${n.items.length} done`),
+    h('ul', { class: 'notice-items small' }, n.items.map((i) => h('li', {},
+      h('div', { class: 'spread' }, h('span', {}, h('b', {}, i.assetTag), ` · ${i.kindLabel} · ${i.stateLabel}`),
+        i.canDo ? h('button', { class: 'btn small', onclick: () => doneDialog(n, i, reload) }, 'Done') : null),
+      i.doneAt ? h('div', { class: 'muted' }, `Done by ${i.doneBy} ${fmtDateTime(i.doneAt)}: ${i.doneNote}`) : null))),
+  );
+}
+
 // Home → Equipment.
 export async function equipmentView() {
   const root = h('div');
   const load = async () => {
-    const { equipment: rows, canManage, options } = await get('/api/work/equipment');
+    const { equipment: rows, notices, canManage, options } = await get('/api/work/equipment');
+    const openN = notices.filter((n) => n.state === 'OPEN');
+    const closedN = notices.filter((n) => n.state !== 'OPEN');
+    const waiting = rows.filter((q) => q.state === 'NEW');
     const out = rows.filter((q) => q.state === 'QUARANTINED' || q.state === 'IN_REPAIR');
     const clean = rows.filter((q) => q.state === 'CLEANING');
     const lent = rows.filter((q) => q.state === 'ON_LOAN').sort((a, b) => Number(!!b.loan?.overdue) - Number(!!a.loan?.overdue));
@@ -172,7 +234,12 @@ export async function equipmentView() {
       workHeader(),
       pageTitle('Equipment', () => go('/work/home')),
       h('div', { class: 'banner' }, 'Your service\'s equipment. A fault takes it out of use straight away, equipment past its service date is not set up or lent, and anything lent comes back to be cleaned before anyone else has it.'),
-      canManage ? h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => addDialog(options, load) }, 'Add equipment')) : null,
+      canManage ? h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => addDialog(options, load) }, 'Add equipment'),
+        h('button', { class: 'btn', onclick: () => noticeDialog(rows, load) }, 'Record a safety notice')) : null,
+      openN.length || closedN.length ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, 'Safety notices'),
+        openN.length ? openN.map((n) => noticeCard(n, load)) : h('div', { class: 'card empty' }, 'No open safety notices.'),
+        closedN.length ? h('details', {}, h('summary', {}, `Closed (${closedN.length})`), h('div', { class: 'stack' }, closedN.map((n) => noticeCard(n, load)))) : null) : null,
+      waiting.length ? section('Waiting for acceptance check', waiting, '') : null,
       out.length ? section('Out of use', out, '') : null,
       clean.length ? section('To clean before reuse', clean, '') : null,
       section('In use', inUse, 'Nothing in use.'),

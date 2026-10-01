@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 81;
+const SET = 82;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -408,6 +408,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 79) set79(store);
     if (at < 80) set80(store);
     if (at < 81) set81(store);
+    if (at < 82) set82(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4893,4 +4894,31 @@ function set81(store: Store): void {
   lend('PT-WF01', nhi('ZZZ0032'), 'Walking indoors and to the letterbox while her knee settles', 'Handle height set to her wrist crease; practised turning, sitting on the seat and the front step with her daughter', 90, 42);
   lend('PT-SS01', nhi('ZZZ0024'), 'Sitting to shower after his last admission', 'Height set so his knees are level with his hips; showed his wife how to lock the legs', 70 * day, -14);
   lend('PT-CR01', nhi('ZZZ0040'), 'Non-weight-bearing on the right after his ankle sprain', 'Set for his height; practised stairs, one at a time, rail on the left', 30 * day, 5, { mins: day, note: 'Brought back by his son; all four ferrules on' });
+}
+
+// Set 82: equipment safety. Ward K has a manufacturer notice on its infusion pumps: keep using
+// them, but the software must be updated by next week. One pump is done. Kōwhai House has a new
+// hoist waiting for its acceptance check.
+function set82(store: Store): void {
+  if (store.get("SELECT 1 FROM equipment WHERE asset_tag = 'HS-0023'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const date = (days: number) => new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA');
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const kate = who('kate'), grace = who('grace');
+  if (!kate || !grace) return;
+  const hoist = newId();
+  store.insert('equipment', { id: hoist, organisation_id: 'org-arc', service_id: 'svc-arc', asset_tag: 'HS-0023', kind: 'HOIST', description: 'Ceiling-track hoist, portable motor unit', service_due: date(365), state: 'NEW', added_by: kate, added_at: at(300) });
+  store.insert('state_transition', { id: newId(), object_type: 'equipment', object_id: hoist, from_state: null, to_state: 'NEW', actor_id: kate, work_context_id: null, at: at(300), reason: 'Added to the register; acceptance check before first use', transaction_id: null });
+  const pumps = ['IP-0412', 'IP-0415', 'IP-0419'].map((t) => store.get<{ id: string; state: string }>('SELECT id, state FROM equipment WHERE asset_tag = ?', t)).filter((x): x is { id: string; state: string } => !!x);
+  if (!pumps.length) return;
+  const nid = newId();
+  const title = 'Occlusion alarm can sound late at low rates';
+  const action = 'Keep using. Install software version 4.2 on every pump by the date given. Until then, check the line and the bag hourly when running below 5 mL/hour.';
+  store.insert('equipment_notice', { id: nid, service_id: 'svc-genmed', kind: 'ACT', title, source: 'Manufacturer field safety notice FSN-2026-114', action, due_date: date(6), state: 'OPEN', issued_by: grace, issued_at: at(2 * 1440) });
+  pumps.forEach((p, n) => {
+    const done = n === 1;
+    store.insert('equipment_notice_item', { id: newId(), notice_id: nid, equipment_id: p.id, stopped: 0, done_by: done ? grace : null, done_at: done ? at(1440) : null, done_note: done ? 'Software 4.2 installed by clinical engineering, job 8812' : null });
+    store.insert('equipment_event', { id: newId(), equipment_id: p.id, kind: 'NOTICE', note: `Keep using; action needed by a date: ${title}. ${action}`, person_id: null, patient_affected: null, by_id: grace, at: at(2 * 1440) });
+    if (done) store.insert('equipment_event', { id: newId(), equipment_id: p.id, kind: 'NOTICE_DONE', note: `${title}: Software 4.2 installed by clinical engineering, job 8812`, person_id: null, patient_affected: null, by_id: grace, at: at(1440) });
+  });
 }

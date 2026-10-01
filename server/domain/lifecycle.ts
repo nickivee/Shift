@@ -138,6 +138,7 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     table: 'equipment',
     initial: 'AVAILABLE',
     next: {
+      NEW: ['AVAILABLE', 'QUARANTINED', 'RETIRED'],
       AVAILABLE: ['IN_USE', 'ON_LOAN', 'QUARANTINED', 'IN_REPAIR', 'RETIRED'],
       IN_USE: ['AVAILABLE', 'QUARANTINED'],
       ON_LOAN: ['CLEANING', 'QUARANTINED', 'RETIRED'],

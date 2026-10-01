@@ -5,6 +5,7 @@ import { evaluate } from './authority.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { LOANABLE, CONDITION, REFS as LOAN_REFS } from '../config/loans.ts';
+import { NOTICE_KINDS, NOTICE_STATES, REFS as NOTICE_REFS } from '../config/notices.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Clinical equipment (Shared Lifecycle Object 246):
@@ -20,11 +21,12 @@ export const KINDS: Record<string, string> = {
   OBS_MONITOR: 'Observation monitor', SUCTION: 'Suction unit', ...LOANABLE, OTHER: 'Other',
 };
 const STATES: Record<string, string> = {
-  AVAILABLE: 'Available', IN_USE: 'In use', ON_LOAN: 'Lent for home', CLEANING: 'Back: clean before reuse', QUARANTINED: 'Do not use', IN_REPAIR: 'Away for repair', RETIRED: 'Retired',
+  NEW: 'Waiting for its acceptance check', AVAILABLE: 'Available', IN_USE: 'In use', ON_LOAN: 'Lent for home', CLEANING: 'Back: clean before reuse', QUARANTINED: 'Do not use', IN_REPAIR: 'Away for repair', RETIRED: 'Retired',
 };
 const EVENTS: Record<string, string> = {
   FAULT: 'Fault reported', SENT_FOR_REPAIR: 'Sent for repair', RETURNED: 'Back in service', NO_FAULT_FOUND: 'No fault found', SERVICED: 'Serviced',
   LENT: 'Lent for home', BACK: 'Returned from loan', CLEANED: 'Cleaned', LOST: 'Not returned',
+  ACCEPTED: 'Acceptance check passed', NOTICE: 'Safety notice', NOTICE_DONE: 'Safety notice action done',
 };
 const REFS = ['ORG-SYN-001 v1'];
 
@@ -65,8 +67,15 @@ const dueSoon = (q: Row) => {
   return String(q.serviceDue) <= todayLocal(soon);
 };
 
+// Safety notices still open for one item, with whether its action is overdue.
+const openNotices = (store: Store, id: string) => store.all<Row>(
+  `SELECT n.id, n.kind, n.title, n.action, n.due_date AS dueDate FROM equipment_notice_item i JOIN equipment_notice n ON n.id = i.notice_id
+    WHERE i.equipment_id = ? AND i.done_at IS NULL AND n.state = 'OPEN' ORDER BY n.issued_at`, id,
+).map((n): Record<string, any> => ({ ...n, kindLabel: NOTICE_KINDS[String(n.kind)], overdue: n.kind === 'ACT' && !!n.dueDate && String(n.dueDate) < todayLocal() }));
+
 function shape(store: Store, ctx: WorkContext, q: Row) {
   const id = String(q.id);
+  const notices = openNotices(store, id);
   const use = store.get<Row>(`${USE} WHERE u.equipment_id = ? AND u.ended_at IS NULL`, id) ?? null;
   const events = store.all<Row>(
     `SELECT v.kind, v.note, v.patient_affected AS patientAffected, w.display_name AS by, v.at FROM equipment_event v
@@ -78,17 +87,18 @@ function shape(store: Store, ctx: WorkContext, q: Row) {
   const loanable = !!LOANABLE[String(q.kind)];
   const manage = mine && ctx.role.capabilities.includes('equipment.manage');
   const actions: string[] = [];
+  if (q.state === 'NEW' && manage) actions.push('accept');
   if (q.state === 'ON_LOAN' && mine && lends(ctx)) actions.push('back', 'lost');
   if (q.state === 'CLEANING' && mine && (lends(ctx) || ctx.role.capabilities.includes('equipment.manage'))) actions.push('cleaned');
   if (q.state === 'IN_USE' && canUse) actions.push('end');
   if ((q.state === 'IN_USE' || q.state === 'AVAILABLE') && canUse) actions.push('fault');
-  if (q.state === 'QUARANTINED' && manage) actions.push('repair', 'clear');
+  if (q.state === 'QUARANTINED' && manage) actions.push(...(notices.some((n) => n.kind === 'STOP') ? ['repair'] : ['repair', 'clear']));
   if (q.state === 'IN_REPAIR' && manage) actions.push('return');
   if (q.state === 'AVAILABLE' && manage) actions.push('service');
-  if (['AVAILABLE', 'QUARANTINED', 'IN_REPAIR'].includes(String(q.state)) && manage) actions.push('retire');
+  if (['NEW', 'AVAILABLE', 'QUARANTINED', 'IN_REPAIR'].includes(String(q.state)) && manage) actions.push('retire');
   return {
     ...q, kindLabel: KINDS[String(q.kind)], stateLabel: STATES[String(q.state)], serviceOverdue: overdue(q), serviceSoon: dueSoon(q),
-    use, loan, loanable, conditionOptions: loanable ? CONDITION : null, events, actions, history: history(store, 'equipment', id),
+    notices, use, loan, loanable, conditionOptions: loanable ? CONDITION : null, events, actions, history: history(store, 'equipment', id),
   };
 }
 
@@ -147,6 +157,8 @@ export function start(store: Store, ctx: WorkContext, personId: string, b: { equ
   const q = load(store, String(b.equipmentId));
   if (!available(store, ctx, personId).some((a) => a.id === q.id)) throw new HttpError(409, 'NOT_AVAILABLE', `${q.assetTag} is not available to you for this patient.`);
   if (overdue(q)) throw new HttpError(409, 'SERVICE_OVERDUE', `${q.assetTag} was due for servicing on ${q.serviceDue}. Choose another, and tell the person in charge.`);
+  const late = openNotices(store, String(q.id)).find((n) => n.overdue);
+  if (late) throw new HttpError(409, 'NOTICE_OVERDUE', `${q.assetTag} has a safety notice action that was due ${late.dueDate}: ${late.title}. Choose another, and tell the person in charge.`);
   const purpose = (b.purpose ?? '').trim().slice(0, 300);
   if (purpose.length < 3) throw new HttpError(400, 'PURPOSE_REQUIRED', 'Write what it is being used for.');
   const checked = (b.checked ?? '').trim().slice(0, 500);
@@ -279,10 +291,22 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
       });
       break;
     }
+    case 'accept': {
+      manage();
+      if (q.state !== 'NEW') throw new HttpError(409, 'WRONG_STATE', `${q.assetTag} has already been accepted.`);
+      needNote('Write who checked it and what they checked, e.g. "Electrical safety tag in date, self-test passed, alarms work".');
+      store.tx(() => {
+        event('ACCEPTED');
+        transition(store, 'equipment', id, 'AVAILABLE', who, note);
+        logged(store, ctx, 'EQUIPMENT_ACCEPT', id, null, note);
+      });
+      break;
+    }
     case 'repair':
     case 'clear':
     case 'return': {
       manage();
+      if (action !== 'repair' && openNotices(store, id).some((n) => n.kind === 'STOP')) throw new HttpError(409, 'NOTICE_OPEN', `${q.assetTag} has a safety notice that stops its use. Record the notice's action as done first.`);
       const from = action === 'return' ? 'IN_REPAIR' : 'QUARANTINED';
       if (q.state !== from) throw new HttpError(409, 'WRONG_STATE', `${q.assetTag} is ${STATES[String(q.state)].toLowerCase()}.`);
       needNote({ repair: 'Write where it is going and the job number.', clear: 'Write who checked it and what they found.', return: 'Write what was repaired.' }[action]);
@@ -334,9 +358,9 @@ export function add(store: Store, ctx: WorkContext, b: { assetTag?: string; kind
   store.tx(() => {
     store.insert('equipment', {
       id, organisation_id: ctx.organisationId, service_id: ctx.serviceId, asset_tag: tag, kind, description,
-      service_due: /^\d{4}-\d{2}-\d{2}$/.test(String(b.serviceDue)) ? String(b.serviceDue) : null, state: 'AVAILABLE', added_by: ctx.workerId, added_at: now(),
+      service_due: /^\d{4}-\d{2}-\d{2}$/.test(String(b.serviceDue)) ? String(b.serviceDue) : null, state: 'NEW', added_by: ctx.workerId, added_at: now(),
     });
-    recordInitial(store, 'equipment', id, 'AVAILABLE', { actorId: ctx.workerId, workContextId: ctx.id }, 'Added to the register');
+    recordInitial(store, 'equipment', id, 'NEW', { actorId: ctx.workerId, workContextId: ctx.id }, 'Added to the register; acceptance check before first use');
     logged(store, ctx, 'EQUIPMENT_ADD', id, null, `${tag} ${description}`);
   });
   return shape(store, ctx, load(store, id));
@@ -347,7 +371,98 @@ export function list(store: Store, ctx: WorkContext) {
   if (!ctx.role.capabilities.includes('equipment.use')) throw new HttpError(403, 'BLOCK', `Your ${ctx.role.label} workstation does not include equipment`);
   const rows = store.all<Row>(`${SELECT} WHERE q.service_id = ? AND q.state != 'RETIRED' ORDER BY q.kind, q.asset_tag`, ctx.serviceId).map((q) => shape(store, ctx, q));
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_EQUIPMENT', decision: 'ALLOW', outcome: 'VIEWED', engines: [42] });
-  return { equipment: rows, canManage: ctx.role.capabilities.includes('equipment.manage'), options: options() };
+  return { equipment: rows, notices: notices(store, ctx), canManage: ctx.role.capabilities.includes('equipment.manage'), options: options() };
+}
+
+// Safety notices this service has recorded: open first, then the last few closed.
+function notices(store: Store, ctx: WorkContext) {
+  const rows = store.all<Row>(
+    `SELECT n.id, n.kind, n.title, n.source, n.action, n.due_date AS dueDate, n.state, w.display_name AS issuedBy, n.issued_at AS issuedAt, n.closed_at AS closedAt
+       FROM equipment_notice n JOIN workforce_person w ON w.id = n.issued_by WHERE n.service_id = ?
+      ORDER BY n.state = 'OPEN' DESC, n.issued_at DESC LIMIT 20`, ctx.serviceId);
+  const manage = ctx.role.capabilities.includes('equipment.manage');
+  return rows.map((n) => {
+    const items = store.all<Row>(
+      `SELECT i.equipment_id AS equipmentId, q.asset_tag AS assetTag, q.kind, q.state, w.display_name AS doneBy, i.done_at AS doneAt, i.done_note AS doneNote
+         FROM equipment_notice_item i JOIN equipment q ON q.id = i.equipment_id LEFT JOIN workforce_person w ON w.id = i.done_by
+        WHERE i.notice_id = ? ORDER BY q.asset_tag`, String(n.id),
+    ).map((i): Record<string, any> => ({ ...i, kindLabel: KINDS[String(i.kind)], stateLabel: STATES[String(i.state)], canDo: manage && n.state === 'OPEN' && !i.doneAt }));
+    return {
+      ...n, kindLabel: NOTICE_KINDS[String(n.kind)], stateLabel: NOTICE_STATES[String(n.state)], items, done: items.filter((i) => i.doneAt).length,
+      overdue: n.state === 'OPEN' && n.kind === 'ACT' && !!n.dueDate && String(n.dueDate) < todayLocal(),
+    };
+  });
+}
+
+const noticeLog = (store: Store, ctx: WorkContext, operation: string, id: string, reason: string) => audit(store, {
+  actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation, objectType: 'equipment_notice', objectId: id,
+  decision: 'ALLOW', outcome: 'COMMITTED', reason: reason.slice(0, 300), ruleRefs: NOTICE_REFS, engines: [135],
+});
+
+// Record a safety notice against the items it covers. "Stop using now" takes each one out of
+// use at once, ending its use with any patient.
+export function notice(store: Store, ctx: WorkContext, b: { kind?: string; title?: string; source?: string; action?: string; dueDate?: string; equipmentIds?: string }) {
+  if (!ctx.role.capabilities.includes('equipment.manage')) throw new HttpError(403, 'BLOCK', `Your ${ctx.role.label} workstation does not manage equipment`);
+  const kind = NOTICE_KINDS[String(b.kind)] ? String(b.kind) : '';
+  if (!kind) throw new HttpError(400, 'KIND_REQUIRED', 'Choose whether it stops use now or needs an action by a date.');
+  const title = (b.title ?? '').trim().slice(0, 200);
+  if (title.length < 5) throw new HttpError(400, 'TITLE_REQUIRED', 'Write what the notice is about, e.g. "Battery may fail without alarm".');
+  const source = (b.source ?? '').trim().slice(0, 200);
+  if (source.length < 3) throw new HttpError(400, 'SOURCE_REQUIRED', 'Write who issued it and its reference, e.g. "Manufacturer field safety notice FSN-2026-114".');
+  const action = (b.action ?? '').trim().slice(0, 1000);
+  if (action.length < 5) throw new HttpError(400, 'ACTION_REQUIRED', 'Write what the notice says to do, word for word where you can.');
+  const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(String(b.dueDate)) ? String(b.dueDate) : null;
+  if (kind === 'ACT' && !dueDate) throw new HttpError(400, 'DUE_REQUIRED', 'Choose the date the action is needed by.');
+  const ids = [...new Set(String(b.equipmentIds ?? '').split(',').map((x) => x.trim()).filter(Boolean))];
+  const items = ids.map((x) => store.get<Row>(`${SELECT} WHERE q.id = ?`, x)).filter((q): q is Row => !!q && q.serviceId === ctx.serviceId && q.state !== 'RETIRED');
+  if (!items.length || items.length !== ids.length) throw new HttpError(400, 'ITEMS_REQUIRED', 'Choose the equipment on your register that the notice covers.');
+  const nid = newId();
+  const who = { actorId: ctx.workerId, workContextId: ctx.id };
+  store.tx(() => {
+    store.insert('equipment_notice', { id: nid, service_id: ctx.serviceId, kind, title, source, action, due_date: kind === 'ACT' ? dueDate : null, state: 'OPEN', issued_by: ctx.workerId, issued_at: now() });
+    for (const q of items) {
+      const qid = String(q.id);
+      const stop = kind === 'STOP' && ['AVAILABLE', 'IN_USE', 'NEW'].includes(String(q.state));
+      store.insert('equipment_notice_item', { id: newId(), notice_id: nid, equipment_id: qid, stopped: stop ? 1 : 0 });
+      const use = store.get<{ id: string; personId: string }>('SELECT id, person_id AS personId FROM equipment_use WHERE equipment_id = ? AND ended_at IS NULL', qid);
+      store.insert('equipment_event', { id: newId(), equipment_id: qid, kind: 'NOTICE', note: `${NOTICE_KINDS[kind]}: ${title}. ${action}`, person_id: use?.personId ?? null, patient_affected: null, by_id: ctx.workerId, at: now() });
+      if (stop) {
+        if (use) store.run('UPDATE equipment_use SET ended_by = ?, ended_at = ?, end_note = ? WHERE id = ?', ctx.workerId, now(), `Taken out of use: safety notice, ${title}`, use.id);
+        transition(store, 'equipment', qid, 'QUARANTINED', who, `Safety notice: ${title}`);
+      }
+    }
+    noticeLog(store, ctx, 'EQUIPMENT_NOTICE', nid, `${NOTICE_KINDS[kind]}: ${title}`);
+  });
+  return list(store, ctx);
+}
+
+// The notice's action is done for one item. One the notice stopped goes back into use; when
+// every item is done the notice closes.
+export function noticeDone(store: Store, ctx: WorkContext, noticeId: string, b: { equipmentId?: string; note?: string }) {
+  if (!ctx.role.capabilities.includes('equipment.manage')) throw new HttpError(403, 'BLOCK', `Your ${ctx.role.label} workstation does not manage equipment`);
+  const n = store.get<Row>('SELECT id, kind, title, state, service_id AS serviceId FROM equipment_notice WHERE id = ?', noticeId);
+  if (!n || n.serviceId !== ctx.serviceId) throw new HttpError(404, 'NOT_FOUND', 'That safety notice is not on your register.');
+  if (n.state !== 'OPEN') throw new HttpError(409, 'CLOSED', 'That safety notice is already closed.');
+  const item = store.get<Row>('SELECT id, stopped, done_at AS doneAt FROM equipment_notice_item WHERE notice_id = ? AND equipment_id = ?', noticeId, String(b.equipmentId));
+  if (!item) throw new HttpError(404, 'NOT_FOUND', 'That equipment is not covered by this notice.');
+  if (item.doneAt) throw new HttpError(409, 'DONE', 'Already recorded as done.');
+  const note = (b.note ?? '').trim().slice(0, 1000);
+  if (note.length < 5) throw new HttpError(400, 'NOTE_REQUIRED', 'Write what was done and who did it, e.g. "Firmware 4.2 installed by clinical engineering, job 8812".');
+  const qid = String(b.equipmentId);
+  const who = { actorId: ctx.workerId, workContextId: ctx.id };
+  store.tx(() => {
+    store.run('UPDATE equipment_notice_item SET done_by = ?, done_at = ?, done_note = ? WHERE id = ?', ctx.workerId, now(), note, String(item.id));
+    store.insert('equipment_event', { id: newId(), equipment_id: qid, kind: 'NOTICE_DONE', note: `${n.title}: ${note}`, person_id: null, patient_affected: null, by_id: ctx.workerId, at: now() });
+    const state = store.get<{ s: string }>('SELECT state AS s FROM equipment WHERE id = ?', qid)?.s;
+    if (item.stopped === 1 && state === 'QUARANTINED' && !openNotices(store, qid).some((x) => x.kind === 'STOP')) {
+      transition(store, 'equipment', qid, 'AVAILABLE', who, `Safety notice action done: ${note}`);
+    }
+    if (!store.get('SELECT 1 FROM equipment_notice_item WHERE notice_id = ? AND done_at IS NULL', noticeId)) {
+      store.run("UPDATE equipment_notice SET state = 'CLOSED', closed_at = ? WHERE id = ?", now(), noticeId);
+    }
+    noticeLog(store, ctx, 'EQUIPMENT_NOTICE_DONE', noticeId, note);
+  });
+  return list(store, ctx);
 }
 
 // For the alert engine: equipment in use on a patient past its planned service date.
