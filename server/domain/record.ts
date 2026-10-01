@@ -57,6 +57,7 @@ import { forPerson as handoversFor, current as handoverNow } from './handovers.t
 import { forPerson as conferencesFor } from './conferences.ts';
 import { forPerson as rehabFor } from './rehab.ts';
 import { forPerson as diagnosticsFor, current as criticalNow } from './diagnostics.ts';
+import { forPerson as proceduresFor, current as recoveringNow } from './procedures.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -231,6 +232,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     devices: devicesNow(store, personId),
     handoverOpen: handoverNow(store, personId),
     criticalResults: criticalNow(store, personId),
+    recovering: recoveringNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -308,7 +310,8 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
         personId, ...view.categories!,
       );
       body = { events: rows.map((r) => shapeEvent(store, ctx, r)), conferences: ['review', 'goals'].includes(view.code) ? conferencesFor(store, ctx, personId) : null,
-        rehab: ['review', 'treatment'].includes(view.code) ? rehabFor(store, ctx, personId) : null };
+        rehab: ['review', 'treatment'].includes(view.code) ? rehabFor(store, ctx, personId) : null,
+        procedures: view.code === 'procedures' ? proceduresFor(store, ctx, personId) : null };
       break;
     }
     case 'history': {

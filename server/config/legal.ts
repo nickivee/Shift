@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-PROC-001',
+    question: 'What New Zealand requires around procedures done on wards and in emergency departments: which procedures need written rather than verbal consent (Code of Rights Right 7(6)), when treatment may go ahead without consent in an emergency (Right 7(4)) and what must be recorded, who may perform each procedure, the safety checks required before starting (including the surgical safety checklist and time-out), recovery observation requirements, and how complications must be recorded and reported.',
+    blocks: 'Rules on which procedures need written consent, emergency treatment without consent, required pre-procedure checks and recovery observations. SHIFT records the procedure, why, the linked consent or the doctor\'s reason it could not wait, the linked site check, who did it, how it went, findings and complications, the recovery plan, when they recovered and any follow-up.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-RESULT-001',
     question: 'What New Zealand requires for laboratory results: who may order which tests (including nurse-initiated tests under standing orders), how a sample must be labelled and the person identified at collection, how critical results must be communicated (who the laboratory must reach, how fast, read-back, and what happens if the requesting clinician cannot be reached, including for rest home residents whose GP orders their tests), how results must be acknowledged and by whom, and how corrected results must be handled and kept.',
     blocks: 'Required timeframes for taking samples and for acknowledging critical results, and any reporting when a critical result is not acknowledged. SHIFT records the order, the bedside identity check, the sample going to the lab, the result (including who phoned it and that it was read back), which doctor a nurse told, the doctor\'s plan, and corrections that keep the original.',

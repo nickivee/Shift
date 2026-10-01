@@ -63,6 +63,7 @@ import * as handovers from '../domain/handovers.ts';
 import * as conferences from '../domain/conferences.ts';
 import * as rehab from '../domain/rehab.ts';
 import * as diagnostics from '../domain/diagnostics.ts';
+import * as procedures from '../domain/procedures.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -354,6 +355,12 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/procedures', (req) => procedures.propose(store, work(req), req.params.id, { what: str(req.body.what), why: str(req.body.why) }));
+  r.on('POST', '/api/work/procedures/:id/:action', (req) => procedures.act(store, work(req), req.params.id, req.params.action, {
+    when: str(req.body.when), place: str(req.body.place), operator: str(req.body.operator), consent: str(req.body.consent), noConsent: str(req.body.noConsent),
+    noConsentNote: str(req.body.noConsentNote), site: str(req.body.site), how: str(req.body.how), findings: str(req.body.findings), complications: str(req.body.complications),
+    recoveryPlan: str(req.body.recoveryPlan), outcome: str(req.body.outcome), followUpOn: str(req.body.followUpOn), followUpWhat: str(req.body.followUpWhat), note: str(req.body.note), siteMatched: str(req.body.siteMatched),
+  }));
   r.on('POST', '/api/work/patients/:id/tests', (req) => diagnostics.order(store, work(req), req.params.id, { test: str(req.body.test), priority: str(req.body.priority), reason: str(req.body.reason) }));
   r.on('POST', '/api/work/tests/:id/:action', (req) => diagnostics.orderAct(store, work(req), req.params.id, req.params.action, { idChecked: str(req.body.idChecked), note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/results', (req) => diagnostics.receive(store, work(req), req.params.id, {

@@ -3964,4 +3964,51 @@ ALTER TABLE result ADD COLUMN corrected_reason TEXT;
 ALTER TABLE result ADD COLUMN order_id TEXT;
 `,
   },
+  {
+    version: 76,
+    name: 'procedures',
+    sql: `
+-- Procedure (SLO 211): proposed → planned with consent (or an emergency) and the site check →
+-- started → done as planned, changed or stopped → recovery → recovered, outcome and follow-up.
+CREATE TABLE clinical_procedure (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  what TEXT NOT NULL,
+  why TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- PROPOSED | PLANNED | IN_PROGRESS | RECOVERY | FINISHED | CANCELLED
+  proposed_by TEXT NOT NULL REFERENCES workforce_person(id),
+  proposed_at TEXT NOT NULL,
+  consent_id TEXT REFERENCES consent(id),
+  no_consent TEXT,
+  no_consent_note TEXT,
+  site_id TEXT REFERENCES site_verification(id),
+  planned_for TEXT,
+  place TEXT,
+  operator_id TEXT REFERENCES workforce_person(id),
+  started_at TEXT,
+  ended_at TEXT,
+  how TEXT,                             -- COMPLETED | MODIFIED | ABANDONED
+  findings TEXT,
+  complications TEXT,
+  recovery_plan TEXT,
+  recovered_by TEXT REFERENCES workforce_person(id),
+  recovered_at TEXT,
+  outcome TEXT,
+  follow_up_on TEXT,
+  follow_up_what TEXT,
+  cancel_note TEXT
+);
+CREATE INDEX clinical_procedure_person ON clinical_procedure(person_id, state);
+CREATE TABLE clinical_procedure_step (
+  id TEXT PRIMARY KEY,
+  procedure_id TEXT NOT NULL REFERENCES clinical_procedure(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX clinical_procedure_step_p ON clinical_procedure_step(procedure_id, at);
+`,
+  },
 ];
