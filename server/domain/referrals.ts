@@ -6,6 +6,7 @@ import { audit } from './audit.ts';
 import { transition, recordInitial, history } from './lifecycle.ts';
 import { ROLES } from '../config/workstations.ts';
 import { addRequest, bookForReferral, cancelForReferral } from './appointments.ts';
+import { startFromReferral } from './rehab.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
 // Referral (Shared Lifecycle Object 203):
@@ -288,6 +289,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         }
         transition(store, 'referral', id, 'RESPONSIBILITY_ACCEPTED', who, kind === 'SHARED_CARE' ? 'Shared care' : 'On caseload');
         store.run('UPDATE referral SET responsibility_by = ?, care_relationship_id = ? WHERE id = ?', ctx.workerId, crId, id);
+        startFromReferral(store, ctx, personId, id);
         break;
       }
       case 'outcome':

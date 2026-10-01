@@ -27,6 +27,7 @@ import { complaintsPanel } from './complaints.js';
 import { devicesPanel } from './devices.js';
 import { handoversPanel } from './handovers.js';
 import { conferencesPanel } from './conferences.js';
+import { rehabPanel } from './rehab.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
 import { externalPanel } from './external.js';
@@ -416,7 +417,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences ? h('h3', {}, d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab ? h('h3', {}, d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return overview(d);
       case 'meds': return h('div', { class: 'stack' },
@@ -439,7 +440,7 @@ export async function workstationView(personId, initialView) {
         ))),
       ));
       case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
-      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
+      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.

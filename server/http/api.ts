@@ -61,6 +61,7 @@ import * as complaints from '../domain/complaints.ts';
 import * as devices from '../domain/devices.ts';
 import * as handovers from '../domain/handovers.ts';
 import * as conferences from '../domain/conferences.ts';
+import * as rehab from '../domain/rehab.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -352,6 +353,15 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/rehab', (req) => rehab.start(store, work(req), req.params.id));
+  r.on('POST', '/api/work/rehab/:id/:action', (req) => rehab.act(store, work(req), req.params.id, req.params.action, {
+    ready: str(req.body.ready), reason: str(req.body.reason), recheck: str(req.body.recheck), baseline: str(req.body.baseline), plan: str(req.body.plan),
+    perWeek: Number(req.body.perWeek),
+    goals: Array.isArray(req.body.goals) ? (req.body.goals as Record<string, unknown>[]).slice(0, 8).map((g) => ({ goal: str(g?.goal), carePlanItem: str(g?.carePlanItem) })) : [],
+    delivered: str(req.body.delivered), done: str(req.body.done), response: str(req.body.response), note: str(req.body.note),
+    goalStates: req.body.goalStates && typeof req.body.goalStates === 'object' ? Object.fromEntries(Object.entries(req.body.goalStates as Record<string, unknown>).map(([k, v]) => [k, str(v)])) : {},
+    needs: str(req.body.needs), nextKind: str(req.body.nextKind), nextTo: str(req.body.nextTo), summary: str(req.body.summary), outcome: str(req.body.outcome),
+  }));
   r.on('POST', '/api/work/patients/:id/conferences', (req) => conferences.plan(store, work(req), req.params.id, {
     kind: str(req.body.kind), reason: str(req.body.reason), when: str(req.body.when), invite: list(req.body.invite), others: str(req.body.others),
   }));
