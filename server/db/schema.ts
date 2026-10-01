@@ -3925,4 +3925,43 @@ CREATE TABLE rehab_step (
 CREATE INDEX rehab_step_e ON rehab_step(episode_id, at);
 `,
   },
+  {
+    version: 75,
+    name: 'test orders and critical results',
+    sql: `
+-- Laboratory tests (entry 12; SLO 204, 205, 212): ordered → sample taken (identity checked,
+-- labelled at the bedside) → sent → resulted. Results gain who took a phoned result and whether
+-- it was read back, the lab's critical flag, who was told and the acknowledging plan, and
+-- corrections that keep the original.
+CREATE TABLE test_order (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  test TEXT NOT NULL,
+  priority TEXT NOT NULL,               -- URGENT | ROUTINE
+  reason TEXT NOT NULL,
+  state TEXT NOT NULL,                  -- ORDERED | COLLECTED | SENT | RESULTED | CANCELLED
+  ordered_by TEXT NOT NULL REFERENCES workforce_person(id),
+  ordered_at TEXT NOT NULL,
+  take_by TEXT NOT NULL,
+  collected_by TEXT REFERENCES workforce_person(id),
+  collected_at TEXT,
+  collect_note TEXT,
+  sent_at TEXT,
+  cancel_note TEXT,
+  result_id TEXT REFERENCES result(id)
+);
+CREATE INDEX test_order_person ON test_order(person_id, state);
+ALTER TABLE result ADD COLUMN critical INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE result ADD COLUMN received_by TEXT;
+ALTER TABLE result ADD COLUMN read_back INTEGER;
+ALTER TABLE result ADD COLUMN told_doctor TEXT;
+ALTER TABLE result ADD COLUMN ack_by TEXT;
+ALTER TABLE result ADD COLUMN ack_at TEXT;
+ALTER TABLE result ADD COLUMN ack_plan TEXT;
+ALTER TABLE result ADD COLUMN corrects_id TEXT;
+ALTER TABLE result ADD COLUMN corrected_reason TEXT;
+ALTER TABLE result ADD COLUMN order_id TEXT;
+`,
+  },
 ];

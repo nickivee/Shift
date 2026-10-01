@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 74;
+const SET = 75;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -401,6 +401,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 72) set72(store);
     if (at < 73) set73(store);
     if (at < 74) set74(store);
+    if (at < 75) set75(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4438,4 +4439,62 @@ function set74(store: Store): void {
   }
   const aroha = person('ZZZ9999');
   if (aroha) start(aroha, 6 * 60);
+}
+
+// Set 75: test orders and critical results. Wiremu's haemoglobin of 62 was phoned through and
+// Grace told Dr Li, but nobody has acknowledged it yet; a routine blood count is waiting to be
+// taken. In ED, Daniel's urgent troponin sample is overdue and Kiri's lactate is taken but not
+// sent. At the rest home, Frank's critical sodium was phoned to Kate and she recorded his GP's plan.
+function set75(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const person = (nhi: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+  const hannah = who('hannah'), grace = who('grace'), ravi = who('ravi'), mere = who('mere'), kate = who('kate');
+  if (!hannah || !grace || !ravi || !mere || !kate) return;
+  const trans = (type: string, id: string, from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const order = (o: { personId: string; service: string; test: string; priority: string; reason: string; by: string; mins: number; takeMins: number; state: string; collectedBy?: string; collectedMins?: number }) => {
+    const id = newId();
+    store.insert('test_order', {
+      id, person_id: o.personId, service_id: o.service, test: o.test, priority: o.priority, reason: o.reason, state: o.state, ordered_by: o.by, ordered_at: at(o.mins),
+      take_by: new Date(Date.now() - (o.mins - o.takeMins) * 60_000).toISOString(), collected_by: o.collectedBy ?? null, collected_at: o.collectedMins !== undefined ? at(o.collectedMins) : null,
+    });
+    trans('test_order', id, null, 'ORDERED', o.by, o.mins, o.reason);
+    if (o.collectedBy && o.collectedMins !== undefined) trans('test_order', id, 'ORDERED', 'COLLECTED', o.collectedBy, o.collectedMins, 'Sample taken');
+    return id;
+  };
+  const phoned = (r: { personId: string; test: string; value: string; units: string; range: string; by: string; mins: number; from: string; told?: string; orderId?: string; ack?: { by: string; mins: number; plan: string } }) => {
+    const id = newId();
+    store.insert('result', {
+      id, person_id: r.personId, test: r.test, value: r.value, units: r.units, reference_range: r.range, flag: 'C', state: r.ack ? 'REVIEWED' : 'AVAILABLE',
+      performed_at: at(r.mins + 40), released_at: at(r.mins), source: `Phoned by ${r.from}, Te Awa Laboratory`, reviewed_by: r.ack?.by ?? null, reviewed_at: r.ack ? at(r.ack.mins) : null,
+      data_source: 'SYNTHETIC', critical: 1, received_by: r.by, read_back: 1, told_doctor: r.told ?? null, order_id: r.orderId ?? null,
+      ack_by: r.ack?.by ?? null, ack_at: r.ack ? at(r.ack.mins) : null, ack_plan: r.ack?.plan ?? null,
+    });
+    trans('result', id, null, 'AVAILABLE', r.by, r.mins, `Phoned by ${r.from}; read back`);
+    if (r.ack) trans('result', id, 'AVAILABLE', 'REVIEWED', r.ack.by, r.ack.mins, 'Critical result acknowledged');
+    if (r.orderId) {
+      trans('test_order', r.orderId, 'SENT', 'RESULTED', r.by, r.mins, 'Result phoned');
+      store.run("UPDATE test_order SET state = 'RESULTED', result_id = ? WHERE id = ?", id, r.orderId);
+    }
+    return id;
+  };
+
+  const wiremu = person('ZZZ0016');
+  if (wiremu) {
+    const hb = order({ personId: wiremu, service: 'svc-genmed', test: 'FBC', priority: 'URGENT', reason: 'Black stools overnight; check haemoglobin', by: hannah, mins: 150, takeMins: 60, state: 'SENT', collectedBy: grace, collectedMins: 130 });
+    store.run('UPDATE test_order SET sent_at = ? WHERE id = ?', at(125), hb);
+    trans('test_order', hb, 'COLLECTED', 'SENT', grace, 125, 'Sent to Te Awa Laboratory');
+    phoned({ personId: wiremu, test: 'Haemoglobin', value: '62', units: 'g/L', range: '130–175', by: grace, mins: 25, from: 'Priya, lab scientist', told: 'Dr Li, by phone', orderId: hb });
+    order({ personId: wiremu, service: 'svc-genmed', test: 'COAGS', priority: 'ROUTINE', reason: 'Bleeding; check clotting before any procedure', by: hannah, mins: 20, takeMins: 12 * 60, state: 'ORDERED' });
+  }
+  const daniel = person('ZZZ0113');
+  if (daniel) order({ personId: daniel, service: 'svc-ed', test: 'TROPONIN', priority: 'URGENT', reason: 'Chest tightness on exertion; ECG normal', by: ravi, mins: 80, takeMins: 60, state: 'ORDERED' });
+  const kiri = person('ZZZ0105');
+  if (kiri) order({ personId: kiri, service: 'svc-ed', test: 'LACTATE', priority: 'URGENT', reason: 'Possible sepsis', by: ravi, mins: 30, takeMins: 60, state: 'COLLECTED', collectedBy: mere, collectedMins: 15 });
+  const frank = person('ZZZ0075');
+  if (frank) {
+    phoned({ personId: frank, test: 'Sodium', value: '119', units: 'mmol/L', range: '135–145', by: kate, mins: 6 * 60, from: 'Sam, lab scientist', told: 'Dr Whyte (GP), by phone',
+      ack: { by: kate, mins: 5 * 60 + 45, plan: 'Dr Whyte (GP), by phone: Limit fluids to 1 litre a day; GP to review his medicines tomorrow; repeat sodium tomorrow; call if more drowsy or confused.' } });
+  }
 }

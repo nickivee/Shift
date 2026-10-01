@@ -337,7 +337,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'treatment', label: 'Treatment', kind: 'events', categories: ['TREATMENT'], key: '.treatment' },
   { code: 'outcomes', label: 'Outcome Measures', kind: 'events', categories: ['OUTCOME'], key: '.outcome' },
   { code: 'meds', label: 'Medicines', kind: 'meds' },
-  { code: 'results', label: 'Results', kind: 'results' },
+  { code: 'results', label: 'Tests and results', kind: 'results' },
   { code: 'allergies', label: 'Allergies', kind: 'allergies' },
   { code: 'careplan', label: 'Care Plan', kind: 'careplan' },
   { code: 'tasks', label: 'Tasks', kind: 'tasks', key: '.task' },

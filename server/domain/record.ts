@@ -56,6 +56,7 @@ import { forPerson as devicesFor, current as devicesNow } from './devices.ts';
 import { forPerson as handoversFor, current as handoverNow } from './handovers.ts';
 import { forPerson as conferencesFor } from './conferences.ts';
 import { forPerson as rehabFor } from './rehab.ts';
+import { forPerson as diagnosticsFor, current as criticalNow } from './diagnostics.ts';
 import { forPerson as antimicrobialsFor } from './antimicrobials.ts';
 import { forPerson as sitechecksFor, current as siteNow } from './siteverify.ts';
 import { forPerson as readinessFor } from './readiness.ts';
@@ -229,6 +230,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     inHospital: residencyNow(store, personId),
     devices: devicesNow(store, personId),
     handoverOpen: handoverNow(store, personId),
+    criticalResults: criticalNow(store, personId),
     whanau: whanauNow(store, personId),
     access: accessNow(store, personId),
     external: externalNow(store, personId),
@@ -329,16 +331,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       };
       break;
     case 'results':
-      body = {
-        results: store.all(
-          `SELECT r.id, r.test, r.value, r.units, r.reference_range AS referenceRange, r.flag, r.state, r.performed_at AS performedAt,
-                  r.released_at AS releasedAt, r.source, w.display_name AS reviewedBy, r.reviewed_at AS reviewedAt
-             FROM result r LEFT JOIN workforce_person w ON w.id = r.reviewed_by
-            WHERE r.person_id = ? ORDER BY r.performed_at DESC, r.test`,
-          personId,
-        ),
-        canReview: evaluate(store, ctx, { op: 'REVIEW_RESULT', personId }).decision === 'ALLOW',
-      };
+      body = diagnosticsFor(store, ctx, personId);
       break;
     case 'allergies':
       body = allergiesFor(store, ctx, personId);

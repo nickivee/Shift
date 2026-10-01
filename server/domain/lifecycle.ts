@@ -518,6 +518,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'STARTED',
     next: { STARTED: ['NOT_READY', 'ACTIVE', 'CLOSED'], NOT_READY: ['ACTIVE', 'CLOSED'], ACTIVE: ['ENDING', 'CLOSED'], ENDING: ['ACTIVE', 'CLOSED'] },
   },
+  test_order: {
+    table: 'test_order',
+    initial: 'ORDERED',
+    next: { ORDERED: ['COLLECTED', 'RESULTED', 'CANCELLED'], COLLECTED: ['SENT', 'RESULTED', 'CANCELLED'], SENT: ['RESULTED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
@@ -586,7 +591,7 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
   result: {
     table: 'result',
     initial: 'AVAILABLE',
-    next: { AVAILABLE: ['REVIEWED'], REVIEWED: ['ACTIONED'] },
+    next: { AVAILABLE: ['REVIEWED', 'CORRECTED'], REVIEWED: ['ACTIONED', 'CORRECTED'], ACTIONED: ['CORRECTED'] },
   },
 };
 

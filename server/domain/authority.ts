@@ -36,6 +36,9 @@ export type Operation =
   | { op: 'HANDOVER_GIVE'; personId: string }
   | { op: 'CONFERENCE'; personId: string }
   | { op: 'REHAB'; personId: string }
+  | { op: 'TEST_ORDER'; personId: string }
+  | { op: 'TEST_COLLECT'; personId: string }
+  | { op: 'RESULT_RECEIVE'; personId: string }
   | { op: 'DEVICE_REPORT'; personId: string }
   | { op: 'COMPLAINT_RECORD'; personId: string }
   | { op: 'SAFEGUARD_RAISE'; personId: string }
@@ -398,6 +401,18 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'TEST_ORDER':
+      return need(ctx, 'test.order') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can order their tests`));
+    case 'TEST_COLLECT':
+      return need(ctx, 'test.collect') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can take their samples`));
+    case 'RESULT_RECEIVE':
+      return need(ctx, 'result.receive') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-RESULT-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can take their results`));
     case 'REHAB':
       return need(ctx, 'rehab.manage') ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG])
