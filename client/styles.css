@@ -1010,3 +1010,8 @@ tr.chosen td { background: var(--ok-bg); }
 .patient-feed b { display: block; font-size: 13px; letter-spacing: .6px; }
 .safety-notice ul.notice-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .safety-notice ul.notice-items li { border-top: 1px solid var(--line); padding-top: 6px; }
+
+/* Safe staffing */
+.staffing-shift .staff-role + .staff-role { border-top: 1px solid var(--line); padding-top: 8px; }
+.staffing-shift .staff-person { justify-content: space-between; flex-wrap: wrap; }
+table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; }

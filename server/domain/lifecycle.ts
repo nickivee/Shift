@@ -444,7 +444,7 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
   roster_shift: {
     table: 'roster_shift',
     initial: 'PLANNED',
-    next: { PLANNED: ['CANCELLED', 'REASSIGNED'] },
+    next: { PLANNED: ['CANCELLED', 'REASSIGNED', 'ABSENT'] },
   },
   knowledge_question: {
     table: 'knowledge_question',

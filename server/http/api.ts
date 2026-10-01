@@ -779,6 +779,11 @@ export function buildApi(store: Store): Router {
   r.on('GET', '/api/work/beds', (req) => transfers.beds(store, work(req)));
   r.on('POST', '/api/work/beds/:id/state', (req) => transfers.setBed(store, work(req), req.params.id, str(req.body.state)));
 
+  r.on('GET', '/api/work/rostering/staffing', (req) => rostering.staffing(store, work(req)));
+  r.on('POST', '/api/work/rostering/staffing/call-in', (req) => rostering.callIn(store, work(req), { date: str(req.body.date), period: str(req.body.period), roleKey: str(req.body.roleKey), workerId: str(req.body.workerId), note: str(req.body.note) }));
+  r.on('POST', '/api/work/rostering/staffing/advertise', (req) => rostering.advertise(store, work(req), { date: str(req.body.date), period: str(req.body.period), roleKey: str(req.body.roleKey) }));
+  r.on('POST', '/api/work/rostering/staffing/short', (req) => rostering.runShort(store, work(req), { date: str(req.body.date), period: str(req.body.period), roleKey: str(req.body.roleKey), plan: str(req.body.plan), told: str(req.body.told) }));
+  r.on('POST', '/api/work/roster-shifts/:id/absent', (req) => rostering.reportAbsent(store, work(req), req.params.id, { kind: str(req.body.kind), note: str(req.body.note) }));
   r.on('GET', '/api/work/rostering/vacancies', (req) => rostering.vacancies(store, work(req)));
   r.on('POST', '/api/work/rostering/vacancies/:id/decide', (req) => rostering.decideVacancy(store, work(req), req.params.id, { workerId: str(req.body.workerId), note: str(req.body.note) }));
   r.on('GET', '/api/work/rostering/swaps', (req) => rostering.swaps(store, work(req)));

@@ -4294,4 +4294,36 @@ CREATE INDEX equipment_notice_item_e ON equipment_notice_item(equipment_id, done
 CREATE INDEX equipment_notice_item_n ON equipment_notice_item(notice_id);
 `,
   },
+  {
+    version: 83,
+    name: 'safe staffing',
+    sql: `
+-- Safe staffing (entries 34–36): a rostered person who cannot work a shift, and a rostering
+-- decision that a shift will run short of its staffing plan, with how it will be covered.
+CREATE TABLE staff_absence (
+  id TEXT PRIMARY KEY,
+  roster_shift_id TEXT NOT NULL REFERENCES roster_shift(id),
+  workforce_person_id TEXT NOT NULL REFERENCES workforce_person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- SICK | OTHER
+  note TEXT,                            -- operational only; personal reasons stay with the person
+  reported_by TEXT NOT NULL REFERENCES workforce_person(id),
+  reported_at TEXT NOT NULL
+);
+CREATE INDEX staff_absence_shift ON staff_absence(roster_shift_id);
+CREATE TABLE staffing_short (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  shift_date TEXT NOT NULL,
+  period TEXT NOT NULL,                 -- AM | PM | NIGHT
+  role_key TEXT NOT NULL,
+  missing INTEGER NOT NULL,
+  plan TEXT NOT NULL,
+  told TEXT NOT NULL,
+  decided_by TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX staffing_short_shift ON staffing_short(service_id, shift_date, period);
+`,
+  },
 ];

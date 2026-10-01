@@ -3,6 +3,7 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, ask, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { staffingPanel } from './staffing.js';
 import { formDialog as dialog } from '../lib/forms.js';
 
 // Patient allocation: draft → submitted for review → confirmed → in use for the shift, with
@@ -148,6 +149,7 @@ export async function allocationView() {
       workHeader(),
       pageTitle('Patient allocation', () => go('/work/home')),
       h('div', { class: 'banner' }, 'Which patients each nurse or caregiver has this shift. Draft it from the roster, have another nurse check it, start it at the beginning of the shift and end it at handover.'),
+      staffingPanel(d.staffing, load),
       h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, 'In use now'),
         d.active ? h('div', { class: 'card stack' }, h('h3', {}, d.active.label), planPanel(d.active, load)) : h('div', { class: 'card empty' }, 'No allocation is in use for this service.')),
       h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `To review (${d.toReview.length})`),

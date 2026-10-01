@@ -12,7 +12,7 @@ const DESCRIPTIONS = {
   handover: () => 'Review items explicitly marked for handover.',
   received: () => 'Information routed to you. Nothing is received until you open it.',
   knowledge: () => 'Ask colleagues anonymously. SHIFT gives no answers of its own.',
-  vacancies: () => 'Open shifts and who has asked for them. Only your decision changes the roster.',
+  vacancies: () => 'Shifts short of staff, and open shifts with who has asked for them. Only your decision changes the roster.',
   swaps: () => 'Shifts staff have offered to colleagues, waiting on a rostering decision.',
   leave: () => 'Leave requests waiting for a decision.',
   transfers: () => 'Admissions and transfers coming in and going out, one step at a time.',
@@ -96,7 +96,8 @@ export async function homeView() {
     const jobs = [];
     if (want.includes('tasks')) jobs.push(get('/api/work/tasks').then((t) => (counts.tasks = t.filter((x) => !['COMPLETED', 'CLOSED', 'CANCELLED'].includes(x.state)).length)));
     if (want.includes('received')) jobs.push(get('/api/work/received').then((r) => (counts.received = r.filter((x) => x.state === 'DELIVERED').length)));
-    for (const id of ['vacancies', 'swaps', 'leave']) {
+    if (want.includes('vacancies')) jobs.push(Promise.all([get('/api/work/rostering/vacancies'), get('/api/work/rostering/staffing')]).then(([v, s]) => (counts.vacancies = v.length + s.gaps)));
+    for (const id of ['swaps', 'leave']) {
       if (want.includes(id)) jobs.push(get(`/api/work/rostering/${id}`).then((rows) => (counts[id] = rows.length)));
     }
     if (want.includes('transfers')) jobs.push(get('/api/work/transfers').then((rows) => (counts.transfers = rows.filter((t) => t.actions.length).length)));

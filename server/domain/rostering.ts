@@ -3,7 +3,10 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { transition } from './lifecycle.ts';
-import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
+import { evaluate } from './authority.ts';
+import { PERIOD_BY_ID, periodOf, currentPeriod, nextPeriod } from '../config/allocation.ts';
+import { PLAN, ROLE_WORDS, ABSENCE, DAYS_AHEAD } from '../config/staffing.ts';
+import { newId, now, todayLocal, addDays, HttpError } from '../lib/util.ts';
 
 // Rostering decisions for one service. This is the only place a roster changes: interest in
 // an open shift, a colleague's willingness to take an offered shift, availability and leave
@@ -156,4 +159,168 @@ export function decideLeave(store: Store, ctx: WorkContext, id: string, approve:
   });
   // Approving leave does not silently remove rostered shifts; the rosterer changes those.
   return { state: approve ? 'APPROVED' : 'DECLINED' };
+}
+
+// Safe staffing (entries 34–36). Each shift is set against the service's staffing plan: who is
+// rostered, who has called in unable to work, and what the rosterer decided about any gap.
+// SHIFT shows a gap and never blocks; the plan's numbers are the organisation's own.
+
+type StaffRow = { rosterShiftId: string; workerId: string; name: string; start: string; end: string; state: string; roleKey: string };
+
+function onShift(store: Store, serviceId: string, date: string, period: string) {
+  return store.all<StaffRow>(
+    `SELECT r.id AS rosterShiftId, r.workforce_person_id AS workerId, w.display_name AS name, r.start_time AS start, r.end_time AS "end", r.state, p.role_key AS roleKey
+       FROM roster_shift r JOIN position p ON p.id = r.position_id JOIN workforce_person w ON w.id = r.workforce_person_id
+      WHERE r.service_id = ? AND r.shift_date = ? AND r.state IN ('PLANNED', 'ABSENT') ORDER BY r.start_time, w.display_name`,
+    serviceId, date,
+  ).filter((r) => periodOf(r.start) === period);
+}
+
+function absence(store: Store, rosterShiftId: string) {
+  return store.get<Row>(
+    `SELECT a.kind, a.note, a.reported_at AS at, w.display_name AS reportedBy FROM staff_absence a JOIN workforce_person w ON w.id = a.reported_by
+      WHERE a.roster_shift_id = ? ORDER BY a.reported_at DESC LIMIT 1`, rosterShiftId);
+}
+
+export function shiftStaffing(store: Store, serviceId: string, date: string, period: string) {
+  const plan = PLAN[serviceId]?.[period];
+  if (!plan) return null;
+  const staff = onShift(store, serviceId, date, period);
+  const roles = Object.entries(plan).map(([roleKey, planned]) => {
+    const people = staff.filter((s) => s.roleKey === roleKey).map((s) => {
+      const a = s.state === 'ABSENT' ? absence(store, s.rosterShiftId) : null;
+      return { rosterShiftId: s.rosterShiftId, workerId: s.workerId, name: s.name, start: s.start, end: s.end,
+        absent: a ? { kind: a.kind, label: ABSENCE[String(a.kind)] ?? 'Unplanned absence', note: a.note, reportedBy: a.reportedBy, at: a.at } : null };
+    });
+    const working = people.filter((p) => !p.absent).length;
+    const gap = Math.max(0, planned - working);
+    const advertised = store.all<{ start: string }>(
+      "SELECT start_time AS start FROM open_shift WHERE service_id = ? AND role_key = ? AND shift_date = ? AND state = 'OPEN'", serviceId, roleKey, date,
+    ).filter((o) => periodOf(o.start) === period).length;
+    const short = store.get<Row>(
+      `SELECT s.missing, s.plan, s.told, s.at, w.display_name AS decidedBy FROM staffing_short s JOIN workforce_person w ON w.id = s.decided_by
+        WHERE s.service_id = ? AND s.shift_date = ? AND s.period = ? AND s.role_key = ? ORDER BY s.at DESC LIMIT 1`, serviceId, date, period, roleKey);
+    const status = gap === 0 ? 'OK' : short && Number(short.missing) >= gap ? 'SHORT' : advertised >= gap ? 'ADVERTISED' : 'GAP';
+    const [one, many] = ROLE_WORDS[roleKey] ?? [roleKey, roleKey];
+    return { roleKey, one, many, planned, working, gap, advertised, status, short: status === 'SHORT' ? short : null, people };
+  });
+  const label = PERIOD_BY_ID.get(period)?.label ?? period;
+  const status = ['GAP', 'SHORT', 'ADVERTISED'].find((x) => roles.some((r) => r.status === x)) ?? 'OK';
+  const noNurse = roles.some((r) => r.roleKey.endsWith('-rn') && r.working === 0);
+  return { date, period, label, roles, status, noNurse };
+}
+
+function upcoming(serviceId: string, days: number) {
+  const out: { date: string; period: string }[] = [];
+  let s = currentPeriod();
+  const last = addDays(todayLocal(), days - 1);
+  while (s.date <= last) {
+    if (PLAN[serviceId]?.[s.period]) out.push(s);
+    s = nextPeriod(s.date, s.period);
+  }
+  return out;
+}
+
+// Rostering → Staffing and vacancies: every shift for the days ahead, with gaps first in mind.
+export function staffing(store: Store, ctx: WorkContext) {
+  enforce(store, ctx, { op: 'ROSTER_DECIDE', serviceId: ctx.serviceId });
+  if (!PLAN[ctx.serviceId]) return { planned: false, shifts: [], gaps: 0 };
+  const shifts = upcoming(ctx.serviceId, DAYS_AHEAD).map((s) => {
+    const d = shiftStaffing(store, ctx.serviceId, s.date, s.period)!;
+    const roles = d.roles.map((r) => ({
+      ...r,
+      candidates: r.status === 'GAP' || r.status === 'ADVERTISED'
+        ? store.all<{ w: string }>(
+          `SELECT DISTINCT e.workforce_person_id AS w FROM position p JOIN employment e ON e.id = p.employment_id
+            WHERE p.service_id = ? AND p.role_key = ? AND (p.end_date IS NULL OR p.end_date >= ?)`, ctx.serviceId, r.roleKey, todayLocal(),
+        ).filter((x) => !store.get("SELECT 1 FROM roster_shift WHERE workforce_person_id = ? AND shift_date = ? AND state = 'ABSENT'", x.w, s.date))
+          .map((x) => candidate(store, ctx, x.w, s.date)).filter((c) => !c.rosteredThatDay && c.availability?.preference !== 'UNAVAILABLE')
+          .sort((a, b) => Number(!a.availability) - Number(!b.availability))
+        : [],
+    }));
+    return { ...d, roles };
+  });
+  return { planned: true, shifts, gaps: shifts.reduce((n, s) => n + s.roles.filter((r) => r.status === 'GAP').length, 0) };
+}
+
+// Allocation: this shift and the next, for the nurse in charge.
+export function shiftsNow(store: Store, ctx: WorkContext) {
+  if (!PLAN[ctx.serviceId]) return null;
+  const now = currentPeriod();
+  const next = nextPeriod(now.date, now.period);
+  return {
+    shifts: [now, next].map((s) => shiftStaffing(store, ctx.serviceId, s.date, s.period)),
+    canReport: evaluate(store, ctx, { op: 'STAFF_ABSENCE', serviceId: ctx.serviceId }).decision === 'ALLOW',
+  };
+}
+
+function gapFor(store: Store, ctx: WorkContext, date?: string, period?: string, roleKey?: string) {
+  if (!date || !period || !roleKey) throw new HttpError(400, 'MISSING', 'Choose the shift and the role.');
+  const d = shiftStaffing(store, ctx.serviceId, date, period);
+  const r = d?.roles.find((x) => x.roleKey === roleKey);
+  if (!d || !r) throw new HttpError(404, 'NOT_FOUND', 'That shift is not in this service’s staffing plan.');
+  if (r.gap === 0) throw new HttpError(409, 'NO_GAP', `This shift already has the ${r.many} it is planned for.`);
+  return { d, r };
+}
+
+export function reportAbsent(store: Store, ctx: WorkContext, rosterShiftId: string, b: { kind?: string; note?: string }) {
+  enforce(store, ctx, { op: 'STAFF_ABSENCE', serviceId: ctx.serviceId });
+  const s = store.get<Row>("SELECT r.*, w.display_name AS name FROM roster_shift r JOIN workforce_person w ON w.id = r.workforce_person_id WHERE r.id = ? AND r.service_id = ?", rosterShiftId, ctx.serviceId);
+  if (!s) throw new HttpError(404, 'NOT_FOUND', 'That shift is not on this service’s roster.');
+  if (s.state !== 'PLANNED') throw new HttpError(409, 'NOT_PLANNED', `${s.name} is not rostered for that shift any more.`);
+  if (String(s.shift_date) < addDays(todayLocal(), -1)) throw new HttpError(409, 'PAST', 'That shift has already been worked.');
+  if (!b.kind || !ABSENCE[b.kind]) throw new HttpError(400, 'KIND', 'Choose sick or other unplanned absence.');
+  const id = newId();
+  store.tx(() => {
+    store.insert('staff_absence', { id, roster_shift_id: rosterShiftId, workforce_person_id: s.workforce_person_id, service_id: ctx.serviceId, kind: b.kind, note: b.note?.trim().slice(0, 300) || null, reported_by: ctx.workerId, reported_at: now() });
+    transition(store, 'roster_shift', rosterShiftId, 'ABSENT', { actorId: ctx.workerId, workContextId: ctx.id }, ABSENCE[b.kind!]);
+    decided(store, ctx, { kind: 'ABSENCE', objectId: id, outcome: 'RECORDED', subject: String(s.workforce_person_id), rosterShiftId, note: b.note });
+  });
+  const d = shiftStaffing(store, ctx.serviceId, String(s.shift_date), periodOf(String(s.start_time)));
+  return { state: 'ABSENT', name: s.name, gap: d?.roles.some((r) => r.status === 'GAP') ?? false };
+}
+
+export function callIn(store: Store, ctx: WorkContext, b: { date?: string; period?: string; roleKey?: string; workerId?: string; note?: string }) {
+  enforce(store, ctx, { op: 'ROSTER_DECIDE', serviceId: ctx.serviceId });
+  const { d, r } = gapFor(store, ctx, b.date, b.period, b.roleKey);
+  const c = b.workerId ? candidate(store, ctx, b.workerId, d.date) : null;
+  if (!c || c.name === 'Unknown') throw new HttpError(400, 'WHO', 'Choose who is coming in.');
+  if (c.rosteredThatDay) throw new HttpError(409, 'ROSTER_CLASH', `${c.name} is already rostered that day.`);
+  const position = positionFor(store, ctx, c.workerId, r.roleKey);
+  if (!position) throw new HttpError(409, 'NO_POSITION', `${c.name} does not hold a ${r.one} position in ${ctx.serviceName}.`);
+  const p = PERIOD_BY_ID.get(d.period)!;
+  const rid = newId();
+  store.tx(() => {
+    store.insert('roster_shift', { id: rid, workforce_person_id: c.workerId, position_id: position.id, service_id: ctx.serviceId, shift_date: d.date, start_time: p.start, end_time: p.end, state: 'PLANNED', data_source: 'SHIFT' });
+    decided(store, ctx, { kind: 'CALL_IN', objectId: rid, outcome: 'ASSIGNED', subject: c.workerId, rosterShiftId: rid, note: b.note });
+  });
+  return { state: 'ROSTERED', name: c.name, rosterChanged: true };
+}
+
+export function advertise(store: Store, ctx: WorkContext, b: { date?: string; period?: string; roleKey?: string }) {
+  enforce(store, ctx, { op: 'ROSTER_DECIDE', serviceId: ctx.serviceId });
+  const { d, r } = gapFor(store, ctx, b.date, b.period, b.roleKey);
+  if (r.advertised >= r.gap) throw new HttpError(409, 'ADVERTISED', 'This gap is already advertised as a vacancy.');
+  const p = PERIOD_BY_ID.get(d.period)!;
+  const id = newId();
+  store.tx(() => {
+    store.insert('open_shift', { id, service_id: ctx.serviceId, role_key: r.roleKey, shift_date: d.date, start_time: p.start, end_time: p.end, state: 'OPEN', created_at: now(), data_source: 'SHIFT' });
+    decided(store, ctx, { kind: 'ADVERTISE', objectId: id, outcome: 'OPENED' });
+  });
+  return { state: 'OPEN' };
+}
+
+export function runShort(store: Store, ctx: WorkContext, b: { date?: string; period?: string; roleKey?: string; plan?: string; told?: string }) {
+  enforce(store, ctx, { op: 'ROSTER_DECIDE', serviceId: ctx.serviceId });
+  const { d, r } = gapFor(store, ctx, b.date, b.period, b.roleKey);
+  const plan = b.plan?.trim() ?? '';
+  const told = b.told?.trim() ?? '';
+  if (plan.length < 10) throw new HttpError(400, 'PLAN', 'Say how the shift will be covered while it runs short.');
+  if (!told) throw new HttpError(400, 'TOLD', 'Say who you told that this shift will run short.');
+  const id = newId();
+  store.tx(() => {
+    store.insert('staffing_short', { id, service_id: ctx.serviceId, shift_date: d.date, period: d.period, role_key: r.roleKey, missing: r.gap, plan: plan.slice(0, 600), told: told.slice(0, 200), decided_by: ctx.workerId, at: now() });
+    decided(store, ctx, { kind: 'SHORT', objectId: id, outcome: 'ACCEPTED', note: plan });
+  });
+  return { state: 'SHORT' };
 }

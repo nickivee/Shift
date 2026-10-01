@@ -10,6 +10,7 @@ import { current as differentNow } from './usual.ts';
 import { current as statusNow } from './acuity.ts';
 import { PERIODS, PERIOD_BY_ID, STAFF_ROLES, periodOf, currentPeriod, nextPeriod } from '../config/allocation.ts';
 import { ROLE_BY_KEY } from '../config/workstations.ts';
+import { shiftsNow } from './rostering.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Patient allocation (Shared Lifecycle Object 266):
@@ -162,7 +163,7 @@ export function overview(store: Store, ctx: WorkContext) {
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_ALLOCATION', decision: 'ALLOW', outcome: 'VIEWED' });
   return {
     active: active ? detail(store, ctx, active) : null, upcoming, toReview: upcoming.filter((p) => p.actions.includes('confirm')),
-    periods: PERIODS, suggest, canPlan: can(store, ctx, ctx.serviceId, 'allocation.plan'),
+    periods: PERIODS, suggest, canPlan: can(store, ctx, ctx.serviceId, 'allocation.plan'), staffing: shiftsNow(store, ctx),
   };
 }
 

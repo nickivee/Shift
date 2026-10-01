@@ -3,11 +3,12 @@ import { get, post } from '../lib/api.js';
 import { showError, toast, pageTitle, fmtDay, fmtDate, titleCase, confirmDialog } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
+import { gapCard, weekTable } from './staffing.js';
 
 // Rostering decisions. Requests, offers and availability arrive here as inputs; the roster
 // changes only when a decision is recorded on this screen.
 const SECTIONS = {
-  vacancies: ['Vacancies', 'Open shifts and the staff who asked for them. Giving a shift puts it on that person’s roster.'],
+  vacancies: ['Staffing and vacancies', 'Each shift against the staffing plan, with gaps from sick calls and unfilled shifts, then open shifts and the staff who asked for them. The roster changes only when you record a decision.'],
   swaps: ['Swaps', 'Shifts staff have offered to colleagues. Approving moves the shift to the colleague you choose.'],
   leave: ['Leave', 'Leave requests waiting for a decision. Private reasons stay with the person who wrote them.'],
 };
@@ -45,7 +46,16 @@ async function decide(title, message, url, body, done, reload) {
 
 const DRAW = {
   async vacancies(reload) {
-    const rows = await get('/api/work/rostering/vacancies');
+    const [rows, staff] = await Promise.all([get('/api/work/rostering/vacancies'), get('/api/work/rostering/staffing')]);
+    const gaps = staff.shifts.filter((s) => s.roles.some((r) => r.status === 'GAP' || r.status === 'ADVERTISED'));
+    return h('div', { class: 'stack' },
+      staff.planned ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `Shifts short of staff (${gaps.length})`),
+        gaps.length ? gaps.map((s) => gapCard(s, decide, reload)) : h('div', { class: 'card empty' }, 'Every shift in the next week has the staff it is planned for.')) : null,
+      staff.planned ? h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, 'The week ahead'), weekTable(staff.shifts)) : null,
+      h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `Open shifts (${rows.length})`), DRAW.open(reload, rows)));
+  },
+
+  open(reload, rows) {
     if (!rows.length) return h('div', { class: 'card empty' }, 'No open shifts.');
     return h('div', { class: 'list' }, rows.map((v) => h('div', { class: 'card stack' },
       h('div', { class: 'spread' }, shiftLine(v), h('span', { class: 'tag' }, titleCase(v.roleKey.replace(/^arc-/, '')))),

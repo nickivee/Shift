@@ -155,7 +155,8 @@ export type Capability =
   | 'feed.plan'
   | 'feed.give'
   | 'feed.view'
-  | 'equipment.lend';
+  | 'equipment.lend'
+  | 'staffing.report';
 
 export interface HomeCard {
   id: string;
@@ -194,7 +195,7 @@ const CARD = {
   handover: { id: 'handover', label: 'Handover', required: true },
   received: { id: 'received', label: 'Received', required: true },
   knowledge: { id: 'knowledge', label: 'Shared knowledge', required: false },
-  vacancies: { id: 'vacancies', label: 'Vacancies', required: true },
+  vacancies: { id: 'vacancies', label: 'Staffing and vacancies', required: true },
   swaps: { id: 'swaps', label: 'Swaps', required: true },
   leave: { id: 'leave', label: 'Leave', required: true },
   transfers: { id: 'transfers', label: 'Transfers', required: true },
@@ -265,7 +266,7 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Aged residential care - RN',
     evidenceStatus: 'Ngā Paerewa/community specifications; disability funding boundaries may sit outside health',
     profession: 'Registered Nurse',
-    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'escalation.raise', 'escalation.respond', 'wound.identify', 'wound.manage', 'careplan.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'monitoring.record', 'restriction.check', 'restriction.manage', 'diet.order', 'meal.record', 'equipment.use', 'equipment.manage', 'leave.manage', 'leave.approve', 'preference.record', 'capacity.concern', 'whanau.manage', 'access.manage', 'external.manage', 'report.record', 'usual.record', 'deterioration.record', 'incident.report', 'incident.review', 'deterioration.manage', 'usual.act', 'acuity.assess', 'assignment.propose', 'allocation.plan', 'allocation.confirm', 'assignment.confirm', 'report.review', 'instrument.use', 'function.assess', 'death.record', 'death.manage', 'problem.record', 'problem.manage', 'symptom.record', 'symptom.manage', 'intervention.record', 'intervention.plan', 'treatmentplan.record', 'treatmentplan.plan', 'pathway.record', 'pathway.manage', 'checklist.record', 'checklist.manage', 'recommendation.record', 'recommendation.make', 'recommendation.respond', 'requirement.record', 'requirement.manage', 'due.record', 'due.manage', 'recall.manage', 'followup.manage', 'surveillance.record', 'surveillance.review', 'screening.record', 'screening.review', 'infection.record', 'infection.confirm', 'antimicrobial.record', 'antimicrobial.decide', 'sitecheck.record', 'sitecheck.resolve', 'readiness.record', 'readiness.assess', 'variance.record', 'variance.decide', 'declined.record', 'declined.respond', 'priority.assign', 'priority.downgrade', 'identity.register', 'identity.correct', 'duplicate.flag', 'duplicate.resolve', 'access.approve', 'delegation.give', 'decision.respond', 'downtime.manage', 'record.reconcile', 'precaution.manage', 'outbreak.manage', 'allergy.record', 'consent.record', 'palliative.manage', 'safeguarding.manage', 'residency.manage', 'complaint.manage', 'device.record', 'conference.manage', 'result.receive', 'result.relay', 'feed.plan', 'feed.give'],
+    capabilities: ['record.view', 'event.create', 'event.amend', 'route.send', 'route.receive', 'task.manage', 'handover.use', 'escalation.raise', 'escalation.respond', 'wound.identify', 'wound.manage', 'careplan.manage', 'alert.raise', 'communication.manage', 'monitoring.plan', 'monitoring.record', 'restriction.check', 'restriction.manage', 'diet.order', 'meal.record', 'equipment.use', 'equipment.manage', 'leave.manage', 'leave.approve', 'preference.record', 'capacity.concern', 'whanau.manage', 'access.manage', 'external.manage', 'report.record', 'usual.record', 'deterioration.record', 'incident.report', 'incident.review', 'deterioration.manage', 'usual.act', 'acuity.assess', 'assignment.propose', 'allocation.plan', 'allocation.confirm', 'assignment.confirm', 'report.review', 'instrument.use', 'function.assess', 'death.record', 'death.manage', 'problem.record', 'problem.manage', 'symptom.record', 'symptom.manage', 'intervention.record', 'intervention.plan', 'treatmentplan.record', 'treatmentplan.plan', 'pathway.record', 'pathway.manage', 'checklist.record', 'checklist.manage', 'recommendation.record', 'recommendation.make', 'recommendation.respond', 'requirement.record', 'requirement.manage', 'due.record', 'due.manage', 'recall.manage', 'followup.manage', 'surveillance.record', 'surveillance.review', 'screening.record', 'screening.review', 'infection.record', 'infection.confirm', 'antimicrobial.record', 'antimicrobial.decide', 'sitecheck.record', 'sitecheck.resolve', 'readiness.record', 'readiness.assess', 'variance.record', 'variance.decide', 'declined.record', 'declined.respond', 'priority.assign', 'priority.downgrade', 'identity.register', 'identity.correct', 'duplicate.flag', 'duplicate.resolve', 'access.approve', 'delegation.give', 'decision.respond', 'downtime.manage', 'record.reconcile', 'precaution.manage', 'outbreak.manage', 'allergy.record', 'consent.record', 'palliative.manage', 'safeguarding.manage', 'residency.manage', 'complaint.manage', 'device.record', 'conference.manage', 'result.receive', 'result.relay', 'feed.plan', 'feed.give', 'staffing.report'],
     keys: ['.obs', '.bgl', '.weight', '.pain', '.wound', '.skin', '.fall', '.intake', '.cares', '.behaviour', '.change', '.family', '.assess', '.review', '.progress', '.task'],
     views: ['overview', 'history', 'obs', 'bgl', 'weight', 'pain', 'wounds', 'skin', 'falls', 'intake', 'nutrition', 'cares', 'behaviour', 'changes', 'family', 'assess', 'review', 'progress', 'notes', 'meds', 'results', 'allergies', 'careplan', 'tasks', 'handover', 'routes', 'escalations', 'alerts', 'communications', 'monitoring', 'restrictions', 'diet', 'equipment', 'absence', 'preferences', 'capacity', 'support', 'access', 'external', 'reported', 'instruments', 'function', 'usual', 'team', 'acuity', 'deterioration', 'incidents', 'death', 'problems', 'symptoms', 'interventions', 'treatmentplans', 'pathways', 'checklists', 'recommendations', 'requirements', 'caredue', 'recalls', 'followups', 'surveillance', 'screening', 'infections', 'antimicrobials', 'sitechecks', 'readiness', 'variances', 'declined', 'priorities', 'identity'],
     tabs: [
@@ -477,7 +478,7 @@ export const ROLES: RoleConfig[] = [
     matrixRow: 'Rostering / staffing',
     evidenceStatus: 'Workflow-derived; legal/organisational verification varies',
     profession: null,
-    capabilities: ['roster.decide'],
+    capabilities: ['roster.decide', 'staffing.report'],
     keys: [],
     views: [],
     tabs: [],
