@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 82;
+const SET = 83;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -409,6 +409,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 80) set80(store);
     if (at < 81) set81(store);
     if (at < 82) set82(store);
+    if (at < 83) set83(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4921,4 +4922,80 @@ function set82(store: Store): void {
     store.insert('equipment_event', { id: newId(), equipment_id: p.id, kind: 'NOTICE', note: `Keep using; action needed by a date: ${title}. ${action}`, person_id: null, patient_affected: null, by_id: grace, at: at(2 * 1440) });
     if (done) store.insert('equipment_event', { id: newId(), equipment_id: p.id, kind: 'NOTICE_DONE', note: `${title}: Software 4.2 installed by clinical engineering, job 8812`, person_id: null, patient_affected: null, by_id: grace, at: at(1440) });
   });
+}
+
+// Set 83: safe staffing in Residential Care. The rest of the rest home's team is rostered to the
+// staffing plan, except: Hine has called in sick for tomorrow morning, a caregiver gap five days
+// out has nobody yet, and Jo has decided an afternoon four days out will run one caregiver short.
+function set83(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'hine'")) return;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const jo = who('jo'), kate = who('kate');
+  if (!jo || !kate) return;
+  const pw = hashPassword(password);
+  const today = todayLocal();
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const TIMES: Record<string, [string, string]> = { AM: ['07:00', '15:30'], PM: ['14:30', '23:00'], NIGHT: ['22:45', '07:15'] };
+  const periodOfStart = (t: string) => { const h = Number(t.slice(0, 2)); return h >= 5 && h < 12 ? 'AM' : h >= 12 && h < 20 ? 'PM' : 'NIGHT'; };
+  const PLAN: Record<string, Record<string, number>> = { AM: { 'arc-rn': 1, 'arc-caregiver': 3 }, PM: { 'arc-rn': 1, 'arc-caregiver': 2 }, NIGHT: { 'arc-rn': 1, 'arc-caregiver': 1 } };
+  const staff = (u: string, given: string, family: string, role: string, reg?: string) => {
+    const wid = newWorker(store, pw, u, given, family, `${given} ${family}`);
+    if (reg) store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession: 'Registered Nurse', regulator: 'Nursing Council of New Zealand', registration_number: reg, scope: 'Registered nurse', valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: 'SYNTHETIC' });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: 'org-arc', employment_type: u === 'lisa' ? 'CASUAL' : 'PERMANENT', start_date: '2025-03-03' });
+    const pid = newId();
+    store.insert('position', { id: pid, employment_id: eid, service_id: 'svc-arc', title: reg ? 'Registered Nurse' : 'Caregiver', role_key: role, start_date: '2025-03-03' });
+    return { wid, pid, role };
+  };
+  const rns = [staff('mele', 'Mele', 'Fifita', 'arc-rn', 'SYN-RN-43117'), staff('ruth', 'Ruth', 'Bennett', 'arc-rn', 'SYN-RN-40876'), staff('anika', 'Anika', 'Shah', 'arc-rn', 'SYN-RN-44502')];
+  const hine = staff('hine', 'Hine', 'Rāwiri', 'arc-caregiver');
+  const cgs = [hine, staff('joseph', 'Joseph', 'Faleolo', 'arc-caregiver'), staff('priya', 'Priya', 'Singh', 'arc-caregiver'), staff('mei', 'Mei', 'Chen', 'arc-caregiver'),
+    staff('ben', 'Ben', 'Taufa', 'arc-caregiver'), staff('rosa', 'Rosa', 'Mendes', 'arc-caregiver'), staff('kiri', 'Kiri', 'Paora', 'arc-caregiver'), staff('dan', 'Dan', 'Murphy', 'arc-caregiver')];
+  const lisa = staff('lisa', 'Lisa', 'Tan', 'arc-caregiver');
+  const put = (x: { wid: string; pid: string }, date: string, period: string) => {
+    const id = newId();
+    const [start, end] = TIMES[period];
+    store.insert('roster_shift', { id, workforce_person_id: x.wid, position_id: x.pid, service_id: 'svc-arc', shift_date: date, start_time: start, end_time: end, state: 'PLANNED', data_source: 'SYNTHETIC' });
+    return id;
+  };
+  const tomorrow = addDays(today, 1);
+  const hineShift = put(hine, tomorrow, 'AM');
+  // Slots left open on purpose: [day, period, role, how many].
+  const leave: [number, string, string, number][] = [[4, 'PM', 'arc-caregiver', 1], [5, 'AM', 'arc-caregiver', 1]];
+  let turn = 0;
+  for (let d = -7; d < 28; d++) {
+    const date = addDays(today, d);
+    const on = new Set(store.all<{ w: string }>("SELECT workforce_person_id AS w FROM roster_shift WHERE shift_date = ? AND state = 'PLANNED'", date).map((r) => r.w));
+    for (const period of ['AM', 'PM', 'NIGHT']) {
+      const here = store.all<{ start: string; role: string }>(
+        "SELECT r.start_time AS start, p.role_key AS role FROM roster_shift r JOIN position p ON p.id = r.position_id WHERE r.service_id = 'svc-arc' AND r.shift_date = ? AND r.state = 'PLANNED'", date,
+      ).filter((r) => periodOfStart(r.start) === period);
+      const advertised = store.all<{ start: string; role: string }>("SELECT start_time AS start, role_key AS role FROM open_shift WHERE service_id = 'svc-arc' AND shift_date = ? AND state = 'OPEN'", date)
+        .filter((o) => periodOfStart(o.start) === period);
+      for (const [role, planned] of Object.entries(PLAN[period])) {
+        const held = leave.filter(([day, p, r]) => day === d && p === period && r === role).reduce((n, x) => n + x[3], 0);
+        let need = planned - here.filter((r) => r.role === role).length - advertised.filter((o) => o.role === role).length - held;
+        const pool = role === 'arc-rn' ? rns : cgs;
+        for (let i = 0; i < pool.length && need > 0; i++) {
+          const x = pool[(turn + i) % pool.length];
+          if (on.has(x.wid)) continue;
+          put(x, date, period);
+          on.add(x.wid);
+          need--;
+        }
+        turn++;
+      }
+    }
+  }
+  // Hine rang in sick for tomorrow morning; Kate took the call.
+  const absentId = newId();
+  store.insert('staff_absence', { id: absentId, roster_shift_id: hineShift, workforce_person_id: hine.wid, service_id: 'svc-arc', kind: 'SICK', note: 'Rang at 21:10. Expects to be back the day after.', reported_by: kate, reported_at: ago(40) });
+  store.run("UPDATE roster_shift SET state = 'ABSENT' WHERE id = ?", hineShift);
+  store.insert('state_transition', { id: newId(), object_type: 'roster_shift', object_id: hineShift, from_state: 'PLANNED', to_state: 'ABSENT', actor_id: kate, work_context_id: null, at: ago(40), reason: 'Sick', transaction_id: null });
+  // Lisa is casual: free tomorrow and five days out.
+  for (const d of [1, 5]) store.insert('availability', { id: newId(), workforce_person_id: lisa.wid, available_date: addDays(today, d), period: 'ALL_DAY', preference: 'AVAILABLE', recorded_at: ago(3 * 1440) });
+  // Jo decided the afternoon four days out runs one caregiver short.
+  const shortId = newId();
+  const plan = 'Nurse in charge helps with evening cares; dinner moved to 17:15 so both caregivers are free for bedtimes; activities coordinator stays until 19:00.';
+  store.insert('staffing_short', { id: shortId, service_id: 'svc-arc', shift_date: addDays(today, 4), period: 'PM', role_key: 'arc-caregiver', missing: 1, plan, told: 'Facility manager, by phone', decided_by: jo, at: ago(90) });
 }

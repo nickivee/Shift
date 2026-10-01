@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-STAFF-001',
+    question: 'What New Zealand requires of staffing in aged residential care: the minimum staff and skill mix for each level of care and shift under the Age Related Residential Care Services Agreement and Ngā Paerewa (NZS 8134:2021), when a registered nurse must be on site, and what a provider must do and whom it must tell when a shift cannot be staffed.',
+    blocks: 'Minimum numbers, registered nurse cover and notification duties. SHIFT sets each shift against the facility\'s own staffing plan, shows a gap when someone is not rostered or calls in unable to work, and records what the rosterer decided: who was called in, the vacancy advertised, or that the shift ran short with how it was covered and who was told. It never blocks a shift.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-EQUIP-001',
     question: 'What New Zealand requires of a hospital or rest home for medical equipment safety: acceptance and electrical safety testing before first use (including which joint AS/NZS standard applies and how often to retest), how manufacturer field safety notices and recalls must be received, acted on and closed, and Medsafe reporting of device adverse events.',
     blocks: 'Testing standards and intervals, recall handling rules and device adverse-event reporting. SHIFT records new equipment as waiting for its acceptance check until someone records who checked it and what they checked, and records each safety notice as issued: who issued it, its reference, what it says to do, whether it stops use now or needs action by a date, the items it covers, and who did the action for each.',

@@ -72,6 +72,7 @@ export type Operation =
   | { op: 'DIET_ORDER'; personId: string }
   | { op: 'EQUIPMENT_USE'; personId: string }
   | { op: 'EQUIPMENT_LEND'; personId: string }
+  | { op: 'STAFF_ABSENCE'; serviceId: string }
   | { op: 'BED_MOVE_REQUEST'; personId: string }
   | { op: 'LEAVE'; personId: string; cap: 'leave.manage' | 'leave.approve' }
   | { op: 'PREFERENCE'; personId: string }
@@ -190,6 +191,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (o.serviceId === ctx.serviceId
         ? allow([ORG, 'LAW-NZ-007'])
         : block('That allocation belongs to another service'));
+    case 'STAFF_ABSENCE':
+      return need(ctx, 'staffing.report') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-STAFF-001']) : block('That roster belongs to another service'));
     case 'ROSTER_DECIDE':
       return need(ctx, 'roster.decide') ?? (o.serviceId === ctx.serviceId ? allow() : block('That roster belongs to another service'));
     case 'OUTBREAK':
