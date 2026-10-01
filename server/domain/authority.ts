@@ -41,6 +41,8 @@ export type Operation =
   | { op: 'DECISION'; personId: string }
   | { op: 'POISON'; personId: string }
   | { op: 'TRAUMA'; personId: string }
+  | { op: 'FEED_PLAN'; personId: string }
+  | { op: 'FEED_GIVE'; personId: string }
   | { op: 'TRAUMA_MANAGE'; personId: string }
   | { op: 'TRAUMA_TERTIARY'; personId: string }
   | { op: 'POISON_MANAGE'; personId: string }
@@ -409,6 +411,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'function.assess') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'RR-INSTR-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can assess their function`));
+    case 'FEED_PLAN':
+      return need(ctx, 'feed.plan') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-FEED-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their tube feeding`));
+    case 'FEED_GIVE':
+      return need(ctx, 'feed.give') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-FEED-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can give their tube feeds`));
     case 'TRAUMA':
       return (ctx.role.capabilities.includes('trauma.manage') ? null : need(ctx, 'trauma.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-TRAUMA-001'])

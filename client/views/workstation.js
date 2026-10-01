@@ -32,6 +32,7 @@ import { proceduresPanel } from './procedures.js';
 import { decisionsPanel } from './decisions.js';
 import { poisoningPanel } from './poisoning.js';
 import { traumaPanel } from './trauma.js';
+import { feedingPanel } from './feeding.js';
 import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
@@ -422,7 +423,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.trauma ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
@@ -491,7 +492,7 @@ export async function workstationView(personId, initialView) {
       }
       case 'location': return locationPanel(personId, d, () => go(`/work/patient/${personId}/location`));
       case 'equipment': return h('div', { class: 'stack' }, devicesPanel(personId, d.devices, () => go(`/work/patient/${personId}/equipment`)), equipmentPanel(personId, d, () => openView('equipment')));
-      case 'diet': return dietPanel(personId, d, () => go(`/work/patient/${personId}/diet`));
+      case 'diet': return h('div', { class: 'stack' }, feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/diet`)), dietPanel(personId, d, () => go(`/work/patient/${personId}/diet`)));
       case 'restrictions': return restrictionsPanel(personId, d, () => go(`/work/patient/${personId}/restrictions`));
       case 'alerts': return alertsPanel(personId, d, () => go(`/work/patient/${personId}/alerts`));
       case 'tasks': return h('div', { class: 'stack' }, addButton(), d.tasks.length ? d.tasks.map((t) => h('div', { class: 'tile' },
@@ -719,6 +720,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: `patient-leave${l.late ? ' late' : ''}`, onclick: () => openView('absence') }, icon('absence'),
         h('span', {}, h('b', {}, l.state === 'NOT_RETURNED' ? 'NOT BACK FROM LEAVE' : l.late ? 'LATE BACK FROM LEAVE' : 'AWAY ON LEAVE'),
           `${l.kindLabel}${l.destination ? ` to ${l.destination}` : ''} · due back ${fmtDateTime(l.returnBy)}`)));
+    }
+    if (patient.feeding) {
+      const x = patient.feeding;
+      block.append(h('button', { class: `patient-feed${x.blocked ? ' blocked' : ''}`, onclick: () => x.view && openView(x.view) }, icon('diet'),
+        h('span', {}, h('b', {}, x.blocked ? 'TUBE FED: DO NOT USE TUBE' : x.nothingByMouth ? 'TUBE FED: NOTHING BY MOUTH' : 'TUBE FED'), `${x.tube} · ${x.method.toLowerCase()} · ${x.blocked ?? x.oral.toLowerCase()}`)));
     }
     if (patient.diet) {
       block.append(h('button', { class: 'patient-diet', onclick: () => openView('diet') }, icon('diet'),

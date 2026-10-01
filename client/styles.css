@@ -996,3 +996,15 @@ tr.corrected td:last-child, tr.corrected td:nth-child(5) { text-decoration: none
 .decision-chosen { border: 1px solid var(--ok); background: var(--ok-bg); border-radius: 12px; padding: 8px 12px; }
 .decision-chosen > b { color: var(--ok); }
 tr.chosen td { background: var(--ok-bg); }
+.feed { border-left: 4px solid #1f8a5b; }
+.feed.blocked { border-left-color: var(--danger); }
+.feed dl.feed-plan { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; }
+.feed dl.feed-plan dt { font-weight: 600; color: var(--ink-soft); }
+.feed dl.feed-plan dd { margin: 0; }
+.feed ul.feed-given { margin: 4px 0 0; padding-left: 18px; }
+@media (max-width: 520px) { .feed dl.feed-plan { grid-template-columns: 1fr; } .feed dl.feed-plan dd { margin-bottom: 4px; } }
+.patient-feed { display: flex; align-items: center; gap: 10px; background: linear-gradient(180deg, #1f8a5b, #146343); color: #fff; border-radius: 14px; padding: 8px 14px; border: 0; text-align: left; width: 100%; font-size: 14px; }
+.patient-feed.blocked { background: var(--danger-bg); color: var(--ink); border: 2px solid var(--danger); }
+.patient-feed.blocked b, .patient-feed.blocked svg { color: var(--danger); }
+.patient-feed svg { width: 26px; height: 26px; flex: none; }
+.patient-feed b { display: block; font-size: 13px; letter-spacing: .6px; }

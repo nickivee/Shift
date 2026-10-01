@@ -4183,4 +4183,54 @@ CREATE TABLE trauma_step (
 CREATE INDEX trauma_step_c ON trauma_step(case_id, at);
 `,
   },
+  {
+    version: 80,
+    name: 'tube feeding',
+    sql: `
+-- Tube feeding (entries 103, 188, 189, 191): feed plan as prescribed, through a tube recorded in
+-- Lines and tubes → each feed, flush or hold given and how it was tolerated → review → changed or stopped.
+CREATE TABLE feed_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  device_id TEXT NOT NULL REFERENCES device(id),
+  state TEXT NOT NULL,                  -- ACTIVE | STOPPED
+  feed TEXT NOT NULL,
+  method TEXT NOT NULL,                 -- CONTINUOUS | OVERNIGHT | BOLUS
+  regimen TEXT NOT NULL,
+  flushes TEXT,
+  target_ml INTEGER,
+  oral TEXT NOT NULL,                   -- NIL | TASTES | ORAL
+  prescribed_by TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  review_date TEXT,
+  started_by TEXT NOT NULL REFERENCES workforce_person(id),
+  started_at TEXT NOT NULL,
+  stopped_by TEXT REFERENCES workforce_person(id),
+  stopped_at TEXT,
+  stop_reason TEXT
+);
+CREATE INDEX feed_plan_person ON feed_plan(person_id, state);
+CREATE TABLE feed_given (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES feed_plan(id),
+  kind TEXT NOT NULL,                   -- FEED | FLUSH | WATER | HELD
+  ml INTEGER,
+  tolerance TEXT,
+  note TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX feed_given_p ON feed_given(plan_id, at);
+CREATE TABLE feed_step (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES feed_plan(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX feed_step_p ON feed_step(plan_id, at);
+`,
+  },
 ];

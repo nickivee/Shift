@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 79;
+const SET = 80;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -406,6 +406,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 77) set77(store);
     if (at < 78) set78(store);
     if (at < 79) set79(store);
+    if (at < 80) set80(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4752,4 +4753,94 @@ function set79(store: Store): void {
       { kind: 'SECONDARY', by: ravi, mins: 2 * 1440 + 30, findings: 'Head: no injury. Chest and abdomen: no tenderness. Pelvis stable. Left knee hot, swollen and tender; left hip bruised, full movement. Back: no tenderness.' }],
     injuries: [['Swollen left knee (blood in the joint likely)', 'SECONDARY', ravi, 2 * 1440 + 28], ['Bruised left hip; X-ray shows no fracture', 'IMAGING', ravi, 2 * 1440 + 5]],
     next: { what: 'ADMITTED', note: 'General Medicine, accepted by Dr Hannah Li; knee to be aspirated', by: ravi, mins: 2 * 1440 } });
+}
+
+// Set 80: tube feeding. Tom Hughes is on Ward K after a stroke with an unsafe swallow; his NG tube
+// position was confirmed on X-ray and he is on a continuous pump feed with nothing by mouth. At
+// Kōwhai House, Betty Clarke has a PEG with an overnight feed and tastes for pleasure.
+function set80(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const grace = who('grace'), hannah = who('hannah'), kate = who('kate'), nicki = who('nicki');
+  if (!grace || !hannah || !kate || !nicki) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const day = 1440;
+  const patient = (nhi: string, given: string, family: string, dob: string, gender: string, ethnicity: string, service: string, location: string, kind: string, mins: number) => {
+    const found = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.id;
+    if (found) return null;
+    const id = newId();
+    store.insert('person', { id, family_name: family, given_name: given, date_of_birth: dob, gender, ethnicity, iwi: null, data_source: 'SYNTHETIC', created_at: at(mins) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'NHI', value: nhi, verification: 'SYNTHETIC', created_at: at(mins) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(mins) });
+    store.insert('encounter', { id: newId(), person_id: id, service_id: service, location, kind, started_at: at(mins), state: 'ACTIVE' });
+    return id;
+  };
+  const arcKind = store.get<{ k: string }>("SELECT kind AS k FROM encounter WHERE service_id = 'svc-arc' LIMIT 1")?.k ?? 'RESIDENTIAL';
+  const wardKind = store.get<{ k: string }>("SELECT kind AS k FROM encounter WHERE service_id = 'svc-genmed' LIMIT 1")?.k ?? 'INPATIENT';
+  const tube = (personId: string, service: string, kind: string, label: string, site: string | null, size: string, reason: string, by: string, mins: number, where: string, confirm: { how: string; body: string; by: string; mins: number } | null, checkHours: number) => {
+    const id = newId();
+    store.insert('device', {
+      id, person_id: personId, service_id: service, kind, site, size, reason, state: 'IN_PLACE', inserted_by: by, inserted_at: at(mins), inserted_where: where,
+      confirmed_by: confirm?.by ?? null, confirmed_at: confirm ? at(confirm.mins) : null, confirm_how: confirm?.how ?? null,
+      check_due: new Date(Date.now() + checkHours * 3600_000 / 2).toISOString(), last_check_at: at(120), last_site: 'OK', recorded_at: at(mins),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'device', object_id: id, from_state: null, to_state: confirm ? 'NEEDS_CHECK' : 'IN_PLACE', actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+    store.insert('device_log', { id: newId(), device_id: id, kind: 'INSERTED', body: `${label}${site ? `, ${site}` : ''} (${size}). For: ${reason}. Put in: ${where}.${confirm ? ' Position to be confirmed before use.' : ''}`, by_id: by, at: at(mins) });
+    if (confirm) {
+      store.insert('state_transition', { id: newId(), object_type: 'device', object_id: id, from_state: 'NEEDS_CHECK', to_state: 'IN_PLACE', actor_id: confirm.by, work_context_id: null, at: at(confirm.mins), reason: 'Position confirmed', transaction_id: null });
+      store.insert('device_log', { id: newId(), device_id: id, kind: 'CONFIRMED', body: `Position confirmed: ${confirm.how === 'XRAY' ? 'X-ray reviewed' : 'pH test of aspirate'}. ${confirm.body} Safe to use.`, by_id: confirm.by, at: at(confirm.mins) });
+    }
+    store.insert('device_log', { id: newId(), device_id: id, kind: 'CHECKED', body: 'Looks fine.', by_id: by, at: at(120) });
+    return id;
+  };
+  const plan = (p: { personId: string; service: string; deviceId: string; feed: string; method: string; regimen: string; flushes: string; target: number; oral: string; prescribedBy: string; reason: string;
+    review: number; by: string; mins: number; given: [string, number | null, string | null, string | null, string, number][]; reviewed?: { by: string; mins: number; finding: string } }) => {
+    const id = newId();
+    const review = new Date(Date.now() + p.review * 86_400_000).toLocaleDateString('en-CA');
+    store.insert('feed_plan', { id, person_id: p.personId, service_id: p.service, device_id: p.deviceId, state: 'ACTIVE', feed: p.feed, method: p.method, regimen: p.regimen, flushes: p.flushes,
+      target_ml: p.target, oral: p.oral, prescribed_by: p.prescribedBy, reason: p.reason, review_date: review, started_by: p.by, started_at: at(p.mins) });
+    store.insert('state_transition', { id: newId(), object_type: 'feed_plan', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: p.by, work_context_id: null, at: at(p.mins), reason: p.feed, transaction_id: null });
+    const how = { CONTINUOUS: 'continuous by pump', OVERNIGHT: 'overnight by pump', BOLUS: 'bolus by syringe or gravity' }[p.method];
+    const oral = { NIL: 'nothing by mouth', TASTES: 'tastes for pleasure only', ORAL: 'eats and drinks as well' }[p.oral];
+    store.insert('feed_step', { id: newId(), plan_id: id, kind: 'STARTED', body: `${p.feed}, ${how}: ${p.regimen}. Flushes: ${p.flushes}. By mouth: ${oral}. Prescribed by ${p.prescribedBy}. For: ${p.reason}.`, by_id: p.by, at: at(p.mins) });
+    if (p.reviewed) store.insert('feed_step', { id: newId(), plan_id: id, kind: 'REVIEW', body: `Reviewed, continue: ${p.reviewed.finding}`, by_id: p.reviewed.by, at: at(p.reviewed.mins) });
+    for (const [kind, ml, tolerance, note, by, mins] of p.given) store.insert('feed_given', { id: newId(), plan_id: id, kind, ml, tolerance, note, by_id: by, at: at(mins) });
+  };
+  const tom = patient('ZZZ0204', 'Tom', 'Hughes', '1951-07-02', 'Male', 'NZ European', 'svc-genmed', 'Ward K Bed 9', wardKind, 3 * day);
+  if (tom) {
+    const ng = tube(tom, 'svc-genmed', 'NGT', 'Nasogastric tube', 'Left nostril, 62 cm at the nose', '12Fr', 'Feeding; unsafe swallow after stroke', grace, 2 * day + 300, 'Ward K',
+      { how: 'XRAY', body: 'Tip below the diaphragm in the stomach on the chest X-ray, reviewed by Dr Li.', by: hannah, mins: 2 * day + 240 }, 8);
+    const now = new Date();
+    const sinceMidnight = now.getHours() * 60 + now.getMinutes();
+    const today = (m: number) => Math.min(m, Math.max(sinceMidnight - 5, 1));
+    plan({ personId: tom, service: 'svc-genmed', deviceId: ng, feed: 'Standard 1.5 kcal/mL feed', method: 'CONTINUOUS', regimen: '60 mL/hour for 20 hours, 10am to 6am; pump off 6am to 10am',
+      flushes: '30 mL water before and after each medicine, and 50 mL every 4 hours', target: 1200, oral: 'NIL', prescribedBy: 'Dietitian Anna Smith, 2 days ago',
+      reason: 'Unsafe swallow after left-sided stroke; speech-language therapist assessed', review: 1, by: grace, mins: 2 * day + 200,
+      reviewed: { by: hannah, mins: day, finding: 'Tolerating feeds, bowels open, weight 74 kg. Swallow to be reassessed by the speech-language therapist.' },
+      given: [['FEED', 1150, 'FINE', null, grace, day + 180], ['FLUSH', 300, null, null, grace, day + 170], ['FEED', 240, 'FINE', null, nicki, today(240)], ['FLUSH', 100, null, null, nicki, today(230)]] });
+  }
+  // Their current status, so the ward and home know how closely to watch them.
+  const status = (personId: string, service: string, by: string, mins: number, basis: string) => {
+    const id = newId();
+    store.insert('acuity_assessment', { id, person_id: personId, service_id: service, level: 'STABLE', basis, evidence_json: null, change: 'FIRST',
+      review_due: new Date(Date.now() + (24 * 60 - mins) * 60_000).toISOString(), state: 'CURRENT', assessed_by: by, assessed_at: at(mins), supersedes: null });
+    store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: id, from_state: null, to_state: 'CURRENT', actor_id: by, work_context_id: null, at: at(mins), reason: `Stable: ${basis}`, transaction_id: null });
+  };
+  if (tom) status(tom, 'svc-genmed', grace, 180, 'Observations steady; tolerating NG feeds; nothing by mouth');
+  const betty = patient('ZZZ0212', 'Betty', 'Clarke', '1938-11-20', 'Female', 'NZ European', 'svc-arc', 'Room 15', arcKind, 200 * day);
+  if (betty) {
+    const peg = tube(betty, 'svc-arc', 'PEG', 'Feeding tube into the stomach (PEG)', 'Upper abdomen', '15Fr', 'Long-term feeding; swallow unsafe after motor neurone disease progressed', kate, 180 * day, 'Te Awa Hospital endoscopy', null, 24);
+    plan({ personId: betty, service: 'svc-arc', deviceId: peg, feed: 'High-fibre 1.0 kcal/mL feed', method: 'OVERNIGHT', regimen: '100 mL/hour, 8pm to 6am (1000 mL)',
+      flushes: '50 mL water before and after the feed and each medicine; 200 mL extra water at 10am and 2pm', target: 1000, oral: 'TASTES',
+      prescribedBy: 'Community dietitian Rachel Ngata, letter of 12 August', reason: 'Motor neurone disease; unsafe swallow. Betty chose tube feeding and tastes of tea and ice cream for pleasure.',
+      review: 20, by: kate, mins: 50 * day,
+      given: [['FEED', 1000, 'FINE', null, kate, day + 360], ['WATER', 200, 'FINE', null, nicki, day + 120], ['FEED', 1000, 'BLOATED', 'Felt full at 4am; slowed to 80 mL/hour as the dietitian letter allows. Settled by 6am.', kate, 360],
+        ['FLUSH', 200, null, null, kate, 350]] });
+    status(betty, 'svc-arc', kate, 240, 'Settled; overnight PEG feed tolerated; usual self');
+    const tama = who('tama');
+    for (let d = -1; d < 30 && tama; d++) {
+      const date = new Date(Date.now() + d * 86_400_000).toLocaleDateString('en-CA');
+      store.insert('allocation', { id: newId(), workforce_person_id: tama, person_id: betty, service_id: 'svc-arc', shift_date: date, created_at: at(0) });
+    }
+  }
 }

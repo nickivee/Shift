@@ -543,6 +543,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['ADMITTED', 'COMPLETE'], ADMITTED: ['COMPLETE'] },
   },
+  feed_plan: {
+    table: 'feed_plan',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['STOPPED'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
