@@ -965,3 +965,6 @@ dialog.idm-dialog { max-height: 90vh; overflow-y: auto; }
 tr.critical-row td { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 tr.corrected td { text-decoration: line-through; opacity: 0.7; }
 tr.corrected td:last-child, tr.corrected td:nth-child(5) { text-decoration: none; }
+.patient-critical { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, #fff); color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-critical svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-critical b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }

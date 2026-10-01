@@ -672,7 +672,7 @@ export async function workstationView(personId, initialView) {
           patient.preferences.first.join(' · '))));
     }
     if (patient.criticalResults?.length) {
-      block.append(h('button', { class: 'patient-devices warn critical-result', onclick: () => openView('results') }, icon('alert'),
+      block.append(h('button', { class: 'patient-critical critical-result', onclick: () => openView('results') }, icon('alert'),
         h('span', {}, h('b', {}, 'CRITICAL RESULT NOT ACKNOWLEDGED'),
           patient.criticalResults.map((r) => `${r.test} ${r.value} ${r.units ?? ''} (${fmtDateTime(r.at)})${r.toldDoctor ? `, told ${r.toldDoctor}` : ''}`).join(' · '))));
     }
