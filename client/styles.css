@@ -974,6 +974,16 @@ tr.corrected td:last-child, tr.corrected td:nth-child(5) { text-decoration: none
 .procedure { border-left: 4px solid var(--line); }
 .decision { border-left: 4px solid var(--ink-soft); }
 .poisoning { border-left: 4px solid var(--danger); }
+.trauma { border-left: 4px solid var(--danger); }
+.trauma .survey { border-left: 3px solid var(--line); padding-left: 8px; }
+.trauma dl.abcde { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 4px 0 0; }
+.trauma dl.abcde dt { font-weight: 600; color: var(--ink-soft); }
+.trauma dl.abcde dd { margin: 0; }
+.trauma ul.injuries { margin: 4px 0 0; padding-left: 18px; }
+@media (max-width: 520px) { .trauma dl.abcde { grid-template-columns: 1fr; } .trauma dl.abcde dd { margin-bottom: 4px; } }
+.patient-trauma { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--ink); border-radius: 14px; padding: 8px 14px; width: 100%; font-size: 14px; }
+.patient-trauma svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-trauma b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
 .poisoning .advice { border-left: 3px solid var(--line); padding-left: 8px; }
 .poisoning ul.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .poisoning ul.checks li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; border: 1px solid var(--tint); border-radius: 10px; padding: 6px 10px; }

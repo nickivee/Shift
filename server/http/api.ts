@@ -66,6 +66,7 @@ import * as diagnostics from '../domain/diagnostics.ts';
 import * as procedures from '../domain/procedures.ts';
 import * as decisions from '../domain/decisions.ts';
 import * as poisoning from '../domain/poisoning.ts';
+import * as trauma from '../domain/trauma.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
 import * as siteverify from '../domain/siteverify.ts';
 import * as readiness from '../domain/readiness.ts';
@@ -357,6 +358,13 @@ export function buildApi(store: Store): Router {
     days: str(req.body.days), reviewBy: str(req.body.reviewBy), intent: str(req.body.intent),
   }));
   r.on('GET', '/api/work/infections', (req) => ({ ...infections.list(store, work(req)), isolation: isolation.forService(store, work(req)) }));
+  r.on('POST', '/api/work/patients/:id/trauma', (req) => trauma.activate(store, work(req), req.params.id, {
+    teamCall: str(req.body.teamCall), mechanism: str(req.body.mechanism), injuredAt: str(req.body.injuredAt), prehospital: str(req.body.prehospital),
+  }));
+  r.on('POST', '/api/work/trauma/:id/:action', (req) => trauma.act(store, work(req), req.params.id, req.params.action, {
+    airway: str(req.body.airway), breathing: str(req.body.breathing), circulation: str(req.body.circulation), disability: str(req.body.disability), exposure: str(req.body.exposure),
+    findings: str(req.body.findings), actions: str(req.body.actions), injury: str(req.body.injury), foundBy: str(req.body.foundBy), next: str(req.body.next), note: str(req.body.note),
+  }));
   r.on('POST', '/api/work/patients/:id/poisoning', (req) => poisoning.record(store, work(req), req.params.id, {
     substances: str(req.body.substances), amount: str(req.body.amount), route: str(req.body.route), takenAt: str(req.body.takenAt), timeKnown: str(req.body.timeKnown),
     intent: str(req.body.intent), source: str(req.body.source),

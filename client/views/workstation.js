@@ -31,6 +31,7 @@ import { rehabPanel } from './rehab.js';
 import { proceduresPanel } from './procedures.js';
 import { decisionsPanel } from './decisions.js';
 import { poisoningPanel } from './poisoning.js';
+import { traumaPanel } from './trauma.js';
 import { resultsPanel } from './diagnostics.js';
 import { supportPanel } from './whanau.js';
 import { accessPanel } from './access.js';
@@ -421,7 +422,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.trauma ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
@@ -433,7 +434,7 @@ export async function workstationView(personId, initialView) {
       // A critical result changes the record banner, so the whole record redraws.
       case 'results': return resultsPanel(personId, d, () => go(`/work/patient/${personId}/results`));
       case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
-      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), decisionsPanel(personId, d.decisions, () => openView('careplan')), conferencesPanel(personId, d.conferences, () => openView('careplan')));
+      case 'careplan': return h('div', { class: 'stack' }, carePlanPanel(personId, d, () => openView('careplan')), rehabPanel(personId, d.rehab, () => openView('careplan')), decisionsPanel(personId, d.decisions, () => openView('careplan')), traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/careplan`)), conferencesPanel(personId, d.conferences, () => openView('careplan')));
       case 'referrals': return referralsPanel(personId, d, () => openView('referrals'));
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
@@ -678,6 +679,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-critical critical-result', onclick: () => openView('results') }, icon('alert'),
         h('span', {}, h('b', {}, 'CRITICAL RESULT NOT ACKNOWLEDGED'),
           patient.criticalResults.map((r) => `${r.test} ${r.value} ${r.units ?? ''} (${fmtDateTime(r.at)})${r.toldDoctor ? `, told ${r.toldDoctor}` : ''}`).join(' · '))));
+    }
+    if (patient.trauma) {
+      const x = patient.trauma;
+      block.append(h('button', { class: 'patient-trauma', onclick: () => x.view && openView(x.view) }, icon('alert'),
+        h('span', {}, h('b', {}, x.state === 'ADMITTED' ? 'TERTIARY SURVEY DUE' : x.teamCall.toUpperCase()), `${x.mechanism} · ${x.missing}`)));
     }
     if (patient.poisoning) {
       const x = patient.poisoning;

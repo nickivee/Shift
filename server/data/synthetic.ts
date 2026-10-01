@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 78;
+const SET = 79;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -405,6 +405,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 76) set76(store);
     if (at < 77) set77(store);
     if (at < 78) set78(store);
+    if (at < 79) set79(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4688,4 +4689,67 @@ function set78(store: Store): void {
   store.insert('toxic_check', { id: newId(), exposure_id: id, what: 'Paracetamol level (4 hours after)', due_at: new Date(Date.now() + (240 - taken) * 60_000).toISOString(), added_by: ravi });
   store.insert('toxic_check', { id: newId(), exposure_id: id, what: 'Liver tests and INR with the level', due_at: new Date(Date.now() + (240 - taken) * 60_000).toISOString(), added_by: ravi });
   step('PLAN', `Plan: ${plan} Checks: Paracetamol level (4 hours after); Liver tests and INR with the level.`, ravi, 70);
+}
+
+// Set 79: major trauma. Josh came off his motorbike; the trauma team has done the primary survey
+// and the secondary survey is next. Peggy was a trauma alert two days ago after falling down her
+// front steps and was admitted to General Medicine; her tertiary survey is due on the ward.
+function set79(store: Store): void {
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const ravi = who('ravi'), mere = who('mere');
+  if (!ravi || !mere) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const nhi = (v: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", v)?.id;
+  let josh = nhi('ZZZ0196');
+  if (!josh) {
+    josh = newId();
+    store.insert('person', { id: josh, family_name: 'Taylor', given_name: 'Josh', date_of_birth: '1998-02-19', gender: 'Male', ethnicity: 'NZ European', iwi: null, data_source: 'SYNTHETIC', created_at: at(35) });
+    store.insert('external_identifier', { id: newId(), person_id: josh, system: 'NHI', value: 'ZZZ0196', verification: 'SYNTHETIC', created_at: at(35) });
+    store.insert('external_identifier', { id: newId(), person_id: josh, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(35) });
+    store.insert('encounter', { id: newId(), person_id: josh, service_id: 'svc-ed', location: 'Resus 3', kind: 'EMERGENCY', started_at: at(30), state: 'ACTIVE' });
+  }
+  type S = { kind: string; by: string; mins: number; abcde?: string[]; findings?: string; actions?: string };
+  const add = (c: { personId: string; call: string; mechanism: string; injuredMins: number; pre: string; by: string; mins: number; surveys: S[]; injuries: [string, string, string, number][];
+    next?: { what: string; note: string; by: string; mins: number } }) => {
+    if (store.get('SELECT 1 FROM trauma_case WHERE person_id = ?', c.personId)) return;
+    const id = newId();
+    const step = (kind: string, body: string, by: string, mins: number) => store.insert('trauma_step', { id: newId(), case_id: id, kind, body, by_id: by, at: at(mins) });
+    const trans = (from: string | null, to: string, by: string, mins: number, reason: string) =>
+      store.insert('state_transition', { id: newId(), object_type: 'trauma_case', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+    store.insert('trauma_case', {
+      id, person_id: c.personId, service_id: 'svc-ed', state: c.next ? (c.next.what === 'ADMITTED' ? 'ADMITTED' : 'COMPLETE') : 'ACTIVE', team_call: c.call, mechanism: c.mechanism,
+      injured_at: at(c.injuredMins), prehospital: c.pre, activated_by: c.by, activated_at: at(c.mins),
+      next: c.next?.what ?? null, next_note: c.next?.note ?? null, next_by: c.next?.by ?? null, next_at: c.next ? at(c.next.mins) : null,
+    });
+    trans(null, 'ACTIVE', c.by, c.mins, c.mechanism);
+    step('CALLED', `${c.call === 'FULL' ? 'Full trauma call' : 'Trauma alert (smaller team)'}: ${c.mechanism}. Ambulance: ${c.pre}`, c.by, c.mins);
+    for (const s of c.surveys) {
+      const [airway, breathing, circulation, disability, exposure] = s.abcde ?? [];
+      store.insert('trauma_survey', { id: newId(), case_id: id, kind: s.kind, airway: airway ?? null, breathing: breathing ?? null, circulation: circulation ?? null, disability: disability ?? null,
+        exposure: exposure ?? null, findings: s.findings ?? null, actions: s.actions ?? null, by_id: s.by, at: at(s.mins) });
+      step(s.kind, s.kind === 'PRIMARY' ? `Primary survey. Airway and neck: ${airway}. Breathing: ${breathing}. Circulation and bleeding: ${circulation}. Disability: ${disability}. Exposure: ${exposure}.${s.actions ? ` Done: ${s.actions}.` : ''}`
+        : `Secondary survey: ${s.findings}`, s.by, s.mins);
+    }
+    for (const [injury, foundBy, by, mins] of c.injuries) {
+      store.insert('trauma_injury', { id: newId(), case_id: id, injury, found_by: foundBy, by_id: by, at: at(mins) });
+      step('INJURY', `Injury (${foundBy.toLowerCase()}): ${injury}.`, by, mins);
+    }
+    if (c.next) {
+      trans('ACTIVE', c.next.what === 'ADMITTED' ? 'ADMITTED' : 'COMPLETE', c.next.by, c.next.mins, 'Admitted to a ward');
+      step('NEXT', `Admitted to a ward: ${c.next.note}. Tertiary survey due on the ward.`, c.next.by, c.next.mins);
+    }
+  };
+  add({ personId: josh, call: 'FULL', mechanism: 'Motorbike v car at about 60 km/h, helmet on, thrown about 5 m', injuredMins: 75, by: mere, mins: 35,
+    pre: 'GCS 14, HR 118, BP 100/64, sats 95% on oxygen; left thigh deformed and splinted; 500 mL fluid',
+    surveys: [{ kind: 'PRIMARY', by: ravi, mins: 25, abcde: ['Talking; collar on; neck not tender', 'RR 22, sats 97% on oxygen; chest moving equally; tender left ribs', 'HR 112, BP 104/66; pelvis stable; no outside bleeding', 'GCS 14 (E4 V4 M6); pupils equal and reacting; glucose 6.4', 'Deformed left thigh in traction splint; grazes left arm and hip; 36.2°C'],
+      actions: 'Two large IVs, bloods and group and hold, 1 g tranexamic acid as charted, X-rays of chest and pelvis' }],
+    injuries: [['Suspected fractured left femur', 'PRIMARY', ravi, 24]] });
+  const peggy = nhi('ZZZ0032');
+  if (peggy) add({ personId: peggy, call: 'ALERT', mechanism: 'Fell down three front steps at home; not on blood thinners', injuredMins: 2 * 1440 + 120, by: mere, mins: 2 * 1440 + 60,
+    pre: 'GCS 15, HR 96, BP 150/80; pain left knee and hip',
+    surveys: [{ kind: 'PRIMARY', by: ravi, mins: 2 * 1440 + 50, abcde: ['Talking; neck not tender, cleared clinically', 'RR 18, sats 96% on air', 'HR 94, BP 148/82; pelvis stable', 'GCS 15; pupils equal', 'Swollen left knee; bruised left hip; 36.6°C'] },
+      { kind: 'SECONDARY', by: ravi, mins: 2 * 1440 + 30, findings: 'Head: no injury. Chest and abdomen: no tenderness. Pelvis stable. Left knee hot, swollen and tender; left hip bruised, full movement. Back: no tenderness.' }],
+    injuries: [['Swollen left knee (blood in the joint likely)', 'SECONDARY', ravi, 2 * 1440 + 28], ['Bruised left hip; X-ray shows no fracture', 'IMAGING', ravi, 2 * 1440 + 5]],
+    next: { what: 'ADMITTED', note: 'General Medicine, accepted by Dr Hannah Li; knee to be aspirated', by: ravi, mins: 2 * 1440 } });
 }

@@ -538,6 +538,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ASSESSING',
     next: { ASSESSING: ['MONITORING', 'CLEARED', 'ADMITTED'], MONITORING: ['CLEARED', 'ADMITTED'] },
   },
+  trauma_case: {
+    table: 'trauma_case',
+    initial: 'ACTIVE',
+    next: { ACTIVE: ['ADMITTED', 'COMPLETE'], ADMITTED: ['COMPLETE'] },
+  },
   report: {
     table: 'patient_report',
     initial: 'RECORDED',
