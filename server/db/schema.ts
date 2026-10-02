@@ -4557,4 +4557,36 @@ CREATE TABLE danger_check (
 CREATE INDEX danger_check_person ON danger_check(person_id, state);
 `,
   },
+  {
+    version: 90,
+    name: 'ed short-stay observation',
+    sql: `
+-- Short stay for observation in the Emergency Department (entries 40, 41).
+CREATE TABLE ed_observation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- OBSERVING | ENDED
+  why TEXT NOT NULL,
+  watch TEXT NOT NULL,
+  review_at TEXT NOT NULL,
+  placed_by TEXT NOT NULL REFERENCES workforce_person(id),
+  placed_at TEXT NOT NULL,
+  outcome TEXT,
+  outcome_note TEXT,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT
+);
+CREATE INDEX ed_observation_person ON ed_observation(person_id, state);
+CREATE TABLE ed_observation_step (
+  id TEXT PRIMARY KEY,
+  observation_id TEXT NOT NULL REFERENCES ed_observation(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX ed_observation_step_obs ON ed_observation_step(observation_id);
+`,
+  },
 ];

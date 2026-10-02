@@ -41,6 +41,7 @@ export type Operation =
   | { op: 'DECISION'; personId: string }
   | { op: 'POISON'; personId: string }
   | { op: 'DANGER'; personId: string }
+  | { op: 'OBSERVATION'; personId: string }
   | { op: 'WITHDRAWAL'; personId: string }
   | { op: 'WITHDRAWAL_MANAGE'; personId: string }
   | { op: 'TRAUMA'; personId: string }
@@ -452,6 +453,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'withdrawal.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-WITHDRAWAL-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their withdrawal care`));
+    case 'OBSERVATION':
+      return (ctx.role.capabilities.includes('observation.manage') ? null : need(ctx, 'observation.view')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-OBSERVATION-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can place them in observation`));
     case 'DANGER':
       return need(ctx, 'danger.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-DANGER-001'])

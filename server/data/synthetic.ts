@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 88;
+const SET = 89;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -415,6 +415,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 86) set86(store);
     if (at < 87) set87(store);
     if (at < 88) set88(store);
+    if (at < 89) set89(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5201,4 +5202,25 @@ function set88(store: Store): void {
   store.insert('danger_check', { id, person_id: person, service_id: 'svc-ed', state: 'DANGER', kind: 'FROM_OTHERS', what: 'His brother is shouting and threatening staff in the waiting room',
     done: 'Troy moved to a cubicle; security called and with the brother now', told: 'Charge nurse and security', checked_by: mere, checked_at: at(22) });
   store.insert('state_transition', { id: newId(), object_type: 'danger_check', object_id: id, from_state: null, to_state: 'DANGER', actor_id: mere, work_context_id: null, at: at(22), reason: 'His brother is shouting and threatening staff', transaction_id: null });
+}
+
+// Set 89: short stay for observation. Kane hit his head playing rugby; Dr Ravi placed him in
+// observation and the review time has just passed.
+function set89(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0292'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ravi = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'ravi'")?.id;
+  if (!ravi || !store.get("SELECT 1 FROM service WHERE id = 'svc-ed'")) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const person = newId();
+  store.insert('person', { id: person, family_name: 'Wihongi', given_name: 'Kane', date_of_birth: '2003-06-09', gender: 'Male', ethnicity: 'Maori', iwi: null, data_source: 'SYNTHETIC', created_at: at(260) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: 'ZZZ0292', verification: 'SYNTHETIC', created_at: at(260) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(260) });
+  store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-ed', location: 'Cubicle 6', kind: 'EMERGENCY', started_at: at(255), state: 'ACTIVE' });
+  const id = newId();
+  const why = 'Head knock playing rugby, GCS 15, brief loss of consciousness; to be watched for 4 hours';
+  store.insert('ed_observation', { id, person_id: person, service_id: 'svc-ed', state: 'OBSERVING', why,
+    watch: 'Neuro obs hourly; tell me if drowsy, vomiting or a worse headache', review_at: at(10), placed_by: ravi, placed_at: at(240) });
+  store.insert('state_transition', { id: newId(), object_type: 'ed_observation', object_id: id, from_state: null, to_state: 'OBSERVING', actor_id: ravi, work_context_id: null, at: at(240), reason: why, transaction_id: null });
+  store.insert('ed_observation_step', { id: newId(), observation_id: id, kind: 'PLACED', body: `Placed in observation: ${why}. Watch: Neuro obs hourly; tell me if drowsy, vomiting or a worse headache. Review due ${at(10).slice(0, 16).replace('T', ' ')}.`, by_id: ravi, at: at(240) });
 }
