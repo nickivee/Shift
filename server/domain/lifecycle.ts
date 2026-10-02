@@ -204,7 +204,7 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
   incident: {
     table: 'incident',
     initial: 'REPORTED',
-    next: { REPORTED: ['REVIEWED'], REVIEWED: ['INVESTIGATING', 'ACTIONS'], INVESTIGATING: ['ACTIONS'], ACTIONS: ['CLOSED'] },
+    next: { REPORTED: ['REVIEWED'], REVIEWED: ['INVESTIGATING', 'ACTIONS'], INVESTIGATING: ['ACTIONS'], ACTIONS: ['CLOSED'], CLOSED: ['ACTIONS'] },
   },
   death: {
     table: 'death_event',

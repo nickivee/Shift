@@ -629,7 +629,7 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/incidents/:id/:action', (req) => incidents.act(store, work(req), req.params.id, req.params.action, {
     harm: str(req.body.harm), notify: str(req.body.notify), notifyNote: str(req.body.notifyNote), disclosure: str(req.body.disclosure), disclosureNote: str(req.body.disclosureNote),
     note: str(req.body.note), lead: str(req.body.lead), ref: str(req.body.ref), findings: str(req.body.findings), what: str(req.body.what), owner: str(req.body.owner),
-    due: str(req.body.due), actionId: str(req.body.actionId),
+    due: str(req.body.due), actionId: str(req.body.actionId), result: str(req.body.result),
   }));
   r.on('GET', '/api/work/deterioration', (req) => deterioration.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/deterioration', (req) => deterioration.open(store, work(req), req.params.id, { change: str(req.body.change) }));

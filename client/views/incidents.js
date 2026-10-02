@@ -83,6 +83,12 @@ function simpleDialog(i, action, o, reload) {
       const due = h('input', { type: 'date', 'aria-label': 'Due' });
       return ['Add an action', h('div', { class: 'stack' }, h('label', { class: 'field' }, 'Action', what), h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Responsible', owner), h('label', { class: 'field' }, 'Due', due))), 'Add', () => ({ what: what.value, owner: owner.value, due: due.value })];
     },
+    effect: () => {
+      const r = select([['WORKED', o.effect?.WORKED ?? 'It worked'], ['PARTLY', 'It only partly worked'], ['NOT_WORKED', 'It did not work']], 'Result');
+      const n = h('textarea', { 'aria-label': 'What you looked at and found', placeholder: 'e.g. No bed alarm incidents in 8 weeks; night checklist signed every night' });
+      return ['Did the actions work?', h('div', { class: 'stack' }, h('label', { class: 'field' }, 'Result', r), h('label', { class: 'field' }, 'What you looked at and found', n),
+        h('p', { class: 'small muted' }, 'If they did not fully work, the incident goes back to actions so more can be added.')), 'Save', () => ({ result: r.value, note: n.value })];
+    },
     close: () => { const n = h('textarea', { 'aria-label': 'Closing summary', placeholder: 'What changed as a result' }); return ['Close the incident', h('label', { class: 'field' }, 'Closing summary', n), 'Close it', () => ({ note: n.value })]; },
   };
   const [title, body, label, values] = forms[action]();
@@ -97,7 +103,7 @@ function doneDialog(i, a, reload) {
   });
 }
 
-const LABELS = { review: 'Review', notified: 'Record notification', 'notify-decide': 'Decide on notification', disclosure: 'Update open disclosure', investigate: 'Link investigation', findings: 'Record findings', 'action-add': 'Add action', close: 'Close' };
+const LABELS = { review: 'Review', notified: 'Record notification', 'notify-decide': 'Decide on notification', disclosure: 'Update open disclosure', investigate: 'Link investigation', findings: 'Record findings', 'action-add': 'Add action', close: 'Close', effect: 'Did it work?' };
 
 function incidentTile(i, o, reload, withPatient) {
   return h('div', { class: `tile stack inc inc-${i.state.toLowerCase()}` },
@@ -110,6 +116,8 @@ function incidentTile(i, o, reload, withPatient) {
       h('span', { class: `tag ${i.harmTone}` }, i.harmConfirmed ? i.harmLabel : `${i.harmLabel} (as reported)`),
       i.notifyLabel ? h('span', { class: `tag ${i.notify === 'REQUIRED' && !i.notifiedAt ? 'danger' : 'muted'}` }, i.notify === 'REQUIRED' ? (i.notifiedAt ? 'Notified' : 'Notification not yet recorded') : i.notifyLabel) : null,
       i.disclosureLabel ? h('span', { class: `tag ${i.disclosure === 'DONE' || i.disclosure === 'NOT_NEEDED' ? 'muted' : 'warn'}` }, `Open disclosure: ${i.disclosureLabel.toLowerCase()}`) : null),
+    i.effects?.length ? h('div', { class: 'stack' }, i.effects.map((e) => h('div', { class: 'small' }, h('b', {}, `${e.resultLabel}: `), e.note, h('span', { class: 'muted' }, ` (${e.by}, ${fmtDateTime(e.at)})`)))) : null,
+    i.needsEffect ? h('div', { class: 'small warn-text' }, 'Not yet checked whether the actions worked.') : null,
     i.actions.length ? h('div', { class: 'stack' }, h('b', { class: 'small' }, 'Actions'), i.actions.map((a) => h('div', { class: `spread small inc-action${a.overdue ? ' inc-overdue' : ''}` },
       h('span', {}, a.doneAt ? '✓ ' : '', a.what, h('span', { class: 'muted' }, ` · ${a.owner} · ${a.doneAt ? `done ${fmtDate(a.doneAt)}` : `due ${fmtDate(a.due)}${a.overdue ? ' (overdue)' : ''}`}`)),
       !a.doneAt && i.canActOnActions ? h('button', { class: 'btn small', onclick: () => doneDialog(i, a, reload) }, 'Mark done') : null))) : null,
