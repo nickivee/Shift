@@ -25,9 +25,10 @@ const STATES: Record<string, string> = {
 };
 const KINDS: Record<string, string> = {
   REPORTED: 'Reported', REVIEWED: 'Safety review', NOTIFIED: 'Notified', NOTIFY_DECIDED: 'Notification decided', DISCLOSURE: 'Open disclosure', INVESTIGATING: 'Investigation',
-  FINDINGS: 'Findings', ACTION: 'Action added', ACTION_DONE: 'Action done', CLOSED: 'Closed',
+  FINDINGS: 'Findings', ACTION: 'Action added', ACTION_DONE: 'Action done', CLOSED: 'Closed', EFFECT: 'Did it work?',
 };
-const REFS = ['ORG-SYN-001 v1', 'LAW-NZ-002', 'LAW-NZ-005', 'RR-INC-001'];
+const REFS = ['ORG-SYN-001 v1', 'LAW-NZ-002', 'LAW-NZ-005', 'RR-INC-001', 'RR-INCEFFECT-001'];
+const EFFECT: Record<string, string> = { WORKED: 'It worked', PARTLY: 'It only partly worked', NOT_WORKED: 'It did not work' };
 
 const Q = `
   SELECT i.id, i.person_id AS personId, p.given_name || ' ' || p.family_name AS patient,
@@ -75,8 +76,14 @@ function shape(store: Store, ctx: WorkContext, r: Row, canReview: boolean) {
     if (state === 'REVIEWED' || state === 'INVESTIGATING') can.push('findings');
     if (state === 'ACTIONS') can.push('action-add', 'close');
   }
+  const effects = state === 'CLOSED' || store.get('SELECT 1 FROM incident_effect WHERE incident_id = ?', id)
+    ? store.all<Row>('SELECT e.result, e.note, w.display_name AS "by", e.at FROM incident_effect e JOIN workforce_person w ON w.id = e.by_id WHERE e.incident_id = ? ORDER BY e.at DESC, e.rowid DESC', id)
+      .map((e): Record<string, any> => ({ ...e, resultLabel: EFFECT[String(e.result)] }))
+    : [];
+  const needsEffect = state === 'CLOSED' && actions.length > 0 && !effects.some((e) => String(e.at) >= String(r.closedAt));
+  if (canReview && needsEffect) can.push('effect');
   return {
-    ...r, id, state, stateLabel: STATES[state], categoryLabel: CATEGORIES[String(r.category)] ?? String(r.category),
+    ...r, id, state, stateLabel: STATES[state], effects, needsEffect, effectOptions: EFFECT, categoryLabel: CATEGORIES[String(r.category)] ?? String(r.category),
     harmLabel: harm?.label ?? '', harmTone: harm?.tone ?? 'muted', harmConfirmed: r.harm !== null,
     notifyLabel: r.notify ? NOTIFY[String(r.notify)] : null, disclosureLabel: r.disclosure ? DISCLOSURE[String(r.disclosure)] : null,
     actions, can, canActOnActions: canReview && state === 'ACTIONS', own,
@@ -120,7 +127,7 @@ export function report(store: Store, ctx: WorkContext, personId: string,
 
 export function act(store: Store, ctx: WorkContext, id: string, action: string,
   b: { harm?: string; notify?: string; notifyNote?: string; disclosure?: string; disclosureNote?: string; note?: string;
-    lead?: string; ref?: string; findings?: string; what?: string; owner?: string; due?: string; actionId?: string }) {
+    lead?: string; ref?: string; findings?: string; what?: string; owner?: string; due?: string; actionId?: string; result?: string }) {
   const r = load(store, id);
   const personId = String(r.personId);
   const state = String(r.state);
@@ -263,6 +270,24 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
         store.run('UPDATE incident SET closed_by = ?, closed_at = ?, close_note = ? WHERE id = ?', ctx.workerId, at, note, id);
         addStep(store, ctx, id, 'CLOSED', note);
         logged(store, ctx, 'INCIDENT_CLOSE', personId, id, note.slice(0, 200));
+      });
+      break;
+    }
+    case 'effect': {
+      inState('CLOSED');
+      if (!store.get('SELECT 1 FROM incident_action WHERE incident_id = ?', id)) throw new HttpError(409, 'NO_ACTIONS', 'There were no actions to check.');
+      if (store.get('SELECT 1 FROM incident_effect WHERE incident_id = ? AND at >= ?', id, r.closedAt)) throw new HttpError(409, 'ALREADY_CHECKED', 'Whether the actions worked has already been recorded since it was closed.');
+      const result = EFFECT[String(b.result)] ? String(b.result) : '';
+      if (!result) throw new HttpError(400, 'RESULT_REQUIRED', 'Say whether the actions worked, only partly worked, or did not work.');
+      if (note.length < 10) throw new HttpError(400, 'NOTE_REQUIRED', 'Write what you looked at and what you found, e.g. "No bed alarm incidents in 8 weeks; night checklist signed every night".');
+      store.tx(() => {
+        store.insert('incident_effect', { id: newId(), incident_id: id, result, note, by_id: ctx.workerId, at });
+        addStep(store, ctx, id, 'EFFECT', `${EFFECT[result]}: ${note}`);
+        if (result !== 'WORKED') {
+          transition(store, 'incident', id, 'ACTIONS', who, `${EFFECT[result]}: ${note.slice(0, 160)}`);
+          store.run('UPDATE incident SET closed_by = NULL, closed_at = NULL WHERE id = ?', id);
+        }
+        logged(store, ctx, 'INCIDENT_EFFECT', personId, id, EFFECT[result]);
       });
       break;
     }

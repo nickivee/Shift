@@ -4517,4 +4517,21 @@ CREATE TABLE transfer_bed_escalation (
 CREATE INDEX transfer_bed_escalation_t ON transfer_bed_escalation(transfer_id, at);
 `,
   },
+  {
+    version: 88,
+    name: 'incident effect check',
+    sql: `
+-- After an incident is closed, someone checks whether the actions worked (entries 23-24). If they
+-- did not, or only partly, the incident goes back to actions.
+CREATE TABLE incident_effect (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES incident(id),
+  result TEXT NOT NULL,                 -- WORKED | PARTLY | NOT_WORKED
+  note TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX incident_effect_i ON incident_effect(incident_id, at);
+`,
+  },
 ];

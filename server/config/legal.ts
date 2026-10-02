@@ -411,6 +411,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-INCEFFECT-001',
+    question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
+    blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-BEDS-001',
     question: 'What New Zealand requires when a hospital has no bed for a patient who has been accepted: the national and local capacity escalation and surge plans, who must be told and by when, which services must be asked to free beds, and what happens to patients waiting in the emergency department.',
     blocks: 'Capacity escalation levels, who must be told and by when, and any time limit before escalation. SHIFT records each time the flow coordinator says no bed could be found, what was tried and who was told, shows it with the waiting patient, and does not decide, time or trigger anything itself.',
