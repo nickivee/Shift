@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 86;
+const SET = 87;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -413,6 +413,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 84) set84(store);
     if (at < 85) set85(store);
     if (at < 86) set86(store);
+    if (at < 87) set87(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5154,4 +5155,30 @@ function set86(store: Store): void {
     store.insert('withdrawal_reading', { id: newId(), episode_id: id, scale: 'CIWA-Ar', score, signs, by_id: grace, at: at(mins) });
     step('READING', `CIWA-Ar ${score}: ${signs}.`, grace, mins);
   }
+}
+
+// Set 87: no bed. Mate was accepted by General Medicine from the Emergency Department and no suitable
+// bed could be found; the flow coordinator has recorded what was tried and who was told.
+function set87(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0276'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const ravi = who('ravi'), hannah = who('hannah');
+  const flow = store.get<{ id: string }>("SELECT e.workforce_person_id AS id FROM position p JOIN employment e ON e.id = p.employment_id WHERE p.role_key = 'flow-coordinator' LIMIT 1")?.id;
+  if (!ravi || !hannah || !flow || !store.get("SELECT 1 FROM service WHERE id = 'svc-ed'")) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const person = newId();
+  store.insert('person', { id: person, family_name: 'Eruera', given_name: 'Mate', date_of_birth: '1957-06-19', gender: 'Male', ethnicity: 'Māori', iwi: null, data_source: 'SYNTHETIC', created_at: at(300) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: 'ZZZ0276', verification: 'SYNTHETIC', created_at: at(300) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(300) });
+  const enc = newId();
+  store.insert('encounter', { id: enc, person_id: person, service_id: 'svc-ed', location: 'Cubicle 6', kind: 'EMERGENCY', started_at: at(290), state: 'ACTIVE' });
+  const id = newId();
+  const reason = 'Pneumonia needing intravenous antibiotics and oxygen monitoring';
+  store.insert('transfer', { id, person_id: person, kind: 'ADMISSION', from_service_id: 'svc-ed', from_encounter_id: enc, to_service_id: 'svc-genmed', reason, priority: 'URGENT',
+    state: 'ACCEPTED', requested_by: ravi, requested_at: at(150), accepted_by: hannah });
+  recordInitial(store, 'transfer', id, 'REQUESTED', { actorId: ravi, workContextId: null }, reason);
+  store.insert('state_transition', { id: newId(), object_type: 'transfer', object_id: id, from_state: 'REQUESTED', to_state: 'ACCEPTED', actor_id: hannah, work_context_id: null, at: at(130), reason: null, transaction_id: null });
+  store.insert('transfer_bed_escalation', { id: newId(), transfer_id: id, tried: 'Every Ward K bed is full or being cleaned; asked the ward to review discharges before the afternoon round', told: 'Duty nurse manager, 40 minutes ago',
+    by_id: flow, at: at(40) });
 }

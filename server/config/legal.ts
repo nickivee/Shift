@@ -411,6 +411,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-BEDS-001',
+    question: 'What New Zealand requires when a hospital has no bed for a patient who has been accepted: the national and local capacity escalation and surge plans, who must be told and by when, which services must be asked to free beds, and what happens to patients waiting in the emergency department.',
+    blocks: 'Capacity escalation levels, who must be told and by when, and any time limit before escalation. SHIFT records each time the flow coordinator says no bed could be found, what was tried and who was told, shows it with the waiting patient, and does not decide, time or trigger anything itself.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-WITHDRAWAL-001',
     question: 'What New Zealand requires when someone withdrawing from alcohol or drugs is cared for in an emergency department or a general ward: the assessment scale and observation frequency to use, when a doctor must review, what must be recorded before a drug is given or stopped, the national alcohol and other drug guidance and addiction service referral expectations, and who may decide that withdrawal has settled.',
     blocks: 'Which scale to use, what a score means, observation frequency, drug treatment rules and when withdrawal can be called settled. SHIFT records what they use and when they last did, any past severe withdrawal, each reading as scored by whoever scored it, the doctor\'s plan and timed checks, and whether it settled or was handed on and to whom.',

@@ -50,6 +50,7 @@ function actions(store: Store, ctx: WorkContext, t: Row): string[] {
   const sender = t.fromServiceId === ctx.serviceId && ctx.role.capabilities.includes('transfer.request');
   if (t.state === 'REQUESTED' && can('accept')) out.push('accept', 'decline');
   if ((t.state === 'ACCEPTED' || t.state === 'BED_ALLOCATED') && bed() && hasBeds(store, String(t.toServiceId))) out.push('bed');
+  if (t.state === 'ACCEPTED' && bed()) out.push('nobed');
   if (t.state === 'BED_ALLOCATED' && can('arrive')) out.push('arrive');
   if (t.state === 'ARRIVED' && can('responsibility')) out.push('responsibility');
   if (['REQUESTED', 'ACCEPTED', 'BED_ALLOCATED'].includes(String(t.state)) && sender) out.push('cancel');
@@ -59,7 +60,10 @@ function actions(store: Store, ctx: WorkContext, t: Row): string[] {
 const hasBeds = (store: Store, serviceId: string) => Boolean(store.get('SELECT 1 FROM bed WHERE service_id = ?', serviceId));
 
 function shape(store: Store, ctx: WorkContext, t: Row) {
-  return { ...t, actions: actions(store, ctx, t), history: history(store, 'transfer', String(t.id)) };
+  const escalations = ['REQUESTED', 'ACCEPTED'].includes(String(t.state))
+    ? store.all<Row>('SELECT e.tried, e.told, w.display_name AS "by", e.at FROM transfer_bed_escalation e JOIN workforce_person w ON w.id = e.by_id WHERE e.transfer_id = ? ORDER BY e.at DESC, e.rowid DESC', String(t.id))
+    : [];
+  return { ...t, actions: actions(store, ctx, t), escalations, history: history(store, 'transfer', String(t.id)) };
 }
 
 // Services in this organisation that can receive a patient, other than the worker's own.
@@ -114,7 +118,7 @@ export function list(store: Store, ctx: WorkContext) {
   return rows.map((r) => ({ ...shape(store, ctx, r), incoming: flow ? null : r.toServiceId === ctx.serviceId }));
 }
 
-export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string; bedId?: string }) {
+export function act(store: Store, ctx: WorkContext, id: string, action: string, b: { note?: string; bedId?: string; tried?: string; told?: string }) {
   const t = store.get<Row>(`${SELECT} WHERE t.id = ?`, id);
   if (!t) throw new HttpError(404, 'NOT_FOUND', 'That transfer no longer exists.');
   const personId = String(t.personId);
@@ -140,6 +144,17 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         store.run('UPDATE transfer SET bed_id = ? WHERE id = ?', bed.id, id);
         transition(store, 'transfer', id, 'BED_ALLOCATED', who, bed.label);
         break;
+      }
+      case 'nobed': {
+        enforce(store, ctx, { op: 'BED_MANAGE', serviceId: String(t.toServiceId), organisationId: ctx.organisationId }, personId);
+        if (t.state !== 'ACCEPTED') throw new HttpError(409, 'WRONG_STATE', 'This can only be recorded for an accepted patient who has no bed yet.');
+        const tried = (b.tried ?? '').trim().slice(0, 500);
+        if (tried.length < 5) throw new HttpError(400, 'TRIED_REQUIRED', 'Write what you tried, e.g. "Checked every Ward K bed; two being cleaned; asked ward K to review discharges".');
+        const told = (b.told ?? '').trim().slice(0, 200);
+        if (told.length < 3) throw new HttpError(400, 'TOLD_REQUIRED', 'Write who you told, e.g. "Duty nurse manager, 3.15pm".');
+        store.insert('transfer_bed_escalation', { id: newId(), transfer_id: id, tried, told, by_id: ctx.workerId, at: now() });
+        logged(store, ctx, 'TRANSFER_NO_BED', personId, id, `${tried} Told: ${told}`);
+        return shape(store, ctx, store.get<Row>(`${SELECT} WHERE t.id = ?`, id)!);
       }
       case 'arrive': {
         enforce(store, ctx, { op: 'TRANSFER_RESPOND', toServiceId: String(t.toServiceId), step: 'arrive' }, personId);
