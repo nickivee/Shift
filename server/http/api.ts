@@ -69,6 +69,7 @@ import * as procedures from '../domain/procedures.ts';
 import * as decisions from '../domain/decisions.ts';
 import * as poisoning from '../domain/poisoning.ts';
 import * as withdrawal from '../domain/withdrawal.ts';
+import * as danger from '../domain/danger.ts';
 import * as trauma from '../domain/trauma.ts';
 import * as feeding from '../domain/feeding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
@@ -381,6 +382,8 @@ export function buildApi(store: Store): Router {
     airway: str(req.body.airway), breathing: str(req.body.breathing), circulation: str(req.body.circulation), disability: str(req.body.disability), exposure: str(req.body.exposure),
     findings: str(req.body.findings), actions: str(req.body.actions), injury: str(req.body.injury), foundBy: str(req.body.foundBy), next: str(req.body.next), note: str(req.body.note),
   }));
+  r.on('POST', '/api/work/patients/:id/danger', (req) => danger.record(store, work(req), req.params.id, { danger: str(req.body.danger), kind: str(req.body.kind), what: str(req.body.what), done: str(req.body.done), told: str(req.body.told) }));
+  r.on('POST', '/api/work/danger/:id/safe', (req) => danger.safe(store, work(req), req.params.id, { note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/withdrawal', (req) => withdrawal.record(store, work(req), req.params.id, {
     substance: str(req.body.substance), usual: str(req.body.usual), timeKnown: str(req.body.timeKnown), lastUse: str(req.body.lastUse), history: str(req.body.history), source: str(req.body.source),
   }));

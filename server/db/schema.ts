@@ -4534,4 +4534,27 @@ CREATE TABLE incident_effect (
 CREATE INDEX incident_effect_i ON incident_effect(incident_id, at);
 `,
   },
+  {
+    version: 89,
+    name: 'immediate danger check',
+    sql: `
+-- Immediate danger check at the front door of the Emergency Department (entries 40, 41).
+CREATE TABLE danger_check (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- CLEAR | DANGER | MADE_SAFE
+  kind TEXT,
+  what TEXT,
+  done TEXT,
+  told TEXT,
+  checked_by TEXT NOT NULL REFERENCES workforce_person(id),
+  checked_at TEXT NOT NULL,
+  safe_by TEXT REFERENCES workforce_person(id),
+  safe_at TEXT,
+  safe_note TEXT
+);
+CREATE INDEX danger_check_person ON danger_check(person_id, state);
+`,
+  },
 ];
