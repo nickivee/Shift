@@ -4,6 +4,7 @@ import { toast, pageTitle, fmtDate, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { dialog, field, select } from '../lib/forms.js';
+import { majorPanel } from './majorincident.js';
 
 // Identity: an arrival's details and where they came from → possible matches with the evidence →
 // matched, a new record, or a temporary identity → identified later → corrected if wrong.
@@ -238,12 +239,20 @@ export async function duplicatesView() {
 
 // Home → Arrivals.
 export async function arrivalsView() {
+  const root = h('div');
+  const load = async () => mount(root, await arrivalsPage(load));
+  await load();
+  return root;
+}
+
+async function arrivalsPage(reload) {
   const d = await get('/api/work/arrivals');
   const section = (title, list, empty) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${list.length})`),
     list.length ? list.map((x) => matchCard(x, d, () => go('/work/arrivals'), true)) : h('div', { class: 'card empty' }, empty));
   return h('div', {},
     workHeader(),
     pageTitle('Arrivals', () => go('/work/home')),
+    majorPanel(d.major, reload),
     h('div', { class: 'banner' }, 'Register someone arriving in your service. SHIFT shows possible matches and the evidence for each; you decide. Someone who cannot be identified gets a temporary identity so care starts now.'),
     h('div', { class: 'stack' },
       h('div', {}, h('button', { class: 'btn primary', onclick: () => registerDialog(d.options) }, 'Register an arrival')),

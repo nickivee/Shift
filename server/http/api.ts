@@ -38,6 +38,7 @@ import * as deterioration from '../domain/deterioration.ts';
 import * as incidents from '../domain/incidents.ts';
 import * as deaths from '../domain/deaths.ts';
 import * as coronial from '../domain/coronial.ts';
+import * as majorincident from '../domain/majorincident.ts';
 import * as problems from '../domain/problems.ts';
 import * as symptoms from '../domain/symptoms.ts';
 import * as interventions from '../domain/interventions.ts';
@@ -303,7 +304,10 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/duplicates/:id/:action', (req) => duplicates.act(store, work(req), req.params.id, req.params.action, {
     keep: str(req.body.keep), note: str(req.body.note), from: str(req.body.from),
   }));
-  r.on('GET', '/api/work/arrivals', (req) => identitymatch.list(store, work(req)));
+  r.on('GET', '/api/work/arrivals', (req) => ({ ...identitymatch.list(store, work(req)), major: majorincident.board(store, work(req)) }));
+  r.on('POST', '/api/work/major-incident', (req) => majorincident.declare(store, work(req), { title: str(req.body.title), expected: str(req.body.expected), level: str(req.body.level) }));
+  r.on('POST', '/api/work/major-incident/:id/:action', (req) => majorincident.act(store, work(req), req.params.id, req.params.action,
+    Object.fromEntries(['priority', 'description', 'gender', 'location', 'personId', 'casualtyId', 'note'].map((k) => [k, str(req.body[k])]))));
   r.on('POST', '/api/work/arrivals/find', (req) => identitymatch.find(store, work(req), req.body as Record<string, unknown>));
   r.on('POST', '/api/work/arrivals', (req) => identitymatch.register(store, work(req), req.body as Record<string, unknown>));
   r.on('POST', '/api/work/identity/:id/:action', (req) => identitymatch.act(store, work(req), req.params.id, req.params.action, req.body as Record<string, unknown>));

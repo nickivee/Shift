@@ -73,6 +73,7 @@ export type Operation =
   | { op: 'EQUIPMENT_USE'; personId: string }
   | { op: 'EQUIPMENT_LEND'; personId: string }
   | { op: 'STAFF_ABSENCE'; serviceId: string }
+  | { op: 'MAJOR_INCIDENT'; serviceId: string }
   | { op: 'CORONIAL'; serviceId: string; cap: 'death.manage' | 'coroner.decide' }
   | { op: 'BED_MOVE_REQUEST'; personId: string }
   | { op: 'LEAVE'; personId: string; cap: 'leave.manage' | 'leave.approve' }
@@ -194,6 +195,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
         : block('That allocation belongs to another service'));
     case 'CORONIAL':
       return need(ctx, o.cap) ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-CORONER-001']) : block('That coroner\'s case belongs to another service'));
+    case 'MAJOR_INCIDENT':
+      return need(ctx, 'major.manage') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-MCI-001']) : block('That major incident belongs to another service'));
     case 'STAFF_ABSENCE':
       return need(ctx, 'staffing.report') ?? (o.serviceId === ctx.serviceId ? allow([ORG, 'RR-STAFF-001']) : block('That roster belongs to another service'));
     case 'ROSTER_DECIDE':

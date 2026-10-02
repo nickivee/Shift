@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 84;
+const SET = 85;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -411,6 +411,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 82) set82(store);
     if (at < 83) set83(store, password);
     if (at < 84) set84(store);
+    if (at < 85) set85(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5064,4 +5065,45 @@ function set84(store: Store): void {
   store.insert('coronial_request', { id: r2, case_id: c, from_name: from, ref: 'CSU-2026-04418', asked: asked2, received_at: ago(2 * day), due_date: new Date(Date.now() + 3 * day * 60_000).toLocaleDateString('en-CA'), state: 'RECEIVED', logged_by: grace });
   store.insert('state_transition', { id: newId(), object_type: 'coronial_request', object_id: r2, from_state: null, to_state: 'RECEIVED', actor_id: grace, work_context_id: null, at: ago(2 * day), reason: from, transaction_id: null });
   cstep('REQUEST', `Request from ${from}: ${asked2}`, grace, 2 * day);
+}
+
+// Set 85: a major incident two days ago. A chemical leak at a cool store sent four workers to the
+// Emergency Department; it was stood down once the last one was seen, and the debrief is still to
+// be recorded.
+function set85(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0228'")) return;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const ed = store.get<{ w: string }>("SELECT e.workforce_person_id AS w FROM position p JOIN employment e ON e.id = p.employment_id WHERE p.role_key = 'ed-doctor' LIMIT 1")?.w;
+  const rn = store.get<{ w: string }>("SELECT e.workforce_person_id AS w FROM position p JOIN employment e ON e.id = p.employment_id WHERE p.role_key = 'ed-rn' LIMIT 1")?.w;
+  if (!ed || !rn) return;
+  const start = 2 * day + 300;
+  const id = newId();
+  const title = 'Ammonia leak at a cool store, Seaview Road';
+  store.insert('major_incident', { id, service_id: 'svc-ed', title, expected: 6, state: 'STOOD_DOWN', declared_by: ed, declared_at: ago(start), activated_at: ago(start - 10),
+    stood_down_by: ed, stood_down_at: ago(start - 240), stand_down_note: 'Four casualties seen; fire service confirmed no one else exposed.' });
+  for (const [f, t, mins, why] of [[null, 'STANDBY', start, title], ['STANDBY', 'ACTIVE', start - 10, 'Activated'], ['ACTIVE', 'STOOD_DOWN', start - 240, 'Four casualties seen']] as [string | null, string, number, string][]) {
+    store.insert('state_transition', { id: newId(), object_type: 'major_incident', object_id: id, from_state: f, to_state: t, actor_id: ed, work_context_id: null, at: ago(mins), reason: why, transaction_id: null });
+  }
+  const step = (kind: string, body: string, by: string, mins: number) => store.insert('major_incident_step', { id: newId(), incident_id: id, kind, body, by_id: by, at: ago(mins) });
+  step('DECLARED', `Standby: casualties may come. ${title}. About 6 casualties expected.`, ed, start);
+  step('ACTIVATED', 'Active: casualties coming.', ed, start - 10);
+  const people: [string, string, string, string, string, string, number, string][] = [
+    ['ZZZ0228', 'Sefo', 'Tuilagi', '1985-06-02', 'Male', 'IMMEDIATE', 40, 'Man about 40, hi-vis vest, short of breath and wheezing'],
+    ['ZZZ0236', 'Mereana', 'Hohepa', '1992-01-17', 'Female', 'URGENT', 45, 'Woman about 30, sore eyes and coughing'],
+    ['ZZZ0244', 'Lucas', 'Petrov', '1979-09-30', 'Male', 'DELAYED', 55, 'Man about 45, sore throat only'],
+    ['ZZZ0252', 'Ana', 'Fifita', '2001-12-05', 'Female', 'DELAYED', 60, 'Woman about 20, anxious, no symptoms on arrival'],
+  ];
+  people.forEach(([nhi, given, family, dob, gender, priority, mins, description], n) => {
+    const pid = newId();
+    store.insert('person', { id: pid, family_name: family, given_name: given, date_of_birth: dob, gender, ethnicity: null, data_source: 'SYNTHETIC', created_at: ago(start - mins) });
+    store.insert('external_identifier', { id: newId(), person_id: pid, system: 'NHI', value: nhi, verification: 'SYNTHETIC', created_at: ago(start - mins) });
+    store.insert('encounter', { id: newId(), person_id: pid, service_id: 'svc-ed', location: null, kind: 'EMERGENCY', started_at: ago(start - mins), state: 'ENDED', ended_at: ago(start - 200 - n * 10) });
+    const number = `MI-0${n + 1}`;
+    store.insert('major_incident_casualty', { id: newId(), incident_id: id, person_id: pid, number, priority, arrived_at: ago(start - mins), triaged_by: rn, triaged_at: ago(start - mins) });
+    store.insert('major_incident_triage', { id: newId(), incident_id: id, person_id: pid, priority, note: null, by_id: rn, at: ago(start - mins) });
+    step('CASUALTY', `${number}: ${({ IMMEDIATE: 'Immediate (P1)', URGENT: 'Urgent (P2)', DELAYED: 'Delayed (P3)' } as Record<string, string>)[priority]}. ${description}`, rn, start - mins);
+  });
+  step('STOOD_DOWN', 'Four casualties seen; fire service confirmed no one else exposed.', ed, start - 240);
 }

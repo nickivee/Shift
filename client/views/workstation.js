@@ -687,6 +687,11 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-trauma', onclick: () => x.view && openView(x.view) }, icon('alert'),
         h('span', {}, h('b', {}, x.state === 'ADMITTED' ? 'TERTIARY SURVEY DUE' : x.teamCall.toUpperCase()), `${x.mechanism} · ${x.missing}`)));
     }
+    if (patient.majorIncident) {
+      const x = patient.majorIncident;
+      block.append(h('div', { class: `patient-major major-${String(x.priority).toLowerCase()}` }, icon('alert'),
+        h('span', {}, h('b', {}, `MAJOR INCIDENT CASUALTY ${x.number}`), `${x.priorityLabel} · ${x.title}`)));
+    }
     if (patient.poisoning) {
       const x = patient.poisoning;
       const next = x.next ? `${x.next.overdue ? 'OVERDUE: ' : 'Next: '}${x.next.what} ${fmtDateTime(x.next.dueAt)}` : x.state;
