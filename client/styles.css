@@ -1026,3 +1026,11 @@ table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; 
 .prio-urgent { background: var(--warn-bg, #fff4d6); color: var(--ink); border: 1px solid var(--warn, #b26a00); }
 .prio-delayed { background: var(--ok-bg); color: var(--ink); border: 1px solid var(--ok); }
 .prio-dead { background: var(--ink); color: #fff; }
+
+/* Withdrawal */
+.withdrawal { border-left: 4px solid var(--warn); }
+.withdrawal .advice { border-left: 3px solid var(--line); padding-left: 8px; }
+.withdrawal ul.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.withdrawal ul.checks li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; border: 1px solid var(--tint); border-radius: 10px; padding: 6px 10px; }
+.withdrawal ul.checks li.overdue { border-color: var(--warn); background: var(--warn-bg); }
+.withdrawal ul.checks li.done { opacity: .75; }

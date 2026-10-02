@@ -31,6 +31,7 @@ import { rehabPanel } from './rehab.js';
 import { proceduresPanel } from './procedures.js';
 import { decisionsPanel } from './decisions.js';
 import { poisoningPanel } from './poisoning.js';
+import { withdrawalPanel } from './withdrawal.js';
 import { traumaPanel } from './trauma.js';
 import { feedingPanel } from './feeding.js';
 import { resultsPanel } from './diagnostics.js';
@@ -423,7 +424,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.withdrawal || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
@@ -440,7 +441,7 @@ export async function workstationView(personId, initialView) {
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
-      case 'monitoring': return h('div', { class: 'stack' }, poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/monitoring`)), monitoringPanel(personId, d, () => openView('monitoring')));
+      case 'monitoring': return h('div', { class: 'stack' }, withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/monitoring`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/monitoring`)), monitoringPanel(personId, d, () => openView('monitoring')));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
@@ -691,6 +692,12 @@ export async function workstationView(personId, initialView) {
       const x = patient.majorIncident;
       block.append(h('div', { class: `patient-major major-${String(x.priority).toLowerCase()}` }, icon('alert'),
         h('span', {}, h('b', {}, `MAJOR INCIDENT CASUALTY ${x.number}`), `${x.priorityLabel} · ${x.title}`)));
+    }
+    if (patient.withdrawal) {
+      const x = patient.withdrawal;
+      const next = x.next ? `${x.next.overdue ? 'check overdue: ' : 'next: '}${x.next.what}` : x.state;
+      block.append(h('button', { class: `patient-poison${x.next?.overdue ? ' overdue' : ''}`, onclick: () => openView(x.view) }, icon('alert'),
+        h('span', {}, h('b', {}, `WITHDRAWAL: ${String(x.substance).toUpperCase()}`), next)));
     }
     if (patient.poisoning) {
       const x = patient.poisoning;

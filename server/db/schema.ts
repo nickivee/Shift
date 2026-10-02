@@ -4439,4 +4439,64 @@ CREATE TABLE major_incident_step (
 CREATE INDEX major_incident_step_i ON major_incident_step(incident_id, at);
 `,
   },
+  {
+    version: 86,
+    name: 'withdrawal',
+    sql: `
+-- Alcohol and drug withdrawal (entries 111, 116): what they use and when they last did → readings
+-- as scored → the doctor's plan with timed checks → settled, or handed on.
+CREATE TABLE withdrawal_episode (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ASSESSING | MANAGED | SETTLED | HANDED_ON
+  substance TEXT NOT NULL,
+  usual TEXT NOT NULL,
+  last_use_at TEXT,
+  time_known TEXT NOT NULL,             -- KNOWN | ESTIMATED | UNKNOWN
+  history TEXT NOT NULL,
+  source TEXT NOT NULL,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  plan TEXT,
+  planned_by TEXT REFERENCES workforce_person(id),
+  watch_until TEXT,
+  outcome_note TEXT,
+  outcome_by TEXT REFERENCES workforce_person(id),
+  outcome_at TEXT,
+  handed_to TEXT
+);
+CREATE INDEX withdrawal_episode_person ON withdrawal_episode(person_id, state);
+CREATE TABLE withdrawal_reading (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES withdrawal_episode(id),
+  scale TEXT NOT NULL,
+  score TEXT,
+  signs TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX withdrawal_reading_e ON withdrawal_reading(episode_id, at);
+CREATE TABLE withdrawal_check (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES withdrawal_episode(id),
+  what TEXT NOT NULL,
+  due_at TEXT NOT NULL,
+  added_by TEXT NOT NULL REFERENCES workforce_person(id),
+  done_by TEXT REFERENCES workforce_person(id),
+  done_at TEXT,
+  note TEXT
+);
+CREATE INDEX withdrawal_check_e ON withdrawal_check(episode_id, due_at);
+CREATE TABLE withdrawal_step (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES withdrawal_episode(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX withdrawal_step_e ON withdrawal_step(episode_id, at);
+`,
+  },
 ];
