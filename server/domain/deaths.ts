@@ -9,6 +9,7 @@ import { endForService } from './assignments.ts';
 import { requireCoding } from './coding.ts';
 import { endForDeath } from './endoflife.ts';
 import { endForDeath as endStayForDeath } from './residency.ts';
+import { openCase, held, forPerson as coronialFor, list as coronialList, options as coronialOptions } from './coronial.ts';
 import { EXPECTED, CERT, NOTIFY, NOTIFY_BY_ID, DONATION, RELEASE } from '../config/deaths.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
@@ -181,6 +182,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string,
       store.tx(() => {
         store.run('UPDATE death_event SET cert_kind = ?, cert_by = ?, cert_ref = ?, cert_note = ? WHERE id = ?', kind, by, ref, note || null, id);
         addStep(store, ctx, id, 'CERTIFIED', [`${CERT[kind]} by ${by}${ref ? ` (reference ${ref})` : ''}.`, note].filter(Boolean).join(' '));
+        if (kind === 'CORONER') openCase(store, ctx, id, personId, String(r.serviceId), ref);
         logged(store, ctx, 'DEATH_CERTIFY', personId, id, CERT[kind]);
       });
       break;
@@ -290,7 +292,8 @@ export function forPerson(store: Store, ctx: WorkContext, personId: string) {
   const canManage = may(store, ctx, personId, 'death.manage');
   const all = store.all<Row>(`${Q} WHERE d.person_id = ? ORDER BY d.identified_at DESC`, personId).map((r) => shape(store, r, canManage));
   const event = all.find((e) => e.state !== 'ENTERED_IN_ERROR') ?? null;
-  return { event, errors: all.filter((e) => e.state === 'ENTERED_IN_ERROR'), canRecord: canRecord && !event, canManage, options: options() };
+  return { event, errors: all.filter((e) => e.state === 'ENTERED_IN_ERROR'), canRecord: canRecord && !event, canManage, options: options(),
+    coronial: coronialFor(store, ctx, personId), coronialOptions: coronialOptions() };
 }
 
 // For the record header.
@@ -298,7 +301,7 @@ export function current(store: Store, personId: string) {
   const r = store.get<Row>(`${Q} WHERE d.person_id = ? AND d.state != 'ENTERED_IN_ERROR'`, personId);
   if (!r) return null;
   const s = shape(store, r, false);
-  return { id: s.id, diedAt: String(r.diedAt), state: s.state, stateLabel: s.stateLabel, outstanding: s.outstanding.length };
+  return { id: s.id, diedAt: String(r.diedAt), state: s.state, stateLabel: s.stateLabel, outstanding: s.outstanding.length, held: held(store, personId) };
 }
 
 // Home → Deaths: open ones first with what is still to do, then those closed in the last 30 days.
@@ -308,5 +311,5 @@ export function list(store: Store, ctx: WorkContext) {
   const rows = store.all<Row>(`${Q} WHERE d.service_id = ? AND (d.state IN ('IDENTIFIED', 'VERIFIED') OR (d.state = 'CLOSED' AND d.closed_at >= ?)) ORDER BY d.died_at DESC`,
     ctx.serviceId, since).map((r) => shape(store, r, false));
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: 'VIEW_DEATHS', decision: 'ALLOW', outcome: 'VIEWED' });
-  return { open: rows.filter((r) => r.state !== 'CLOSED'), closed: rows.filter((r) => r.state === 'CLOSED') };
+  return { open: rows.filter((r) => r.state !== 'CLOSED'), closed: rows.filter((r) => r.state === 'CLOSED'), coronial: coronialList(store, ctx), coronialOptions: coronialOptions() };
 }

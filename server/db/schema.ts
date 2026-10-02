@@ -4326,4 +4326,62 @@ CREATE TABLE staffing_short (
 CREATE INDEX staffing_short_shift ON staffing_short(service_id, shift_date, period);
 `,
   },
+  {
+    version: 84,
+    name: 'coroner',
+    sql: `
+-- The coroner's side of a death (entry 153): the record held for the coroner, the coroner's
+-- requests for information with the decision about each, and the findings with the response.
+CREATE TABLE coronial_case (
+  id TEXT PRIMARY KEY,
+  death_id TEXT NOT NULL REFERENCES death_event(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  coroner_ref TEXT,
+  state TEXT NOT NULL,                  -- HELD | FINDINGS | CLOSED
+  held_by TEXT NOT NULL REFERENCES workforce_person(id),
+  held_at TEXT NOT NULL,
+  findings TEXT,
+  recommendations TEXT,
+  findings_by TEXT REFERENCES workforce_person(id),
+  findings_at TEXT,
+  response TEXT,
+  responded_by TEXT REFERENCES workforce_person(id),
+  responded_at TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT
+);
+CREATE INDEX coronial_case_person ON coronial_case(person_id);
+CREATE INDEX coronial_case_service ON coronial_case(service_id, state);
+CREATE TABLE coronial_request (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES coronial_case(id),
+  from_name TEXT NOT NULL,
+  ref TEXT,
+  asked TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  due_date TEXT,
+  state TEXT NOT NULL,                  -- RECEIVED | ADVICE | DECIDED | SENT
+  logged_by TEXT NOT NULL REFERENCES workforce_person(id),
+  decision TEXT,                        -- RELEASE | PART | ADVICE
+  basis TEXT,
+  decided_by TEXT REFERENCES workforce_person(id),
+  decided_at TEXT,
+  sent_what TEXT,
+  sent_how TEXT,
+  sent_by TEXT REFERENCES workforce_person(id),
+  sent_at TEXT
+);
+CREATE INDEX coronial_request_case ON coronial_request(case_id);
+CREATE TABLE coronial_step (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES coronial_case(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX coronial_step_case ON coronial_step(case_id, at);
+`,
+  },
 ];

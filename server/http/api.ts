@@ -37,6 +37,7 @@ import * as acuity from '../domain/acuity.ts';
 import * as deterioration from '../domain/deterioration.ts';
 import * as incidents from '../domain/incidents.ts';
 import * as deaths from '../domain/deaths.ts';
+import * as coronial from '../domain/coronial.ts';
 import * as problems from '../domain/problems.ts';
 import * as symptoms from '../domain/symptoms.ts';
 import * as interventions from '../domain/interventions.ts';
@@ -602,6 +603,8 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/patients/:id/death', (req) => deaths.identify(store, work(req), req.params.id, {
     diedAt: str(req.body.diedAt), expected: str(req.body.expected), place: str(req.body.place), circumstances: str(req.body.circumstances),
   }));
+  r.on('POST', '/api/work/coronial/:id/:action', (req) => coronial.act(store, work(req), req.params.id, req.params.action,
+    Object.fromEntries(['from', 'ref', 'asked', 'dueDate', 'requestId', 'decision', 'basis', 'how', 'what', 'findings', 'recommendations', 'response', 'note'].map((k) => [k, str(req.body[k])]))));
   r.on('POST', '/api/work/deaths/:id/:action', (req) => deaths.act(store, work(req), req.params.id, req.params.action, {
     note: str(req.body.note), at: str(req.body.at), kind: str(req.body.kind), by: str(req.body.by), ref: str(req.body.ref),
     name: str(req.body.name), to: str(req.body.to), donation: str(req.body.donation),
