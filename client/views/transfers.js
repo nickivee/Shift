@@ -30,6 +30,19 @@ async function doAction(t, action, reload) {
     });
     if (!note) return;
     body = { note };
+  } else if (action === 'nobed') {
+    const ok = await new Promise((resolve) => {
+      const tried = h('textarea', { 'aria-label': 'What you tried', placeholder: 'e.g. Checked every Ward K bed; two being cleaned; asked the ward to review discharges' });
+      const told = h('input', { 'aria-label': 'Who you told', placeholder: 'e.g. Duty nurse manager, 3.15pm' });
+      const warn = h('p', { class: 'small warn-text', hidden: true }, 'Write what you tried and who you told.');
+      const dlg = h('dialog', {}, h('h2', {}, `No bed for ${t.patient}`),
+        h('label', { class: 'field' }, 'What you tried', tried), h('label', { class: 'field' }, 'Who you told', told), warn,
+        h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: () => { if (tried.value.trim().length < 5 || told.value.trim().length < 3) { warn.hidden = false; return; } body = { tried: tried.value, told: told.value }; dlg.close(); dlg.remove(); resolve(true); } }, 'Save'),
+          h('button', { class: 'btn', onclick: () => { dlg.close(); dlg.remove(); resolve(false); } }, 'Cancel')));
+      dlg.addEventListener('cancel', () => { dlg.remove(); resolve(false); });
+      document.body.append(dlg); dlg.showModal();
+    });
+    if (!ok) return;
   } else if (action === 'bed') {
     let beds;
     try { beds = await get(`/api/work/transfers/${t.id}/beds`); } catch (err) { showError(err); return; }
@@ -46,7 +59,7 @@ async function doAction(t, action, reload) {
   }
   try {
     await post(`/api/work/transfers/${t.id}/${action}`, body);
-    toast({ accept: 'Accepted.', decline: 'Declined.', bed: 'Bed allocated.', arrive: 'Arrival recorded.', responsibility: 'Responsibility accepted.', cancel: 'Transfer cancelled.' }[action]);
+    toast({ accept: 'Accepted.', decline: 'Declined.', bed: 'Bed allocated.', arrive: 'Arrival recorded.', nobed: 'Saved.', responsibility: 'Responsibility accepted.', cancel: 'Transfer cancelled.' }[action]);
     reload();
   } catch (err) { showError(err); }
 }
@@ -67,7 +80,7 @@ function pickBed(beds, t) {
   });
 }
 
-const ACTION_LABEL = { accept: 'Accept', decline: 'Decline', bed: 'Allocate bed', arrive: 'Confirm arrival', responsibility: 'Take responsibility', cancel: 'Cancel transfer' };
+const ACTION_LABEL = { accept: 'Accept', decline: 'Decline', bed: 'Allocate bed', arrive: 'Confirm arrival', nobed: 'No bed found', responsibility: 'Take responsibility', cancel: 'Cancel transfer' };
 const PRIMARY = new Set(['accept', 'arrive', 'responsibility']);
 
 export function transferCard(t, reload, { showPatient = true } = {}) {
@@ -91,6 +104,8 @@ export function transferCard(t, reload, { showPatient = true } = {}) {
       t.responsibleBy ? `responsible: ${t.responsibleBy}` : null,
     ].filter(Boolean).join(' · ')),
     t.note ? h('div', { class: 'small' }, h('b', {}, 'Note: '), t.note) : null,
+    t.escalations?.length ? h('div', { class: 'stack no-bed' }, h('b', { class: 'small warn-text' }, 'No bed found yet'),
+      t.escalations.map((e) => h('div', { class: 'small' }, h('b', {}, 'Tried: '), e.tried, h('b', {}, ' Told: '), e.told, h('span', { class: 'muted' }, ` (${e.by}, ${fmtDateTime(e.at)})`)))) : null,
     t.actions.length ? h('div', { class: 'row' }, t.actions.map((a) =>
       h('button', { class: `btn small${PRIMARY.has(a) ? ' primary' : ''}`, onclick: () => doAction(t, a, reload) }, ACTION_LABEL[a]))) : null,
   );

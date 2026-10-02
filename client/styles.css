@@ -1034,3 +1034,6 @@ table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; 
 .withdrawal ul.checks li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; border: 1px solid var(--tint); border-radius: 10px; padding: 6px 10px; }
 .withdrawal ul.checks li.overdue { border-color: var(--warn); background: var(--warn-bg); }
 .withdrawal ul.checks li.done { opacity: .75; }
+
+/* No bed found */
+.no-bed { border-left: 4px solid var(--warn); padding-left: 8px; }

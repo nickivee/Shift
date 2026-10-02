@@ -4499,4 +4499,22 @@ CREATE TABLE withdrawal_step (
 CREATE INDEX withdrawal_step_e ON withdrawal_step(episode_id, at);
 `,
   },
+  {
+    version: 87,
+    name: 'no bed available',
+    sql: `
+-- When no suitable bed can be found for an accepted admission or transfer (entries 42-44), the
+-- flow coordinator records what was tried and who was told. The log is kept; nothing is decided
+-- for them.
+CREATE TABLE transfer_bed_escalation (
+  id TEXT PRIMARY KEY,
+  transfer_id TEXT NOT NULL REFERENCES transfer(id),
+  tried TEXT NOT NULL,
+  told TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX transfer_bed_escalation_t ON transfer_bed_escalation(transfer_id, at);
+`,
+  },
 ];
