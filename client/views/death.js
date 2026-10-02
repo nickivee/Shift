@@ -4,6 +4,7 @@ import { toast, pageTitle, fmtDateTime } from '../lib/ui.js';
 import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { formDialog as dialog, select } from '../lib/forms.js';
+import { coronialPanel } from './coronial.js';
 
 // Death: died or found → verified → certificate or coroner → who was told → donation → wishes → released → stay ended.
 const TONE = { IDENTIFIED: 'danger', VERIFIED: 'warn', CLOSED: 'muted', ENTERED_IN_ERROR: 'muted' };
@@ -173,6 +174,7 @@ function card(ev, o, reload) {
 export function deathPanel(personId, d, reload) {
   return h('div', { class: 'stack' },
     d.event ? card(d.event, d.options, reload) : h('div', { class: 'card empty' }, 'No death recorded.'),
+    coronialPanel(d.coronial, d.coronialOptions, reload),
     d.canRecord ? h('div', {}, h('button', { class: 'btn', onclick: () => identifyDialog(personId, d.options, reload) }, 'They have died')) : null,
     d.errors.length ? h('details', {}, h('summary', {}, `Entered in error (${d.errors.length})`), h('div', { class: 'stack' }, d.errors.map((ev) => card(ev, d.options, reload)))) : null,
   );
@@ -194,15 +196,22 @@ function row(ev) {
 // Home → Deaths.
 export async function deathsView() {
   const root = h('div');
+  const load = async () => { mount(root, ...(await page(load))); };
+  await load();
+  return root;
+}
+
+async function page(reload) {
   const d = await get('/api/work/deaths');
   const section = (title, list, empty) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${list.length})`),
     list.length ? list.map(row) : h('div', { class: 'card empty' }, empty));
-  mount(root,
+  return [
     workHeader(),
     pageTitle('Deaths', () => go('/work/home')),
-    h('div', { class: 'banner' }, 'People who have died in your service, from verification until their stay is ended.'),
+    h('div', { class: 'banner' }, 'People who have died in your service, from verification until their stay is ended, and deaths reported to the coroner until the coroner\'s case is closed.'),
     section('Still open', d.open, 'None.'),
+    h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `With the coroner (${d.coronial.length})`),
+      d.coronial.length ? d.coronial.map((c) => coronialPanel(c, d.coronialOptions, reload, true)) : h('div', { class: 'card empty' }, 'None.')),
     section('Stay ended in the last 30 days', d.closed, 'None.'),
-  );
-  return root;
+  ];
 }

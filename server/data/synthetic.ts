@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 83;
+const SET = 84;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -410,6 +410,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 81) set81(store);
     if (at < 82) set82(store);
     if (at < 83) set83(store, password);
+    if (at < 84) set84(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -4998,4 +4999,69 @@ function set83(store: Store, password: string): void {
   const shortId = newId();
   const plan = 'Nurse in charge helps with evening cares; dinner moved to 17:15 so both caregivers are free for bedtimes; activities coordinator stays until 19:00.';
   store.insert('staffing_short', { id: shortId, service_id: 'svc-arc', shift_date: addDays(today, 4), period: 'PM', role_key: 'arc-caregiver', missing: 1, plan, told: 'Facility manager, by phone', decided_by: jo, at: ago(90) });
+}
+
+// Set 84: the coroner. George Fraser fell on Ward K at night and died two days later. Dr Hannah Li
+// reported his death to the coroner, so his record is held. The coroner's first request (his
+// notes and charts) was released and sent; a second request, about the fall, is waiting for a
+// doctor to decide what to release.
+function set84(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0220'")) return;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const day = 24 * 60;
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const hannah = who('hannah'), grace = who('grace');
+  if (!hannah || !grace) return;
+  const george = newId();
+  store.insert('person', { id: george, family_name: 'Fraser', given_name: 'George', date_of_birth: '1936-03-14', gender: 'Male', ethnicity: 'NZ European', data_source: 'SYNTHETIC', created_at: ago(26 * day) });
+  store.insert('external_identifier', { id: newId(), person_id: george, system: 'NHI', value: 'ZZZ0220', verification: 'SYNTHETIC', created_at: ago(26 * day) });
+  store.insert('encounter', { id: newId(), person_id: george, service_id: 'svc-genmed', location: 'Ward K Bed 6', kind: 'INPATIENT', started_at: ago(26 * day), state: 'ENDED', ended_at: ago(20 * day - 400) });
+  const d = newId();
+  const circumstances = 'Unexpected. Fell at night going to the toilet three days ago and hit his head; CT showed a subdural haemorrhage. Deteriorated overnight despite treatment.';
+  store.insert('death_event', {
+    id: d, person_id: george, service_id: 'svc-genmed', died_at: ago(20 * day), expected: 'UNEXPECTED', place: 'Ward K Bed 6', circumstances,
+    state: 'CLOSED', identified_by: grace, identified_at: ago(20 * day - 5), verified_by: grace, verified_at: ago(20 * day - 15),
+    verify_note: 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated.',
+    cert_kind: 'CORONER', cert_by: 'Dr Hannah Li', cert_ref: 'CSU-2026-04418', donation: 'NOT_APPLICABLE',
+    released_to: 'CORONER', released_name: 'Coronial transport, Pacific Funerals', released_at: ago(20 * day - 300), released_by: grace,
+    closed_by: grace, closed_at: ago(20 * day - 400),
+  });
+  const trans: [string | null, string, string, number, string][] = [[null, 'IDENTIFIED', grace, 20 * day - 5, 'Unexpected'], ['IDENTIFIED', 'VERIFIED', grace, 20 * day - 15, 'Verified'], ['VERIFIED', 'CLOSED', grace, 20 * day - 400, 'Stay ended']];
+  for (const [from, to, by, mins, reason] of trans) store.insert('state_transition', { id: newId(), object_type: 'death', object_id: d, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  const steps: [string, string, string, number][] = [
+    ['IDENTIFIED', circumstances, grace, 20 * day - 5],
+    ['VERIFIED', 'No pulse or breath sounds for one minute, no heart sounds, pupils fixed and dilated.', grace, 20 * day - 15],
+    ['NOTIFIED', 'Whānau or next of kin: Helen Fraser (wife). With him when he died.', grace, 20 * day - 20],
+    ['CERTIFIED', 'Reported to the coroner by Dr Hannah Li (reference CSU-2026-04418). Death after a fall in hospital.', hannah, 20 * day - 90],
+    ['NOTIFIED', 'Coroner: Coronial Services duty coroner. Phoned by Dr Li; case number given.', hannah, 20 * day - 95],
+    ['DONATION', 'Not applicable', grace, 20 * day - 100],
+    ['RELEASED', 'For the coroner: Coronial transport, Pacific Funerals.', grace, 20 * day - 300],
+    ['CLOSED', 'Stay ended.', grace, 20 * day - 400],
+  ];
+  for (const [kind, body, by, mins] of steps) store.insert('death_step', { id: newId(), event_id: d, kind, body, by_id: by, at: ago(mins) });
+  store.insert('death_notification', { id: newId(), event_id: d, kind: 'WHANAU', name: 'Helen Fraser (wife)', note: 'With him when he died.', by_id: grace, at: ago(20 * day - 20) });
+  store.insert('death_notification', { id: newId(), event_id: d, kind: 'CORONER', name: 'Coronial Services duty coroner', note: 'Phoned by Dr Li; case number given.', by_id: hannah, at: ago(20 * day - 95) });
+
+  const c = newId();
+  store.insert('coronial_case', { id: c, death_id: d, person_id: george, service_id: 'svc-genmed', coroner_ref: 'CSU-2026-04418', state: 'HELD', held_by: hannah, held_at: ago(20 * day - 90) });
+  store.insert('state_transition', { id: newId(), object_type: 'coronial', object_id: c, from_state: null, to_state: 'HELD', actor_id: hannah, work_context_id: null, at: ago(20 * day - 90), reason: 'Reported to the coroner', transaction_id: null });
+  const cstep = (kind: string, body: string, by: string, mins: number) => store.insert('coronial_step', { id: newId(), case_id: c, kind, body, by_id: by, at: ago(mins) });
+  cstep('HELD', 'Reported to the coroner. The record is held for the coroner from now.', hannah, 20 * day - 90);
+  const from = 'Coronial investigator Jo Ruru, Coronial Services';
+  const r1 = newId();
+  const asked1 = 'A copy of the clinical notes and observation charts for this admission.';
+  store.insert('coronial_request', { id: r1, case_id: c, from_name: from, ref: 'CSU-2026-04418', asked: asked1, received_at: ago(15 * day), due_date: new Date(Date.now() - day * 60_000).toLocaleDateString('en-CA'), state: 'SENT', logged_by: grace,
+    decision: 'RELEASE', basis: 'Written request from the coroner\'s office for this investigation. Notes are about George only; no third-party information.', decided_by: hannah, decided_at: ago(14 * day),
+    sent_what: 'Clinical notes and observation charts, admission to death (26 pages)', sent_how: 'SECURE_EMAIL', sent_by: grace, sent_at: ago(13 * day) });
+  for (const [f, t, by, mins] of [[null, 'RECEIVED', grace, 15 * day], ['RECEIVED', 'DECIDED', hannah, 14 * day], ['DECIDED', 'SENT', grace, 13 * day]] as [string | null, string, string, number][]) {
+    store.insert('state_transition', { id: newId(), object_type: 'coronial_request', object_id: r1, from_state: f, to_state: t, actor_id: by, work_context_id: null, at: ago(mins), reason: null, transaction_id: null });
+  }
+  cstep('REQUEST', `Request from ${from}: ${asked1}`, grace, 15 * day);
+  cstep('DECIDED', 'Release in full (request from Coronial investigator Jo Ruru). Written request for this investigation; notes are about George only.', hannah, 14 * day);
+  cstep('SENT', 'Sent by secure email: clinical notes and observation charts, admission to death (26 pages)', grace, 13 * day);
+  const r2 = newId();
+  const asked2 = 'His falls risk assessments, the incident report for the fall, and any review the hospital has done of the fall.';
+  store.insert('coronial_request', { id: r2, case_id: c, from_name: from, ref: 'CSU-2026-04418', asked: asked2, received_at: ago(2 * day), due_date: new Date(Date.now() + 3 * day * 60_000).toLocaleDateString('en-CA'), state: 'RECEIVED', logged_by: grace });
+  store.insert('state_transition', { id: newId(), object_type: 'coronial_request', object_id: r2, from_state: null, to_state: 'RECEIVED', actor_id: grace, work_context_id: null, at: ago(2 * day), reason: from, transaction_id: null });
+  cstep('REQUEST', `Request from ${from}: ${asked2}`, grace, 2 * day);
 }

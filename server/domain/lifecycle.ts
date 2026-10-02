@@ -211,6 +211,16 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'IDENTIFIED',
     next: { IDENTIFIED: ['VERIFIED', 'ENTERED_IN_ERROR'], VERIFIED: ['CLOSED', 'ENTERED_IN_ERROR'] },
   },
+  coronial: {
+    table: 'coronial_case',
+    initial: 'HELD',
+    next: { HELD: ['FINDINGS'], FINDINGS: ['CLOSED'] },
+  },
+  coronial_request: {
+    table: 'coronial_request',
+    initial: 'RECEIVED',
+    next: { RECEIVED: ['ADVICE', 'DECIDED'], ADVICE: ['DECIDED'], DECIDED: ['SENT'] },
+  },
   problem: {
     table: 'clinical_problem',
     initial: 'CONCERN',

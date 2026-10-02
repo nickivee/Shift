@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-CORONER-001',
+    question: 'What the Coroners Act 2006 and related rules require of a hospital or rest home once a death is reported to the coroner: preserving the clinical record, what the coroner or a coronial investigator may require and in what form, who in the service may decide what is released and on what basis (including the Health Information Privacy Code), time frames, and what a service must do with a coroner\'s recommendations.',
+    blocks: 'Which deaths must be reported, release rules, time frames and duties about recommendations. SHIFT holds the record from the moment a death is recorded as reported to the coroner, shows what was added or changed after that, and records each request for information, who decided what to release and why, what was sent and how, the findings and the service\'s response.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-STAFF-001',
     question: 'What New Zealand requires of staffing in aged residential care: the minimum staff and skill mix for each level of care and shift under the Age Related Residential Care Services Agreement and Ngā Paerewa (NZS 8134:2021), when a registered nurse must be on site, and what a provider must do and whom it must tell when a shift cannot be staffed.',
     blocks: 'Minimum numbers, registered nurse cover and notification duties. SHIFT sets each shift against the facility\'s own staffing plan, shows a gap when someone is not rostered or calls in unable to work, and records what the rosterer decided: who was called in, the vacancy advertised, or that the shift ran short with how it was covered and who was told. It never blocks a shift.',

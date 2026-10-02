@@ -552,7 +552,8 @@ export async function workstationView(personId, initialView) {
       const x = patient.death;
       block.append(h('button', { class: 'patient-death', onclick: () => openView('death') }, icon('death'),
         h('span', {}, h('b', {}, `DIED ${fmtDateTime(x.diedAt).toUpperCase()}`),
-          x.state === 'IDENTIFIED' ? 'Not yet verified' : x.outstanding ? `${x.outstanding} thing${x.outstanding === 1 ? '' : 's'} still to do` : x.state === 'CLOSED' ? 'Stay ended' : 'Ready to end their stay')));
+          x.state === 'IDENTIFIED' ? 'Not yet verified' : x.outstanding ? `${x.outstanding} thing${x.outstanding === 1 ? '' : 's'} still to do` : x.state === 'CLOSED' ? 'Stay ended' : 'Ready to end their stay',
+          x.held ? h('span', { class: 'held' }, ' · Record held for the coroner') : null)));
     }
     if (patient.deterioration) {
       const x = patient.deterioration;
