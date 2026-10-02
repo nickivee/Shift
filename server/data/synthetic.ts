@@ -5130,7 +5130,11 @@ function set86(store: Store): void {
     return id;
   };
   const wayne = patient('ZZZ0260', 'Wayne', 'Cooper', '1968-03-08', 'NZ European', 'svc-genmed', 'Ward K Bed 11', wardKind, 1500);
-  patient('ZZZ0268', 'Dave', 'Ngata', '1975-11-21', 'Māori', 'svc-ed', 'Minors 2', 'EMERGENCY', 20);
+  patient('ZZZ0268', 'Dave', 'Hutana', '1975-11-21', 'Māori', 'svc-ed', 'Minors 2', 'EMERGENCY', 20);
+  const acuity = newId();
+  store.insert('acuity_assessment', { id: acuity, person_id: wayne, service_id: 'svc-genmed', level: 'STABLE', basis: 'Settling; readings falling; eating and drinking', evidence_json: null, change: 'FIRST',
+    review_due: new Date(Date.now() + 20 * 60 * 60_000).toISOString(), state: 'CURRENT', assessed_by: grace, assessed_at: at(240), supersedes: null });
+  store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: acuity, from_state: null, to_state: 'CURRENT', actor_id: grace, work_context_id: null, at: at(240), reason: 'Stable: settling', transaction_id: null });
   const id = newId();
   const step = (kind: string, body: string, by: string, mins: number) => store.insert('withdrawal_step', { id: newId(), episode_id: id, kind, body, by_id: by, at: at(mins) });
   const trans = (from: string | null, to: string, by: string, mins: number, reason: string) =>
