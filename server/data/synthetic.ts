@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 85;
+const SET = 86;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -412,6 +412,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 83) set83(store, password);
     if (at < 84) set84(store);
     if (at < 85) set85(store);
+    if (at < 86) set86(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5106,4 +5107,51 @@ function set85(store: Store): void {
     step('CASUALTY', `${number}: ${({ IMMEDIATE: 'Immediate (P1)', URGENT: 'Urgent (P2)', DELAYED: 'Delayed (P3)' } as Record<string, string>)[priority]}. ${description}`, rn, start - mins);
   });
   step('STOOD_DOWN', 'Four casualties seen; fire service confirmed no one else exposed.', ed, start - 240);
+}
+
+// Set 86: alcohol withdrawal. Wayne was admitted to Ward K two days after stopping drinking; Grace
+// has been taking readings and Dr Li has a plan with a review check coming up. Dave has just come
+// to the Emergency Department and nothing is recorded yet.
+function set86(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0260'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const hannah = who('hannah'), grace = who('grace');
+  if (!hannah || !grace) return;
+  if (!store.get("SELECT 1 FROM service WHERE id = 'svc-ed'")) return;
+  const wardKind = store.get<{ k: string }>("SELECT kind AS k FROM encounter WHERE service_id = 'svc-genmed' LIMIT 1")?.k ?? 'INPATIENT';
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (nhi: string, given: string, family: string, dob: string, ethnicity: string, service: string, location: string, kind: string, minsAgo: number) => {
+    const id = newId();
+    store.insert('person', { id, family_name: family, given_name: given, date_of_birth: dob, gender: 'Male', ethnicity, iwi: null, data_source: 'SYNTHETIC', created_at: at(minsAgo) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'NHI', value: nhi, verification: 'SYNTHETIC', created_at: at(minsAgo) });
+    store.insert('external_identifier', { id: newId(), person_id: id, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(minsAgo) });
+    store.insert('encounter', { id: newId(), person_id: id, service_id: service, location, kind, started_at: at(minsAgo), state: 'ACTIVE' });
+    return id;
+  };
+  const wayne = patient('ZZZ0260', 'Wayne', 'Cooper', '1968-03-08', 'NZ European', 'svc-genmed', 'Ward K Bed 11', wardKind, 1500);
+  patient('ZZZ0268', 'Dave', 'Hutana', '1975-11-21', 'Māori', 'svc-ed', 'Minors 2', 'EMERGENCY', 20);
+  const acuity = newId();
+  store.insert('acuity_assessment', { id: acuity, person_id: wayne, service_id: 'svc-genmed', level: 'STABLE', basis: 'Settling; readings falling; eating and drinking', evidence_json: null, change: 'FIRST',
+    review_due: new Date(Date.now() + 20 * 60 * 60_000).toISOString(), state: 'CURRENT', assessed_by: grace, assessed_at: at(240), supersedes: null });
+  store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: acuity, from_state: null, to_state: 'CURRENT', actor_id: grace, work_context_id: null, at: at(240), reason: 'Stable: settling', transaction_id: null });
+  const id = newId();
+  const step = (kind: string, body: string, by: string, mins: number) => store.insert('withdrawal_step', { id: newId(), episode_id: id, kind, body, by_id: by, at: at(mins) });
+  const trans = (from: string | null, to: string, by: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'withdrawal_episode', object_id: id, from_state: from, to_state: to, actor_id: by, work_context_id: null, at: at(mins), reason, transaction_id: null });
+  const plan = 'Readings every 4 hours per the ward protocol; tell me if confused, shaking more or any seizure. Review with the addiction service tomorrow.';
+  store.insert('withdrawal_episode', {
+    id, person_id: wayne, service_id: 'svc-genmed', state: 'MANAGED', substance: 'ALCOHOL', usual: 'About 12 cans of beer a day for 10 years', last_use_at: at(2 * 24 * 60 + 120),
+    time_known: 'ESTIMATED', history: 'Had a seizure in withdrawal 3 years ago', source: 'Wayne, and his wife', recorded_by: grace, recorded_at: at(1400), plan, planned_by: hannah, watch_until: null,
+  });
+  trans(null, 'ASSESSING', grace, 1400, 'Alcohol');
+  step('RECORDED', 'Alcohol: usually about 12 cans of beer a day for 10 years. Time estimated. Past withdrawal: had a seizure in withdrawal 3 years ago. Told by Wayne, and his wife.', grace, 1400);
+  trans('ASSESSING', 'MANAGED', hannah, 1380, 'Plan made');
+  const due = new Date(Date.now() + 90 * 60_000).toISOString();
+  store.insert('withdrawal_check', { id: newId(), episode_id: id, what: 'Reading and review', due_at: due, added_by: hannah });
+  step('PLAN', `Plan: ${plan} Checks: Reading and review.`, hannah, 1380);
+  for (const [mins, score, signs] of [[600, '14', 'Tremor, sweating, anxious; no hallucinations'], [360, '9', 'Settling; hand tremor, eating a little'], [120, '6', 'Calm, slept 3 hours; mild tremor']] as [number, string, string][]) {
+    store.insert('withdrawal_reading', { id: newId(), episode_id: id, scale: 'CIWA-Ar', score, signs, by_id: grace, at: at(mins) });
+    step('READING', `CIWA-Ar ${score}: ${signs}.`, grace, mins);
+  }
 }

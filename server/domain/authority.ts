@@ -40,6 +40,8 @@ export type Operation =
   | { op: 'PROCEDURE'; personId: string }
   | { op: 'DECISION'; personId: string }
   | { op: 'POISON'; personId: string }
+  | { op: 'WITHDRAWAL'; personId: string }
+  | { op: 'WITHDRAWAL_MANAGE'; personId: string }
   | { op: 'TRAUMA'; personId: string }
   | { op: 'FEED_PLAN'; personId: string }
   | { op: 'FEED_GIVE'; personId: string }
@@ -441,6 +443,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return (ctx.role.capabilities.includes('trauma.manage') ? null : need(ctx, 'trauma.tertiary')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-TRAUMA-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can do their tertiary survey`));
+    case 'WITHDRAWAL':
+      return (ctx.role.capabilities.includes('withdrawal.manage') ? null : need(ctx, 'withdrawal.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-WITHDRAWAL-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their withdrawal`));
+    case 'WITHDRAWAL_MANAGE':
+      return need(ctx, 'withdrawal.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-WITHDRAWAL-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their withdrawal care`));
     case 'POISON':
       return (ctx.role.capabilities.includes('poison.manage') ? null : need(ctx, 'poison.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-POISON-001'])

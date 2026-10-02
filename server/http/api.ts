@@ -68,6 +68,7 @@ import * as diagnostics from '../domain/diagnostics.ts';
 import * as procedures from '../domain/procedures.ts';
 import * as decisions from '../domain/decisions.ts';
 import * as poisoning from '../domain/poisoning.ts';
+import * as withdrawal from '../domain/withdrawal.ts';
 import * as trauma from '../domain/trauma.ts';
 import * as feeding from '../domain/feeding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
@@ -379,6 +380,13 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/trauma/:id/:action', (req) => trauma.act(store, work(req), req.params.id, req.params.action, {
     airway: str(req.body.airway), breathing: str(req.body.breathing), circulation: str(req.body.circulation), disability: str(req.body.disability), exposure: str(req.body.exposure),
     findings: str(req.body.findings), actions: str(req.body.actions), injury: str(req.body.injury), foundBy: str(req.body.foundBy), next: str(req.body.next), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/patients/:id/withdrawal', (req) => withdrawal.record(store, work(req), req.params.id, {
+    substance: str(req.body.substance), usual: str(req.body.usual), timeKnown: str(req.body.timeKnown), lastUse: str(req.body.lastUse), history: str(req.body.history), source: str(req.body.source),
+  }));
+  r.on('POST', '/api/work/withdrawal/:id/:action', (req) => withdrawal.act(store, work(req), req.params.id, req.params.action, {
+    scale: str(req.body.scale), score: str(req.body.score), signs: str(req.body.signs), plan: str(req.body.plan), watchUntil: str(req.body.watchUntil),
+    checks: Array.isArray(req.body.checks) ? req.body.checks : [], checkId: str(req.body.checkId), note: str(req.body.note), handedTo: str(req.body.handedTo),
   }));
   r.on('POST', '/api/work/patients/:id/poisoning', (req) => poisoning.record(store, work(req), req.params.id, {
     substances: str(req.body.substances), amount: str(req.body.amount), route: str(req.body.route), takenAt: str(req.body.takenAt), timeKnown: str(req.body.timeKnown),

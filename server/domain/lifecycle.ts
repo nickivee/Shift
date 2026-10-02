@@ -551,6 +551,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'OPEN',
     next: { OPEN: ['DECIDED', 'CLOSED'], DECIDED: ['OPEN', 'CLOSED'] },
   },
+  withdrawal_episode: {
+    table: 'withdrawal_episode',
+    initial: 'ASSESSING',
+    next: { ASSESSING: ['MANAGED', 'SETTLED', 'HANDED_ON'], MANAGED: ['SETTLED', 'HANDED_ON'] },
+  },
   toxic_exposure: {
     table: 'toxic_exposure',
     initial: 'ASSESSING',

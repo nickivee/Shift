@@ -411,6 +411,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-WITHDRAWAL-001',
+    question: 'What New Zealand requires when someone withdrawing from alcohol or drugs is cared for in an emergency department or a general ward: the assessment scale and observation frequency to use, when a doctor must review, what must be recorded before a drug is given or stopped, the national alcohol and other drug guidance and addiction service referral expectations, and who may decide that withdrawal has settled.',
+    blocks: 'Which scale to use, what a score means, observation frequency, drug treatment rules and when withdrawal can be called settled. SHIFT records what they use and when they last did, any past severe withdrawal, each reading as scored by whoever scored it, the doctor\'s plan and timed checks, and whether it settled or was handed on and to whom.',
+    category: 'PROFESSIONAL REQUIREMENT',
+  },
+  {
     ref: 'RR-POISON-001',
     question: 'What New Zealand requires when someone presents to an emergency department after a poisoning or overdose: when the National Poisons Centre or a toxicologist must be consulted and how their advice is recorded, required observations and timed tests, the assessment required after deliberate self-harm before discharge (including Ministry of Health guidance), when notification is needed (for example workplace or hazardous-substance exposures under the Health Act 1956 and HSNO), and what must be recorded before someone is medically cleared.',
     blocks: 'Toxic doses, treatment thresholds, antidote rules, required observations and timed tests, and assessment rules after deliberate self-harm. SHIFT records what was taken, how much, how, when and why, who told us, advice as given and by whom, the doctor\'s plan and timed checks, who assessed safety after deliberate self-harm, and whether they were medically cleared or admitted.',
