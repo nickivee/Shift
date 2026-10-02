@@ -411,6 +411,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-DANGER-001',
+    question: 'What New Zealand requires an emergency department to do about immediate danger at the front door: the screen to ask on arrival, how threats from a patient or someone with them are handled, the Health and Safety at Work Act 2015 duties to staff and others, when police or security must be called, and what must be recorded.',
+    blocks: 'The screen to use, who must be told and when police or security must be called. SHIFT records whether anyone was said to be in immediate danger, what the danger is, what was done straight away and who was told, shows an open danger on the record until someone says it is made safe, and decides nothing itself.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',

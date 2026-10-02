@@ -30,7 +30,7 @@ export const SYNTHETIC_USERS = [
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
 ];
 
-const SET = 87;
+const SET = 88;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -414,6 +414,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 85) set85(store);
     if (at < 86) set86(store);
     if (at < 87) set87(store);
+    if (at < 88) set88(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5181,4 +5182,23 @@ function set87(store: Store): void {
   store.insert('state_transition', { id: newId(), object_type: 'transfer', object_id: id, from_state: 'REQUESTED', to_state: 'ACCEPTED', actor_id: hannah, work_context_id: null, at: at(130), reason: null, transaction_id: null });
   store.insert('transfer_bed_escalation', { id: newId(), transfer_id: id, tried: 'Every Ward K bed is full or being cleaned; asked the ward to review discharges before the afternoon round', told: 'Duty nurse manager, 40 minutes ago',
     by_id: flow, at: at(40) });
+}
+
+// Set 88: the immediate danger check at the front door. Troy came in with his brother, who became
+// aggressive in the waiting room; security is with them and it has not been made safe yet.
+function set88(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0284'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const mere = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'mere'")?.id;
+  if (!mere || !store.get("SELECT 1 FROM service WHERE id = 'svc-ed'")) return;
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const person = newId();
+  store.insert('person', { id: person, family_name: 'Walsh', given_name: 'Troy', date_of_birth: '1990-02-14', gender: 'Male', ethnicity: 'NZ European', iwi: null, data_source: 'SYNTHETIC', created_at: at(25) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: 'ZZZ0284', verification: 'SYNTHETIC', created_at: at(25) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(25) });
+  store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-ed', location: 'Cubicle 2', kind: 'EMERGENCY', started_at: at(24), state: 'ACTIVE' });
+  const id = newId();
+  store.insert('danger_check', { id, person_id: person, service_id: 'svc-ed', state: 'DANGER', kind: 'FROM_OTHERS', what: 'His brother is shouting and threatening staff in the waiting room',
+    done: 'Troy moved to a cubicle; security called and with the brother now', told: 'Charge nurse and security', checked_by: mere, checked_at: at(22) });
+  store.insert('state_transition', { id: newId(), object_type: 'danger_check', object_id: id, from_state: null, to_state: 'DANGER', actor_id: mere, work_context_id: null, at: at(22), reason: 'His brother is shouting and threatening staff', transaction_id: null });
 }
