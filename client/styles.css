@@ -1015,3 +1015,14 @@ tr.chosen td { background: var(--ok-bg); }
 .staffing-shift .staff-role + .staff-role { border-top: 1px solid var(--line); padding-top: 8px; }
 .staffing-shift .staff-person { justify-content: space-between; flex-wrap: wrap; }
 table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; }
+
+/* Major incident */
+.patient-major { display: flex; gap: 10px; align-items: center; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--ink); border-radius: 14px; padding: 8px 14px; font-size: 14px; }
+.patient-major svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+.patient-major b { display: block; font-size: 13px; letter-spacing: .6px; color: var(--danger); }
+.major-incident { border: 2px solid var(--danger); }
+.major-counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.prio-immediate { background: var(--danger); color: #fff; }
+.prio-urgent { background: var(--warn-bg, #fff4d6); color: var(--ink); border: 1px solid var(--warn, #b26a00); }
+.prio-delayed { background: var(--ok-bg); color: var(--ink); border: 1px solid var(--ok); }
+.prio-dead { background: var(--ink); color: #fff; }

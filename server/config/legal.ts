@@ -369,6 +369,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'ORGANISATIONAL CONFIGURATION',
   },
   {
+    ref: 'RR-MCI-001',
+    question: 'How a New Zealand emergency department declares, runs and stands down a major (mass casualty) incident: the national and regional health emergency plans and the Coordinated Incident Management System it sits under, who may declare it, the triage method and priority categories to use, and how casualties are identified and tracked with ambulance and other hospitals.',
+    blocks: 'Declaration authority, triage method and categories, and reporting to the health emergency coordination centre. SHIFT records who declared the incident and when, registers each casualty with an incident number under a temporary identity, keeps every priority given and re-given with who gave it, and records the stand-down and the debrief.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-CORONER-001',
     question: 'What the Coroners Act 2006 and related rules require of a hospital or rest home once a death is reported to the coroner: preserving the clinical record, what the coroner or a coronial investigator may require and in what form, who in the service may decide what is released and on what basis (including the Health Information Privacy Code), time frames, and what a service must do with a coroner\'s recommendations.',
     blocks: 'Which deaths must be reported, release rules, time frames and duties about recommendations. SHIFT holds the record from the moment a death is recorded as reported to the coroner, shows what was added or changed after that, and records each request for information, who decided what to release and why, what was sent and how, the findings and the service\'s response.',

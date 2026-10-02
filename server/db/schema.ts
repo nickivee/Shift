@@ -4384,4 +4384,59 @@ CREATE TABLE coronial_step (
 CREATE INDEX coronial_step_case ON coronial_step(case_id, at);
 `,
   },
+  {
+    version: 85,
+    name: 'major incident',
+    sql: `
+-- Major incident in the Emergency Department (entry 151): declared on standby or active →
+-- casualties registered with an incident number and prioritised → stood down → debrief.
+CREATE TABLE major_incident (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  title TEXT NOT NULL,
+  expected INTEGER,
+  state TEXT NOT NULL,                  -- STANDBY | ACTIVE | STOOD_DOWN | CLOSED
+  declared_by TEXT NOT NULL REFERENCES workforce_person(id),
+  declared_at TEXT NOT NULL,
+  activated_at TEXT,
+  stood_down_by TEXT REFERENCES workforce_person(id),
+  stood_down_at TEXT,
+  stand_down_note TEXT,
+  debrief TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT
+);
+CREATE INDEX major_incident_service ON major_incident(service_id, state);
+CREATE TABLE major_incident_casualty (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES major_incident(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  number TEXT NOT NULL,
+  priority TEXT NOT NULL,               -- IMMEDIATE | URGENT | DELAYED | DEAD
+  arrived_at TEXT NOT NULL,
+  triaged_by TEXT NOT NULL REFERENCES workforce_person(id),
+  triaged_at TEXT NOT NULL
+);
+CREATE INDEX major_incident_casualty_i ON major_incident_casualty(incident_id);
+CREATE INDEX major_incident_casualty_p ON major_incident_casualty(person_id);
+CREATE TABLE major_incident_triage (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES major_incident(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  priority TEXT NOT NULL,
+  note TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE TABLE major_incident_step (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT NOT NULL REFERENCES major_incident(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX major_incident_step_i ON major_incident_step(incident_id, at);
+`,
+  },
 ];
