@@ -13,6 +13,17 @@ export function addDays(date: string, days: number): string {
   return todayLocal(d);
 }
 
+// A date this many weekdays on. Public holidays are not taken off, so the date can be a little earlier than the law's own count.
+export function addWeekdays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  let left = days;
+  while (left > 0) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) left--;
+  }
+  return todayLocal(d);
+}
+
 export class HttpError extends Error {
   readonly status: number;
   readonly code: string;

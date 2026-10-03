@@ -23,7 +23,7 @@ function logDialog(o, reload) {
   dialog('Log a request', h('div', { class: 'stack' },
     field('NHI of the person it is about', nhi), field('What they want', kind), field('Who is asking', who),
     field('Their name and connection (if not the person)', requester), field('What they asked for', asked),
-    h('div', { class: 'row' }, field('Received', received), field('Answer due (optional)', due)),
+    h('div', { class: 'row' }, field('Received', received), field('Answer due (optional, worked out from your rules if left empty)', due)),
     h('div', { class: 'small muted' }, 'SHIFT does not set the time limit. Enter the date your organisation is working to.')),
   'Save', async () => {
     await post('/api/work/privacy', { nhi: nhi.value, kind: kind.value, who: who.value, requester: requester.value, asked: asked.value, receivedOn: received.value, dueOn: due.value });

@@ -4,7 +4,7 @@ import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { transition, recordInitial } from './lifecycle.ts';
 import { STATES, KIND, WHO, DECISION, DECISIONS_FOR, REFS } from '../config/privacy.ts';
-import { newId, now, HttpError, addDays } from '../lib/util.ts';
+import { newId, now, HttpError, addWeekdays } from '../lib/util.ts';
 import { ruleValue } from './rulevalue.ts';
 
 // Consumer access, correction and disclosure requests (entries 29, 30, 31):
@@ -104,7 +104,7 @@ export function log(store: Store, ctx: WorkContext, b: Body) {
   const receivedOn = day(b.receivedOn, 'date it was received', false);
   // When the organisation's jurisdiction has set a time limit (a rule, see ruleset.ts) the due date follows from it.
   const limit = ruleValue<number>(store, ctx.organisationId, 'privacy.response_days');
-  const dueOn = text(b.dueOn) ? day(b.dueOn, 'date the answer is due', true) : limit ? addDays(receivedOn, limit) : null;
+  const dueOn = text(b.dueOn) ? day(b.dueOn, 'date the answer is due', true) : limit ? addWeekdays(receivedOn, limit) : null;
   if (dueOn && dueOn < receivedOn) throw new HttpError(400, 'DATE', 'The answer cannot be due before it was received.');
   const id = newId();
   store.tx(() => {

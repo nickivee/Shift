@@ -488,13 +488,13 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
   {
     ref: 'RR-PRIVACY-001',
     question: 'What New Zealand requires when someone asks for their health information, asks for it to be corrected, asks who it was shared with, or another organisation asks for it: the time limit for answering, how identity and authority to act for the person are checked, the grounds on which information may be withheld, what may be charged, and what must be kept with the record when a correction is not made (Privacy Act 2020 and Health Information Privacy Code 2020 rules 6 and 7).',
-    blocks: 'The time limit, the grounds for withholding and the fee. SHIFT records the request, how the person was checked, the decision with reasons, the statement kept with the record where a correction is not made, and what was sent, shows an overdue answer against the date the privacy officer enters, and decides nothing itself.',
+    blocks: 'The grounds for withholding, the fee, extensions of the time limit, and which days count as working days. The 20 working day limit for answering is held as a rule from the Privacy Commissioner\'s Health Information Privacy Code fact sheet 4 and counted on weekdays only. SHIFT records the request, how the person was checked, the decision with reasons, the statement kept with the record where a correction is not made, and what was sent, shows an overdue answer against the date the privacy officer enters, and decides nothing itself.',
     category: 'LAW',
   },
   {
     ref: 'RR-RETENTION-001',
     question: 'What New Zealand requires for how long health records must be kept, who may dispose of them and how (Health (Retention of Health Information) Regulations 1996, the Public Records Act 2005 where it applies, and the organisation\'s own schedule), what a legal hold is and what it stops, and what evidence of disposal or transfer must be kept.',
-    blocks: 'The retention period for each kind of record and what counts as a valid legal hold. SHIFT sets no period and deletes nothing. It records holds, the review of a record against the rule the privacy officer names, the decision, and the evidence of what was done, and it refuses to record disposal of a record on hold.',
+    blocks: 'Retention periods other than the 10 years from the last encounter that the Privacy Commissioner\'s Health Information Privacy Code fact sheet 5 gives for health information held by providers, the Public Records Act position, and what counts as a valid legal hold. The 10 years is held as a rule. SHIFT deletes nothing. It records holds, the review of a record against the rule the privacy officer names, the decision, and the evidence of what was done, and it refuses to record disposal of a record on hold.',
     category: 'REGULATION/CODE',
   },
   {
