@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 94;
+const SET = 95;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -422,6 +422,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 92) set92(store);
     if (at < 93) set93(store);
     if (at < 94) set94(store);
+    if (at < 95) set95(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5443,4 +5444,25 @@ function set94(store: Store): void {
   const para = order('PARACETAMOL', '1 g', 'Oral', 'As needed', 'Pain', { prn: 1, prn_indication: 'Mild pain or temperature', prn_min_hours: 4, prn_max_24h: 4 });
   given(para, '1 g', 600, grace);
   given(para, '1 g', 90, grace);
+}
+
+// Set 95: rules and settings. Two people hold the rules role so that one proposes and the other approves.
+function set95(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'ngaire'")) return;
+  if (!store.get("SELECT 1 FROM organisation WHERE id = 'org-hosp'")) return;
+  const dayOf = (n: number) => addDays(todayLocal(), n);
+  store.insert('service', { id: 'svc-rules', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Rules and Standards', sector: 'Hospital operations', subject_label: 'Patient' });
+  for (const [user, given, family] of [['ngaire', 'Ngaire', 'Ward'], ['tane', 'Tane', 'Hohepa']]) {
+    const id = newWorker(store, hashPassword(password), user, given, family, `${given} ${family}`);
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: id, organisation_id: 'org-hosp', employment_type: 'PERMANENT', start_date: '2021-02-01' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-rules', title: 'Rules and Standards Officer', role_key: 'rules-officer', start_date: '2021-02-01' });
+    for (let d = -7; d < 28; d++) {
+      const date = dayOf(d);
+      const dow = new Date(`${date}T00:00:00`).getDay();
+      if (dow === 0 || dow === 6) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: id, position_id: pos, service_id: 'svc-rules', shift_date: date, start_time: '08:00', end_time: '16:30', state: 'PLANNED', data_source: 'SYNTHETIC' });
+    }
+  }
 }
