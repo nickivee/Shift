@@ -598,19 +598,19 @@ ROLES.push(
 
 // District / community nursing (matrix: Caseload | Referral | Eligibility | Assessment | Care Plan | Visits |
 // Medicines | Clinical Care | Equipment/Supplies | Monitoring | Whanau/Providers | Tasks | Review | Discharge).
-// Set up from the general medicine nurse. Referral, Eligibility, Clinical Care and Providers have no screen yet.
+// Set up from the general medicine nurse. Eligibility, Clinical Care and Providers have no screen yet.
 ROLES.push({
   ...roleOf('genmed-rn'),
   roleKey: 'community-rn',
   label: 'Registered Nurse',
   matrixRow: 'District / community nursing',
-  evidenceStatus: 'Matrix names the service, not its positions, so this position is provisional; Referral, Eligibility, Clinical Care and Providers tabs are not built yet',
+  evidenceStatus: 'Matrix names the service, not its positions, so this position is provisional; Eligibility, Clinical Care and Providers tabs are not built yet',
   capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'visit.plan', 'visit.record'],
-  views: withViews(roleOf('genmed-rn'), ['visits', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge']),
-  ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), 'visits', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge'])],
+  views: withViews(roleOf('genmed-rn'), ['visits', 'referrals', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge']),
+  ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), 'visits', 'referrals', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge'])],
   tabs: [
     { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' },
-    { id: 'meds', label: 'Medicines' }, { id: 'equipment', label: 'Equipment/Supplies' }, { id: 'monitoring', label: 'Monitoring' }, { id: 'support', label: 'Whānau' },
+    { id: 'referrals', label: 'Referral' }, { id: 'meds', label: 'Medicines' }, { id: 'equipment', label: 'Equipment/Supplies' }, { id: 'monitoring', label: 'Monitoring' }, { id: 'support', label: 'Whānau' },
     { id: 'tasks', label: 'Tasks' }, { id: 'review', label: 'Review' }, { id: 'discharge', label: 'Discharge' },
   ],
   homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.visits]),
@@ -620,9 +620,9 @@ ROLES.push({
 });
 
 // General practice (matrix, "Primary & community care"): the GP and the practice nurse, set up from the general
-// medicine physician and nurse. Orders, Immunisation, Chronic Care and Education have no screen yet, and Schedule
+// medicine physician and nurse. Immunisation has no screen yet (orders are the Medicines and Results tabs), and Schedule
 // is the appointments screen.
-const GP_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Orders and Immunisation tabs are not built yet';
+const GP_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Immunisation tab is not built yet; orders are the Medicines and Results tabs';
 const GP_VIEWS = ['overview', 'history', 'problems', 'assess', 'meds', 'obs', 'results', 'screening', 'referrals', 'communications', 'notes', 'tasks', 'followups', 'recalls', 'appointments', 'education', 'chronic'];
 const NURSE_VIEWS = ['recalls', 'assess', 'obs', 'meds', 'screening', 'wounds', 'tasks', 'notes', 'appointments', 'followups', 'education', 'chronic'];
 ROLES.push(
