@@ -3,15 +3,15 @@ import type { WorkContext, Session } from './identity.ts';
 import { audit } from './audit.ts';
 import { newId, now, HttpError } from '../lib/util.ts';
 
-// Configurable Home. The authorised set comes from the role configuration; the worker's
-// saved layout only orders, hides and adds items inside that set. Each department shows its
-// own cards and record screens by default (ownCards, ownViews); the rest of the authorised set
-// is there to add. Organisation-required cards can move but never hide. Changing the layout
-// never changes authority.
+// Configurable Home. The authorised set comes from the role configuration. Home is always four
+// squares: the worker chooses which four authorised functions are most useful, and the rest are one
+// tap away under More functions. A role's record screens default to the tabs its workstation lists
+// in the matrix, and the rest are added through Add. Changing the layout never changes authority.
 
 interface LayoutItem { id: string; hidden: boolean }
-interface Layout { v?: number; cards: LayoutItem[]; tabs: LayoutItem[]; views?: LayoutItem[] }
-const VERSION = 2;
+interface Layout { v?: number; pinned?: string[]; views?: LayoutItem[] }
+const VERSION = 3;
+export const SQUARES = 4;
 
 function merge(authorised: { id: string; required?: boolean }[], saved: LayoutItem[] | undefined, own?: string[]): LayoutItem[] {
   const allowed = new Map(authorised.map((a) => [a.id, a]));
@@ -25,8 +25,7 @@ function merge(authorised: { id: string; required?: boolean }[], saved: LayoutIt
   return out;
 }
 
-// A card is required only on the departments whose own work it is.
-const cardsOf = (ctx: WorkContext) => ctx.role.homeCards.map((c) => ({ ...c, required: c.required && (!ctx.role.ownCards || ctx.role.ownCards.includes(c.id)) }));
+const cardsOf = (ctx: WorkContext) => ctx.role.homeCards.map((c) => ({ ...c }));
 const viewsOf = (ctx: WorkContext) => ctx.role.views.map((id) => ({ id }));
 
 function saved(store: Store, ctx: WorkContext): Layout | undefined {
@@ -34,8 +33,9 @@ function saved(store: Store, ctx: WorkContext): Layout | undefined {
     'SELECT layout_json FROM home_layout WHERE workforce_person_id = ? AND service_id = ? AND role_key = ?', ctx.workerId, ctx.serviceId, ctx.role.roleKey,
   );
   const l = row ? (JSON.parse(row.layout_json) as Layout) : undefined;
-  // Layouts saved before departments had their own screens start again from the department default.
-  return l?.v === VERSION ? l : undefined;
+  // Layouts saved before departments had their own screens start again from the department default;
+  // earlier ones keep their added screens and take the department's four squares.
+  return l && l.v !== undefined && l.v >= 2 ? l : undefined;
 }
 
 function write(store: Store, ctx: WorkContext, layout: Layout) {
@@ -46,40 +46,59 @@ function write(store: Store, ctx: WorkContext, layout: Layout) {
   );
 }
 
+const firstFour = (ctx: WorkContext): string[] => {
+  const authorised = ctx.role.homeCards.map((c) => c.id);
+  return (ctx.role.homeFour ?? ctx.role.ownCards ?? authorised).filter((id) => authorised.includes(id)).slice(0, SQUARES);
+};
+
+function pinnedOf(ctx: WorkContext, l: Layout | undefined): string[] {
+  const authorised = new Set(ctx.role.homeCards.map((c) => c.id));
+  const own = (l?.pinned ?? []).filter((id, i, all) => authorised.has(id) && all.indexOf(id) === i).slice(0, SQUARES);
+  return own.length ? own : firstFour(ctx);
+}
+
 export function homeFor(store: Store, ctx: WorkContext) {
   const l = saved(store, ctx);
-  const authorisedCards = cardsOf(ctx);
-  const cards = merge(authorisedCards, l?.cards, ctx.role.ownCards);
-  const tabs = merge(ctx.role.tabs, l?.tabs);
-  const cardInfo = new Map(authorisedCards.map((c) => [c.id, c]));
-  const tabInfo = new Map(ctx.role.tabs.map((t) => [t.id, t]));
+  const info = new Map(cardsOf(ctx).map((c) => [c.id, c]));
+  const pinned = pinnedOf(ctx, l);
   return {
-    cards: cards.map((c) => ({ ...cardInfo.get(c.id)!, hidden: c.hidden })),
-    tabs: tabs.map((t) => ({ ...tabInfo.get(t.id)!, hidden: t.hidden })),
-    customised: Boolean(l),
+    cards: pinned.map((id) => ({ ...info.get(id)!, hidden: false })),
+    // The department's own functions beyond the four, then the rest of what the role is authorised for.
+    more: [...info.values()].filter((c) => !pinned.includes(c.id) && (!ctx.role.ownCards || ctx.role.ownCards.includes(c.id))),
+    add: [...info.values()].filter((c) => !pinned.includes(c.id) && ctx.role.ownCards && !ctx.role.ownCards.includes(c.id)),
+    tabs: [],
+    customised: Boolean(l?.pinned?.length),
   };
 }
+
+// The record screens a role shows by default are the tabs its workstation lists in the matrix and nothing
+// more; every other authorised screen is one tap away through Add.
+const defaultViews = (ctx: WorkContext): string[] | undefined =>
+  ctx.role.tabs.length ? ctx.role.tabs.map((t) => t.id).filter((id) => ctx.role.views.includes(id)) : ctx.role.ownViews;
 
 // The record screens this worker shows down the side, in order. Hidden ones stay authorised:
 // ?view still opens them and they can be added back at any time.
 export function shownViews(store: Store, ctx: WorkContext) {
-  return merge(viewsOf(ctx), saved(store, ctx)?.views, ctx.role.ownViews);
+  return merge(viewsOf(ctx), saved(store, ctx)?.views, defaultViews(ctx));
 }
 
 const clean = (items: unknown): LayoutItem[] =>
   Array.isArray(items) ? items.filter((i) => i && typeof i.id === 'string').map((i) => ({ id: String(i.id), hidden: Boolean(i.hidden) })) : [];
 
-export function saveHome(store: Store, ctx: WorkContext, input: Partial<Layout> | null) {
+export function saveHome(store: Store, ctx: WorkContext, input: { cards?: unknown } | null) {
   const l = saved(store, ctx);
   if (input === null) {
-    // Reset puts Home back to the department default; added record screens stay.
-    if (l?.views) write(store, ctx, { cards: merge(cardsOf(ctx), undefined, ctx.role.ownCards), tabs: merge(ctx.role.tabs, undefined), views: l.views });
+    // Reset puts Home back to the department's four; added record screens stay.
+    if (l?.views) write(store, ctx, { views: l.views });
     else store.run('DELETE FROM home_layout WHERE workforce_person_id = ? AND service_id = ? AND role_key = ?', ctx.workerId, ctx.serviceId, ctx.role.roleKey);
   } else {
-    write(store, ctx, {
-      cards: merge(cardsOf(ctx), clean(input.cards), ctx.role.ownCards), tabs: merge(ctx.role.tabs, clean(input.tabs)),
-      views: merge(viewsOf(ctx), l?.views, ctx.role.ownViews),
-    });
+    const authorised = new Set(ctx.role.homeCards.map((c) => c.id));
+    const ids = (Array.isArray(input.cards) ? input.cards : []).map((c) => String(typeof c === 'object' && c ? (c as { id?: unknown }).id : c));
+    if (ids.some((id) => !authorised.has(id))) throw new HttpError(403, 'BLOCK', 'That function is not part of your workstation.');
+    const pinned = ids.filter((id, i) => ids.indexOf(id) === i);
+    if (!pinned.length) throw new HttpError(400, 'CHOOSE', 'Choose at least one function for your Home.');
+    if (pinned.length > SQUARES) throw new HttpError(400, 'FOUR', `Home holds ${SQUARES} functions. Choose ${SQUARES} or fewer.`);
+    write(store, ctx, { pinned, views: l?.views });
   }
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation: input === null ? 'HOME_LAYOUT_RESET' : 'HOME_LAYOUT_SAVE', outcome: 'COMMITTED' });
   return homeFor(store, ctx);
@@ -88,10 +107,10 @@ export function saveHome(store: Store, ctx: WorkContext, input: Partial<Layout> 
 // Add a record screen to the side, remove one, or put them back to the department default.
 export function saveViews(store: Store, ctx: WorkContext, input: { code?: unknown; shown?: unknown; reset?: unknown }) {
   const l = saved(store, ctx);
-  const base = { cards: merge(cardsOf(ctx), l?.cards, ctx.role.ownCards), tabs: merge(ctx.role.tabs, l?.tabs) };
-  let views = merge(viewsOf(ctx), l?.views, ctx.role.ownViews);
+  const base = { pinned: l?.pinned };
+  let views = merge(viewsOf(ctx), l?.views, defaultViews(ctx));
   let operation = 'SCREENS_RESET';
-  if (input.reset) views = merge(viewsOf(ctx), undefined, ctx.role.ownViews);
+  if (input.reset) views = merge(viewsOf(ctx), undefined, defaultViews(ctx));
   else {
     const code = String(input.code ?? '');
     const at = views.findIndex((v) => v.id === code);
@@ -104,7 +123,7 @@ export function saveViews(store: Store, ctx: WorkContext, input: { code?: unknow
   }
   write(store, ctx, { ...base, views });
   audit(store, { actorId: ctx.workerId, sessionId: ctx.sessionId, workContextId: ctx.id, space: 'WORK', operation, reason: input.reset ? undefined : String(input.code), outcome: 'COMMITTED' });
-  return { views: merge(viewsOf(ctx), views, ctx.role.ownViews) };
+  return { views: merge(viewsOf(ctx), views, defaultViews(ctx)) };
 }
 
 // Personal Notes: the worker's own working memory. Not clinical documentation, never

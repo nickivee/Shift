@@ -4745,4 +4745,75 @@ CREATE TABLE oxygen_step (
 CREATE INDEX oxygen_step_therapy ON oxygen_step(therapy_id);
 `,
   },
+  {
+    version: 95,
+    name: 'medicines',
+    sql: `
+-- Medicines in the Emergency Department, General Medicine and Residential Care (entry 11).
+ALTER TABLE medication ADD COLUMN service_id TEXT;
+ALTER TABLE medication ADD COLUMN prescribed_by_id TEXT;
+ALTER TABLE medication ADD COLUMN controlled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE medication ADD COLUMN prn INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE medication ADD COLUMN prn_indication TEXT;
+ALTER TABLE medication ADD COLUMN prn_min_hours REAL;
+ALTER TABLE medication ADD COLUMN prn_max_24h INTEGER;
+ALTER TABLE medication ADD COLUMN allergy_override TEXT;
+ALTER TABLE medication ADD COLUMN stop_note TEXT;
+CREATE TABLE medication_dose (
+  id TEXT PRIMARY KEY,
+  medication_id TEXT NOT NULL REFERENCES medication(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  kind TEXT NOT NULL,                   -- GIVEN | NOT_GIVEN
+  dose TEXT,
+  reason TEXT,
+  note TEXT,
+  told TEXT,                            -- who was told when a dose was not given
+  given_at TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  witness_id TEXT REFERENCES workforce_person(id),
+  book_entry_id TEXT,
+  recorded_at TEXT NOT NULL
+);
+CREATE INDEX medication_dose_med ON medication_dose(medication_id, given_at);
+CREATE INDEX medication_dose_person ON medication_dose(person_id, given_at);
+CREATE TABLE medication_step (
+  id TEXT PRIMARY KEY,
+  medication_id TEXT NOT NULL REFERENCES medication(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX medication_step_med ON medication_step(medication_id);
+-- A ward's controlled drug book: one page for each form of each drug.
+CREATE TABLE cd_book_page (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service(id),
+  drug TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  created_by TEXT NOT NULL REFERENCES workforce_person(id),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX cd_book_page_service ON cd_book_page(service_id);
+CREATE TABLE cd_book_entry (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES cd_book_page(id),
+  kind TEXT NOT NULL,                   -- RECEIPT | GIVEN | CHECK | STOCKTAKE
+  qty REAL,
+  balance REAL NOT NULL,                -- what the book shows after this entry
+  counted REAL,                         -- CHECK and STOCKTAKE: what was counted
+  variance INTEGER NOT NULL DEFAULT 0,
+  as_at TEXT,                           -- STOCKTAKE: the date it is as at
+  person_id TEXT REFERENCES person(id),
+  medication_id TEXT REFERENCES medication(id),
+  issued_by TEXT,                       -- RECEIPT: who issued it
+  second_id TEXT REFERENCES workforce_person(id),
+  note TEXT,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX cd_book_entry_page ON cd_book_entry(page_id, at);
+`,
+  },
 ];

@@ -3,6 +3,7 @@ import { get, put, del } from '../lib/api.js';
 import { showError, toast } from '../lib/ui.js';
 import { state, go } from '../app.js';
 import { workHeader } from './entry.js';
+import { formDialog, dialog, field, select } from '../lib/forms.js';
 import { groupCards } from '../lib/groups.js';
 
 const DESCRIPTIONS = {
@@ -31,6 +32,7 @@ const DESCRIPTIONS = {
   external: () => 'Letters, summaries and results from other providers to match and review.',
   coding: () => 'Hospital episodes to code, being coded, and finalised.',
   privacy: () => 'Requests to see, correct or know about someone\'s health information.',
+  cdbook: () => 'Your ward\'s controlled drug book: weekly checks and stocktakes due.',
   reports: () => 'What people have told staff that a clinician should read.',
   instruments: () => 'Questionnaires due and results to interpret.',
   incidents: () => 'Incidents waiting for review, overdue actions, and complaints to acknowledge or reply to.',
@@ -79,7 +81,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', privacy: '/work/privacy', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', recommendations: '/work/recommendations', requirements: '/work/requirements', caredue: '/work/care-due', recalls: '/work/recalls', followups: '/work/followups', surveillance: '/work/surveillance', screening: '/work/screening', infections: '/work/infections', antimicrobials: '/work/antimicrobials', sitechecks: '/work/sitechecks', readiness: '/work/readiness', variances: '/work/variances', declined: '/work/declined', priorities: '/work/priorities', arrivals: '/work/arrivals', duplicates: '/work/duplicates', breakglass: '/work/breakglass', delegation: '/work/delegation', downtime: '/work/downtime', codingqueries: '/work/coding-questions',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', privacy: '/work/privacy', cdbook: '/work/controlled-drugs', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', recommendations: '/work/recommendations', requirements: '/work/requirements', caredue: '/work/care-due', recalls: '/work/recalls', followups: '/work/followups', surveillance: '/work/surveillance', screening: '/work/screening', infections: '/work/infections', antimicrobials: '/work/antimicrobials', sitechecks: '/work/sitechecks', readiness: '/work/readiness', variances: '/work/variances', declined: '/work/declined', priorities: '/work/priorities', arrivals: '/work/arrivals', duplicates: '/work/duplicates', breakglass: '/work/breakglass', delegation: '/work/delegation', downtime: '/work/downtime', codingqueries: '/work/coding-questions',
 };
 
 export function openTab(tabId) {
@@ -145,6 +147,7 @@ export async function homeView() {
     if (want.includes('usual')) jobs.push(get('/api/work/usual').then((d) => (counts.usual = d.noticed.length + d.readings.length)));
     if (want.includes('function')) jobs.push(get('/api/work/function').then((d) => (counts.function = d.worse.length + d.due.length)));
     if (want.includes('instruments')) jobs.push(get('/api/work/questionnaires').then((d) => (counts.instruments = d.toInterpret.length + d.due.length)));
+    if (want.includes('cdbook')) jobs.push(get('/api/work/controlled-drugs').then((d) => (counts.cdbook = d.toDo)));
     if (want.includes('privacy')) jobs.push(get('/api/work/privacy').then((d) => (counts.privacy = d.toCheck.length + d.toDecide.length + d.toSend.length)));
     if (want.includes('coding')) jobs.push(get('/api/work/coding').then((d) => (counts.coding = d.toCode.length + d.inProgress.length)));
     if (want.includes('codingqueries')) jobs.push(get('/api/work/coding/queries').then((d) => (counts.codingqueries = d.open.length)));
@@ -165,137 +168,83 @@ export async function homeView() {
     await Promise.allSettled(jobs);
   };
 
+  const card = (c) =>
+    h('button', { class: 'card home-card', onclick: () => go(TARGET[c.id]) },
+      counts[c.id] ? h('span', { class: 'count paua' }, String(counts[c.id])) : null,
+      h('div', { class: 'icon-tile' }, icon(c.id)),
+      h('h2', {}, c.label),
+      h('p', {}, DESCRIPTIONS[c.id]?.(subject) ?? ''),
+    );
+
+  const save = async (ids) => {
+    Object.assign(home, await put('/api/work/home', { cards: ids.map((id) => ({ id })) }));
+    await loadCounts();
+    draw();
+  };
+
+  // Home is four squares. Any other function you are authorised for opens from More functions, or goes
+  // on Home in place of one of the four. Nothing here changes what you are authorised to do.
+  const pinDialog = (c) => {
+    const replace = select(home.cards.map((x) => [x.id, x.label]), 'Replace which square', null);
+    replace.value = home.cards[home.cards.length - 1].id;
+    const full = home.cards.length >= 4;
+    formDialog(`Put ${c.label} on Home`, h('div', { class: 'stack' },
+      full ? field('Take this one off Home', replace) : h('p', { class: 'small' }, 'There is room for it on your Home.')), 'Save', async () => {
+      await save(full ? home.cards.map((x) => (x.id === replace.value ? c.id : x.id)) : [...home.cards.map((x) => x.id), c.id]);
+      toast('Home saved.');
+    });
+  };
+
+  const fourDialog = () => {
+    const all = [...home.cards, ...home.more, ...home.add];
+    const slots = [0, 1, 2, 3].map((i) => {
+      const sel = select(all.map((x) => [x.id, x.label]), `Square ${i + 1}`, i === 0 ? null : 'Nothing');
+      sel.value = home.cards[i]?.id ?? '';
+      return sel;
+    });
+    dialog('Choose my four', (run, close) => h('div', { class: 'stack' },
+      h('p', { class: 'small' }, 'Pick the four functions you use most. The rest stay one tap away under More functions.'),
+      slots.map((sel, i) => field(`Square ${i + 1}`, sel)),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', type: 'button', onclick: run(async () => {
+          await save(slots.map((x) => x.value).filter(Boolean));
+          close();
+          toast('Home saved.');
+        }) }, 'Save'),
+        h('button', { class: 'btn', type: 'button', onclick: run(async () => {
+          Object.assign(home, await del('/api/work/home'));
+          await loadCounts();
+          close();
+          draw();
+          toast('Home reset to your department default.');
+        }) }, 'Reset to default'))));
+  };
+
   const draw = () => {
-    customising = false;
-    const card = (c) =>
-      h('button', { class: 'card home-card', onclick: () => go(TARGET[c.id]) },
-        counts[c.id] ? h('span', { class: 'count paua' }, String(counts[c.id])) : null,
-        h('div', { class: 'icon-tile' }, icon(c.id)),
-        h('h2', {}, c.label),
-        h('p', {}, DESCRIPTIONS[c.id]?.(subject) ?? ''),
-      );
-    const groups = groupCards(home.cards.filter((c) => !c.hidden), (c) => c.id);
-    const tabs = home.tabs.filter((t) => !t.hidden).map((t) => h('button', { class: 'pill', onclick: () => openTab(t.id) }, t.label));
+    const list = (title, items, cls) => {
+      const groups = groupCards(items, (c) => c.id);
+      return items.length ? h('details', { class: cls }, h('summary', {}, `${title} (${items.length})`),
+        groups.map((g) => h('section', { class: 'stack' },
+          groups.length > 1 ? h('h3', { class: 'small muted' }, g.title) : null,
+          g.items.map((c) => h('div', { class: 'spread screen-row' },
+            h('span', {}, h('b', {}, c.label), h('div', { class: 'small muted' }, DESCRIPTIONS[c.id]?.(subject) ?? '')),
+            h('span', { class: 'row' },
+              h('button', { class: 'btn small', onclick: () => go(TARGET[c.id]) }, 'Open'),
+              h('button', { class: 'btn small', onclick: () => pinDialog(c) }, 'Put on Home'))))))) : null;
+    };
     mount(root,
       workHeader(),
-      tabs.length ? h('h2', { class: 'section-title paua' }, 'Workstation tabs') : null,
-      tabs.length ? h('div', { class: 'strip', role: 'list' }, tabs) : null,
-      groups.map((g) => h('section', { class: 'home-group' },
-        groups.length > 1 ? h('h2', { class: 'section-title paua' }, g.title) : null,
-        h('div', { class: 'grid-cards' }, g.items.map(card)))),
+      h('div', { class: 'grid-cards four' }, home.cards.map(card)),
+      list('More functions', home.more, 'more-functions'),
+      list('Add a function', home.add, 'more-functions add-functions'),
       h('div', { class: 'customise-bar' },
-        h('button', { class: 'link-btn', onclick: customise }, 'Customise Home'),
+        h('button', { class: 'link-btn', onclick: fourDialog }, 'Choose my four'),
         h('span', { class: 'small muted' }, `${state.me.context.roleLabel} · ${state.me.context.matrixRow}`),
       ),
     );
   };
 
-  // Customise: reorder, hide and add within the authorised set. Each department shows its own
-  // cards by default; the rest can be added. Organisation-required cards can be moved but not
-  // hidden. Nothing here changes what you are authorised to do.
-  let customising = false;
-  const customise = () => {
-    customising = true;
-    const draft = { cards: home.cards.map((c) => ({ ...c })), tabs: home.tabs.map((t) => ({ ...t })) };
-    const shown = draft.cards.filter((c) => !c.hidden);
-    const spare = draft.cards.filter((c) => c.hidden);
-    const addList = h('div', { class: 'stack' });
-    const addSummary = h('summary', {});
-    let cardList;
-    const drawCards = () => {
-      const fresh = sortableList(shown, 'card', (it) => { shown.splice(shown.indexOf(it), 1); it.hidden = true; spare.unshift(it); drawCards(); });
-      if (cardList) cardList.replaceWith(fresh);
-      cardList = fresh;
-      addSummary.textContent = `Add a card (${spare.length})`;
-      mount(addList, spare.length ? spare.map((it) => h('div', { class: 'spread screen-row' }, h('span', {}, it.label),
-        h('button', { class: 'btn small', onclick: () => { spare.splice(spare.indexOf(it), 1); it.hidden = false; shown.push(it); drawCards(); } }, 'Add'))) : h('div', { class: 'small muted' }, 'Every card you can use is on your Home.'));
-    };
-    drawCards();
-    const tabList = sortableList(draft.tabs, 'tab');
-    mount(root,
-      workHeader(),
-      h('div', { class: 'banner' },
-        h('strong', {}, 'Customise Home'),
-        'Drag to reorder, or use the arrows. Cards stay grouped by kind of work, in your order within each group. Adding or hiding a card only changes your screen, never your authority.',
-      ),
-      h('h3', {}, 'Cards on your Home'), cardList,
-      h('details', {}, addSummary, addList),
-      draft.tabs.length ? h('h3', {}, 'Workstation tabs') : null, draft.tabs.length ? tabList : null,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', onclick: async () => {
-          try {
-            const cards = [...shown, ...spare];
-            Object.assign(home, await put('/api/work/home', { cards: cards.map(({ id, hidden }) => ({ id, hidden })), tabs: draft.tabs.map(({ id, hidden }) => ({ id, hidden })) }));
-            toast('Home saved.');
-            draw();
-          } catch (err) { showError(err); }
-        } }, 'Save'),
-        h('button', { class: 'btn', onclick: draw }, 'Cancel'),
-        h('button', { class: 'btn', onclick: async () => {
-          try { Object.assign(home, await del('/api/work/home')); toast('Home reset to your department default.'); draw(); } catch (err) { showError(err); }
-        } }, 'Reset to default'),
-      ),
-    );
-  };
-
   draw();
-  loadCounts().then(() => { if (!customising) draw(); });
+  loadCounts().then(draw);
   return root;
-}
-
-function sortableList(items, kind, onHide) {
-  const list = h('div', { class: 'sortable', role: 'list' });
-  const redraw = () => {
-    mount(list, items.map((it, i) => {
-      const row = h('div', { class: `sort-item${it.hidden ? ' is-hidden' : ''}`, role: 'listitem', dataset: { index: String(i) } },
-        h('span', { class: 'handle', 'aria-hidden': 'true', onpointerdown: (e) => startDrag(e, row) }, icon('grip')),
-        h('span', { class: 'label' }, it.label),
-        it.required ? h('span', { class: 'tag' }, 'Required') : null,
-        h('button', { class: 'btn small', 'aria-label': `Move ${it.label} up`, disabled: i === 0, onclick: () => move(i, i - 1) }, '↑'),
-        h('button', { class: 'btn small', 'aria-label': `Move ${it.label} down`, disabled: i === items.length - 1, onclick: () => move(i, i + 1) }, '↓'),
-        it.required ? null : h('button', { class: 'btn small', onclick: () => { if (onHide) onHide(it); else { it.hidden = !it.hidden; redraw(); } } }, it.hidden ? 'Show' : 'Hide'),
-      );
-      return row;
-    }));
-  };
-  const move = (from, to) => {
-    if (to < 0 || to >= items.length) return;
-    const [x] = items.splice(from, 1);
-    items.splice(to, 0, x);
-    redraw();
-  };
-
-  // Pointer-based dragging works with touch, pen and mouse alike.
-  const startDrag = (e, row) => {
-    e.preventDefault();
-    const from = Number(row.dataset.index);
-    row.classList.add('dragging');
-    let to = from;
-    const onMove = (ev) => {
-      const rows = [...list.children];
-      to = rows.length - 1;
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i].getBoundingClientRect();
-        if (ev.clientY < r.top + r.height / 2) { to = i; break; }
-      }
-      const target = rows[to];
-      if (target !== row) {
-        if (to > Number(row.dataset.index)) target.after(row); else target.before(row);
-      }
-      [...list.children].forEach((c, i) => (c.dataset.index = String(i)));
-      to = [...list.children].indexOf(row);
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      move(from, to);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-  };
-  list.dataset.kind = kind;
-  redraw();
-  return list;
 }

@@ -381,13 +381,14 @@ table.data th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px
 .live-hint { color: #9fb4bd; text-align: center; padding: 40px 10px; }
 
 @media (max-width: 760px) {
-  /* Record destinations stay down the side on a phone, as narrow text buttons. */
-  .workstation { grid-template-columns: 96px minmax(0, 1fr); gap: 6px; }
-  .destinations { gap: 5px; }
-  .dest { padding: 7px 3px; font-size: 11px; border-radius: 10px; }
+  /* On a phone the record's tabs run along the top, so the page is not as long as the list of tabs. */
+  .workstation { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .destinations { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 4px 0 6px; scroll-snap-type: x proximity; position: sticky; top: 0; z-index: 5; background: var(--bg); }
+  .dest { flex: none; padding: 8px 12px; font-size: 13px; border-radius: 10px; scroll-snap-align: start; white-space: nowrap; }
   #app { padding-left: 10px; padding-right: 10px; }
   .dest svg { display: none; }
-  .dest-group { font-size: 9.5px; letter-spacing: .3px; }
+  .dest span { overflow-wrap: normal; }
+  .dest-group { display: none; }
   .live { min-height: 70vh; }
   .live-title { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
   .live-title h2 { font-size: 18px; }
@@ -1041,3 +1042,10 @@ table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; 
 .tile.observation.overdue { border-left-color: var(--danger); background: var(--danger-bg); }
 .tile.privacy.overdue { border-left: 6px solid var(--danger); }
 .tile.hold { border-left: 6px solid var(--warn); }
+
+/* Home is four squares; every other function is under More functions. */
+.grid-cards.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 900px) { .grid-cards.four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.more-functions { margin-top: 16px; display: grid; gap: 8px; }
+.more-functions summary { cursor: pointer; font-weight: 800; padding: 8px 0; }
+.more-functions .screen-row { padding: 6px 0; border-bottom: 1px solid var(--line-soft, #d5e6e9); gap: 10px; flex-wrap: wrap; }
