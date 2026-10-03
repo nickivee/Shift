@@ -423,6 +423,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-PRIVACY-001',
+    question: 'What New Zealand requires when someone asks for their health information, asks for it to be corrected, asks who it was shared with, or another organisation asks for it: the time limit for answering, how identity and authority to act for the person are checked, the grounds on which information may be withheld, what may be charged, and what must be kept with the record when a correction is not made (Privacy Act 2020 and Health Information Privacy Code 2020 rules 6 and 7).',
+    blocks: 'The time limit, the grounds for withholding and the fee. SHIFT records the request, how the person was checked, the decision with reasons, the statement kept with the record where a correction is not made, and what was sent, shows an overdue answer against the date the privacy officer enters, and decides nothing itself.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',

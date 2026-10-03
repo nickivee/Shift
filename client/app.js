@@ -31,6 +31,7 @@ import { whanauView } from './views/whanau.js';
 import { interpretersView } from './views/access.js';
 import { externalView } from './views/external.js';
 import { codingView, codingCaseView, codingQueriesView } from './views/coding.js';
+import { privacyView } from './views/privacy.js';
 import { reportsView } from './views/reports.js';
 import { questionnairesView } from './views/questionnaires.js';
 import { functionView } from './views/function.js';
@@ -136,6 +137,7 @@ const routes = [
   [/^\/work\/interpreters$/, () => interpretersView(), { work: true }],
   [/^\/work\/external$/, () => externalView(), { work: true }],
   [/^\/work\/coding$/, () => codingView(), { work: true }],
+  [/^\/work\/privacy$/, () => privacyView(), { work: true }],
   [/^\/work\/reports$/, () => reportsView(), { work: true }],
   [/^\/work\/questionnaires$/, () => questionnairesView(), { work: true }],
   [/^\/work\/function$/, () => functionView(), { work: true }],

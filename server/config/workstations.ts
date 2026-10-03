@@ -163,7 +163,8 @@ export type Capability =
   | 'withdrawal.record'
   | 'danger.record'
   | 'observation.manage'
-  | 'observation.view';
+  | 'observation.view'
+  | 'privacy.manage';
 
 export interface HomeCard {
   id: string;
@@ -228,6 +229,7 @@ const CARD = {
   interpreters: { id: 'interpreters', label: 'Interpreters', required: true },
   external: { id: 'external', label: 'From other providers', required: true },
   coding: { id: 'coding', label: 'Clinical coding', required: true },
+  privacy: { id: 'privacy', label: 'Privacy requests', required: true },
   codingqueries: { id: 'codingqueries', label: 'Coding questions', required: true },
   reports: { id: 'reports', label: 'In their own words', required: true },
   instruments: { id: 'instruments', label: 'Questionnaires', required: true },
@@ -478,6 +480,18 @@ export const ROLES: RoleConfig[] = [
     views: [],
     tabs: [],
     homeCards: [CARD.coding],
+  },
+  {
+    roleKey: 'privacy-officer',
+    label: 'Privacy Officer',
+    matrixRow: 'Privacy / health information',
+    evidenceStatus: 'Workflow-derived; time limits, grounds and what may be withheld to be researched (RR-PRIVACY-001)',
+    profession: null,
+    capabilities: ['privacy.manage'],
+    keys: [],
+    views: [],
+    tabs: [],
+    homeCards: [CARD.privacy],
   },
   {
     roleKey: 'arc-rostering',

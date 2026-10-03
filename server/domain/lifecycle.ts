@@ -586,6 +586,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'RECORDED',
     next: { RECORDED: ['REVIEWED', 'SUPERSEDED'], REVIEWED: ['SUPERSEDED'] },
   },
+  privacy_request: {
+    table: 'privacy_request',
+    initial: 'RECEIVED',
+    next: { RECEIVED: ['CHECKED', 'WITHDRAWN'], CHECKED: ['DECIDED', 'WITHDRAWN'], DECIDED: ['CLOSED'] },
+  },
   coding: {
     table: 'coding_case',
     initial: 'REQUIRED',

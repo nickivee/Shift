@@ -28,9 +28,10 @@ export const SYNTHETIC_USERS = [
   { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
   { username: 'grace', label: 'Grace Tupou, Registered Nurse (General Medicine)' },
   { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
+  { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 89;
+const SET = 90;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -416,6 +417,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 87) set87(store);
     if (at < 88) set88(store);
     if (at < 89) set89(store);
+    if (at < 90) set90(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5223,4 +5225,58 @@ function set89(store: Store): void {
     watch: 'Neuro obs hourly; tell me if drowsy, vomiting or a worse headache', review_at: at(10), placed_by: ravi, placed_at: at(240) });
   store.insert('state_transition', { id: newId(), object_type: 'ed_observation', object_id: id, from_state: null, to_state: 'OBSERVING', actor_id: ravi, work_context_id: null, at: at(240), reason: why, transaction_id: null });
   store.insert('ed_observation_step', { id: newId(), observation_id: id, kind: 'PLACED', body: `Placed in observation: ${why}. Watch: Neuro obs hourly; tell me if drowsy, vomiting or a worse headache. Review due ${at(10).slice(0, 16).replace('T', ' ')}.`, by_id: ravi, at: at(240) });
+}
+
+// Set 90: privacy requests. Hana Reid is the privacy officer; requests sit at each stage.
+function set90(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'hana'")) return;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const DAY = 24 * 60;
+  const dayOf = (n: number) => addDays(todayLocal(), n);
+  const person = (given: string, family: string) => store.get<{ id: string }>('SELECT id FROM person WHERE given_name = ? AND family_name = ?', given, family)?.id ?? null;
+  if (!store.get("SELECT 1 FROM organisation WHERE id = 'org-hosp'")) return;
+  store.insert('service', { id: 'svc-privacy', organisation_id: 'org-hosp', facility_id: 'fac-hosp', name: 'Privacy and Health Information', sector: 'Hospital operations', subject_label: 'Patient' });
+  const hana = newWorker(store, hashPassword(password), 'hana', 'Hana', 'Reid', 'Hana Reid');
+  const eid = newId();
+  store.insert('employment', { id: eid, workforce_person_id: hana, organisation_id: 'org-hosp', employment_type: 'PERMANENT', start_date: '2020-07-01' });
+  const pos = newId();
+  store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-privacy', title: 'Privacy Officer', role_key: 'privacy-officer', start_date: '2020-07-01' });
+  for (let d = -7; d < 28; d++) {
+    const date = dayOf(d);
+    const dow = new Date(`${date}T00:00:00`).getDay();
+    if (dow === 0 || dow === 6) continue;
+    store.insert('roster_shift', { id: newId(), workforce_person_id: hana, position_id: pos, service_id: 'svc-privacy', shift_date: date, start_time: '08:00', end_time: '16:30', state: 'PLANNED', data_source: 'SYNTHETIC' });
+  }
+  const step = (id: string, from: string | null, to: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: 'privacy_request', object_id: id, from_state: from, to_state: to, actor_id: hana, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  interface Req {
+    who: [string, string]; kind: string; by: string; requester?: string; asked: string; recvDays: number; dueDays: number | null;
+    state: string; identity?: string; authority?: string; decision?: string; note?: string; statement?: string; sent?: string;
+  }
+  const add = (x: Req) => {
+    const pid = person(...x.who);
+    if (!pid) return;
+    const id = newId();
+    const stages = ['RECEIVED', 'CHECKED', 'DECIDED', 'CLOSED'];
+    const at = stages.indexOf(x.state);
+    store.insert('privacy_request', {
+      id, organisation_id: 'org-hosp', person_id: pid, kind: x.kind, who: x.by, requester_name: x.requester ?? null, asked: x.asked,
+      received_on: dayOf(x.recvDays), due_on: x.dueDays === null ? null : dayOf(x.dueDays), state: x.state,
+      identity_check: x.identity ?? null, authority_check: x.authority ?? null, checked_by: at >= 1 ? hana : null, checked_at: at >= 1 ? ago(DAY * 2) : null,
+      decision: x.decision ?? null, decision_note: x.note ?? null, statement: x.statement ?? null, decided_by: at >= 2 ? hana : null, decided_at: at >= 2 ? ago(DAY) : null,
+      sent_note: x.sent ?? null, closed_by: at >= 3 ? hana : null, closed_at: at >= 3 ? ago(60 * 5) : null, logged_by: hana, logged_at: ago(-x.recvDays * DAY),
+    });
+    step(id, null, 'RECEIVED', Math.max(-x.recvDays * DAY, 60), x.asked);
+    if (at >= 1) step(id, 'RECEIVED', 'CHECKED', DAY * 2, x.identity ?? '');
+    if (at >= 2) step(id, 'CHECKED', 'DECIDED', DAY, x.note ?? '');
+    if (at >= 3) step(id, 'DECIDED', 'CLOSED', 60 * 5, x.sent ?? '');
+  };
+  add({ who: ['Elsie', 'Morgan'], kind: 'ACCESS', by: 'REPRESENTATIVE', requester: 'Jane Morgan, daughter', asked: 'A copy of her mother\'s notes from the last three months, for a family meeting about moving care.', recvDays: -1, dueDays: 6, state: 'RECEIVED' });
+  add({ who: ['William', 'Grant'], kind: 'CORRECTION', by: 'SELF', asked: 'Says the record says he refused his heel dressing. He says he asked for it later because he was in the shower.', recvDays: -9, dueDays: -1,
+    state: 'CHECKED', identity: 'Photo driver licence seen at the ward desk' });
+  add({ who: ['Wayne', 'Cooper'], kind: 'ACCESS', by: 'SELF', asked: 'A copy of everything from his admission, for his GP.', recvDays: -5, dueDays: 4,
+    state: 'DECIDED', identity: 'Photo ID seen, matched against NHI and date of birth', decision: 'GRANTED', note: 'All of it, as a printed copy to collect from the ward office' });
+  add({ who: ['Mate', 'Eruera'], kind: 'CORRECTION', by: 'SELF', asked: 'Wants the triage note changed: it says he had been drinking and he says he had not.', recvDays: -12, dueDays: -2,
+    state: 'CLOSED', identity: 'Photo ID seen at the ED desk', decision: 'NOT_CORRECTED', note: 'Triage nurse stands by what was observed at the time, so the note is not changed',
+    statement: 'I had not been drinking; my speech was slurred because of the head injury.', sent: 'Letter sent explaining the decision and that his statement is kept with the record' });
 }

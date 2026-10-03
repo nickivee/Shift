@@ -4589,4 +4589,41 @@ CREATE TABLE ed_observation_step (
 CREATE INDEX ed_observation_step_obs ON ed_observation_step(observation_id);
 `,
   },
+  {
+    version: 91,
+    name: 'privacy requests',
+    sql: `
+-- Consumer access, correction and disclosure requests (entries 29, 30, 31).
+CREATE TABLE privacy_request (
+  id TEXT PRIMARY KEY,
+  organisation_id TEXT NOT NULL REFERENCES organisation(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  kind TEXT NOT NULL,                   -- ACCESS | CORRECTION | SHARED | OTHER_ORG
+  who TEXT NOT NULL,                    -- SELF | REPRESENTATIVE | ORGANISATION
+  requester_name TEXT,
+  asked TEXT NOT NULL,
+  received_on TEXT NOT NULL,
+  due_on TEXT,
+  state TEXT NOT NULL,                  -- RECEIVED | CHECKED | DECIDED | CLOSED | WITHDRAWN
+  identity_check TEXT,
+  authority_check TEXT,
+  checked_by TEXT REFERENCES workforce_person(id),
+  checked_at TEXT,
+  decision TEXT,
+  decision_note TEXT,
+  statement TEXT,
+  decided_by TEXT REFERENCES workforce_person(id),
+  decided_at TEXT,
+  sent_note TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  withdrawn_note TEXT,
+  withdrawn_at TEXT,
+  logged_by TEXT NOT NULL REFERENCES workforce_person(id),
+  logged_at TEXT NOT NULL
+);
+CREATE INDEX privacy_request_org ON privacy_request(organisation_id, state);
+CREATE INDEX privacy_request_person ON privacy_request(person_id, kind);
+`,
+  },
 ];
