@@ -4700,4 +4700,49 @@ CREATE TABLE privacy_review_step (
 CREATE INDEX privacy_review_step_review ON privacy_review_step(review_id);
 `,
   },
+  {
+    version: 94,
+    name: 'oxygen therapy',
+    sql: `
+-- Oxygen therapy in the Emergency Department and General Medicine (entries 70, 199).
+CREATE TABLE oxygen_therapy (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ON | WEANING | STOPPED
+  why TEXT NOT NULL,
+  target_low INTEGER NOT NULL,
+  target_high INTEGER NOT NULL,
+  device TEXT NOT NULL,
+  flow TEXT NOT NULL,
+  prescribed_by TEXT NOT NULL REFERENCES workforce_person(id),
+  prescribed_at TEXT NOT NULL,
+  stop_note TEXT,
+  stopped_by TEXT REFERENCES workforce_person(id),
+  stopped_at TEXT
+);
+CREATE INDEX oxygen_therapy_person ON oxygen_therapy(person_id, state);
+CREATE TABLE oxygen_reading (
+  id TEXT PRIMARY KEY,
+  therapy_id TEXT NOT NULL REFERENCES oxygen_therapy(id),
+  spo2 INTEGER NOT NULL,
+  device TEXT NOT NULL,
+  flow TEXT NOT NULL,
+  note TEXT,
+  outside INTEGER NOT NULL DEFAULT 0,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX oxygen_reading_therapy ON oxygen_reading(therapy_id, at);
+CREATE TABLE oxygen_step (
+  id TEXT PRIMARY KEY,
+  therapy_id TEXT NOT NULL REFERENCES oxygen_therapy(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX oxygen_step_therapy ON oxygen_step(therapy_id);
+`,
+  },
 ];

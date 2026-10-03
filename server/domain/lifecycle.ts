@@ -586,6 +586,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'RECORDED',
     next: { RECORDED: ['REVIEWED', 'SUPERSEDED'], REVIEWED: ['SUPERSEDED'] },
   },
+  oxygen_therapy: {
+    table: 'oxygen_therapy',
+    initial: 'ON',
+    next: { ON: ['WEANING', 'STOPPED'], WEANING: ['ON', 'STOPPED'] },
+  },
   privacy_review: {
     table: 'privacy_review',
     initial: 'OPEN',

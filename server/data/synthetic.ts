@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 92;
+const SET = 93;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -420,6 +420,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 90) set90(store, password);
     if (at < 91) set91(store);
     if (at < 92) set92(store);
+    if (at < 93) set93(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5357,4 +5358,38 @@ function set92(store: Store): void {
   add(mate, 'OPEN', 'COMPLAINT', 'He says someone who works here knew about his visit and he had not told them', { steps: ['Asked Kate Rowe, Residential Care, why she opened his record. Waiting for her answer.'] });
   add(rua, 'CLOSED', 'ROUTINE', 'Routine check after the emergency access for her allergies and medicines', {
     finding: 'APPROPRIATE', note: 'The emergency access was reviewed by Dr Singh and what was opened matches the reason given', outcome: 'No further action' });
+}
+
+// Set 93: oxygen therapy. Ngaire Tamihana has pneumonia on Ward K; Dr Li prescribed oxygen with a
+// target range and the last reading is below it.
+function set93(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0300'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const hannah = who('hannah'), grace = who('grace');
+  if (!hannah || !grace) return;
+  const wardKind = store.get<{ k: string }>("SELECT kind AS k FROM encounter WHERE service_id = 'svc-genmed' LIMIT 1")?.k ?? 'INPATIENT';
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const person = newId();
+  store.insert('person', { id: person, family_name: 'Tamihana', given_name: 'Ngaire', date_of_birth: '1951-04-17', gender: 'Female', ethnicity: 'Maori', iwi: null, data_source: 'SYNTHETIC', created_at: at(1800) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: 'ZZZ0300', verification: 'SYNTHETIC', created_at: at(1800) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(1800) });
+  store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-genmed', location: 'Ward K Bed 4', kind: wardKind, started_at: at(1800), state: 'ACTIVE' });
+  const acuity = newId();
+  store.insert('acuity_assessment', { id: acuity, person_id: person, service_id: 'svc-genmed', level: 'STABLE', basis: 'Improving on antibiotics', evidence_json: null, change: 'FIRST',
+    review_due: new Date(Date.now() + 20 * 60 * 60_000).toISOString(), state: 'CURRENT', assessed_by: grace, assessed_at: at(240), supersedes: null });
+  store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: acuity, from_state: null, to_state: 'CURRENT', actor_id: grace, work_context_id: null, at: at(240), reason: 'Stable', transaction_id: null });
+  const id = newId();
+  const why = 'Pneumonia, saturations 88% on air';
+  store.insert('oxygen_therapy', { id, person_id: person, service_id: 'svc-genmed', state: 'ON', why, target_low: 92, target_high: 96, device: 'NASAL', flow: '3 L/min', prescribed_by: hannah, prescribed_at: at(1500) });
+  store.insert('state_transition', { id: newId(), object_type: 'oxygen_therapy', object_id: id, from_state: null, to_state: 'ON', actor_id: hannah, work_context_id: null, at: at(1500), reason: why, transaction_id: null });
+  const step = (kind: string, body: string, by: string, mins: number) => store.insert('oxygen_step', { id: newId(), therapy_id: id, kind, body, by_id: by, at: at(mins) });
+  step('PRESCRIBED', `Prescribed: ${why}. Target 92 to 96%. Nasal prongs, 3 L/min.`, hannah, 1500);
+  const reading = (spo2: number, device: string, flow: string, by: string, mins: number, note: string | null, outside: number, text: string) => {
+    store.insert('oxygen_reading', { id: newId(), therapy_id: id, spo2, device, flow, note, outside, by_id: by, at: at(mins) });
+    step('READING', text, by, mins);
+  };
+  reading(94, 'NASAL', '3 L/min', grace, 600, null, 0, '94% on nasal prongs, 3 L/min.');
+  reading(93, 'NASAL', '3 L/min', grace, 300, null, 0, '93% on nasal prongs, 3 L/min.');
+  reading(90, 'NASAL', '3 L/min', grace, 35, 'Coughing, sat up in bed', 1, '90% on nasal prongs, 3 L/min. Outside the range 92 to 96% set by Dr Hannah Li. Coughing, sat up in bed.');
 }
