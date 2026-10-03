@@ -62,6 +62,7 @@ import { forPerson as proceduresFor, current as recoveringNow } from './procedur
 import { forPerson as decisionsFor } from './decisions.ts';
 import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
 import { forPerson as poisoningFor, current as poisoningNow } from './poisoning.ts';
+import { forPerson as oxyFor, current as oxyNow, PLACE as OXY_IN } from './oxygen.ts';
 import { statements as privacyStatements } from './privacy.ts';
 import { onHold as recordOnHold } from './retention.ts';
 import { forPerson as obsFor, current as obsNow, PLACE as OBS_IN } from './observation.ts';
@@ -252,6 +253,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     legalHold: recordOnHold(store, personId),
     observation: ((x) => x && { ...x, view: OBS_IN[ctx.role.roleKey] ?? null })(obsNow(store, personId)),
     danger: ((x) => x && { ...x, view: DANGER_IN[ctx.role.roleKey] ?? null })(dangerNow(store, personId)),
+    oxygen: ((x) => x && { ...x, view: OXY_IN[ctx.role.roleKey] ?? null })(oxyNow(store, personId)),
     withdrawal: ((x) => x && { ...x, view: WITHDRAWAL_IN[ctx.role.roleKey] ?? null })(withdrawalNow(store, personId)),
     poisoning: ((x) => x && { ...x, view: (ctx.role.capabilities as string[]).includes('poison.manage') ? 'medical' : 'monitoring' })(poisoningNow(store, personId)),
     whanau: whanauNow(store, personId),
@@ -337,6 +339,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
         decisions: DECISIONS_IN[ctx.role.roleKey] === view.code ? decisionsFor(store, ctx, personId) : null,
         poisoning: view.code === 'medical' ? poisoningFor(store, ctx, personId) : null,
         withdrawal: WITHDRAWAL_IN[ctx.role.roleKey] === view.code ? withdrawalFor(store, ctx, personId) : null,
+        oxygen: OXY_IN[ctx.role.roleKey] === view.code ? oxyFor(store, ctx, personId) : null,
         danger: DANGER_IN[ctx.role.roleKey] === view.code ? dangerFor(store, ctx, personId) : null,
         observation: OBS_IN[ctx.role.roleKey] === view.code ? obsFor(store, ctx, personId) : null,
         trauma: TRAUMA_IN[ctx.role.roleKey] === view.code ? traumaFor(store, ctx, personId) : null,
@@ -412,7 +415,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = communicationsFor(store, ctx, personId);
       break;
     case 'monitoring':
-      body = { ...monitoringFor(store, ctx, personId), poisoning: poisoningFor(store, ctx, personId), withdrawal: WITHDRAWAL_IN[ctx.role.roleKey] === 'monitoring' ? withdrawalFor(store, ctx, personId) : null, observation: OBS_IN[ctx.role.roleKey] === 'monitoring' ? obsFor(store, ctx, personId) : null };
+      body = { ...monitoringFor(store, ctx, personId), poisoning: poisoningFor(store, ctx, personId), withdrawal: WITHDRAWAL_IN[ctx.role.roleKey] === 'monitoring' ? withdrawalFor(store, ctx, personId) : null, observation: OBS_IN[ctx.role.roleKey] === 'monitoring' ? obsFor(store, ctx, personId) : null, oxygen: OXY_IN[ctx.role.roleKey] === 'monitoring' ? oxyFor(store, ctx, personId) : null };
       break;
     case 'restrictions':
       body = restrictionsFor(store, ctx, personId);

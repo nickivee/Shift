@@ -72,6 +72,7 @@ import * as withdrawal from '../domain/withdrawal.ts';
 import * as danger from '../domain/danger.ts';
 import * as observation from '../domain/observation.ts';
 import * as privacy from '../domain/privacy.ts';
+import * as oxygen from '../domain/oxygen.ts';
 import * as retention from '../domain/retention.ts';
 import * as privacyReview from '../domain/privacyreview.ts';
 import * as trauma from '../domain/trauma.ts';
@@ -703,6 +704,8 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/retention/holds/:id/release', (req) => retention.releaseHold(store, work(req), req.params.id, { note: str(req.body.note) }));
   r.on('POST', '/api/work/retention/reviews', (req) => retention.openReview(store, work(req), { nhi: str(req.body.nhi), scope: str(req.body.scope), why: str(req.body.why) }));
   r.on('POST', '/api/work/retention/reviews/:id/:action', (req) => retention.actReview(store, work(req), req.params.id, req.params.action, { decision: str(req.body.decision), basis: str(req.body.basis), note: str(req.body.note) }));
+  r.on('POST', '/api/work/patients/:id/oxygen', (req) => oxygen.prescribe(store, work(req), req.params.id, { why: str(req.body.why), low: str(req.body.low), high: str(req.body.high), device: str(req.body.device), flow: str(req.body.flow) }));
+  r.on('POST', '/api/work/oxygen/:id/:action', (req) => oxygen.act(store, work(req), req.params.id, req.params.action, { spo2: str(req.body.spo2), low: str(req.body.low), high: str(req.body.high), device: str(req.body.device), flow: str(req.body.flow), note: str(req.body.note) }));
   r.on('GET', '/api/work/privacy', (req) => privacy.list(store, work(req)));
   r.on('POST', '/api/work/privacy', (req) => privacy.log(store, work(req), { nhi: str(req.body.nhi), kind: str(req.body.kind), who: str(req.body.who), requester: str(req.body.requester), asked: str(req.body.asked), receivedOn: str(req.body.receivedOn), dueOn: str(req.body.dueOn) }));
   r.on('POST', '/api/work/privacy/:id/:action', (req) => privacy.act(store, work(req), req.params.id, req.params.action, { identity: str(req.body.identity), authority: str(req.body.authority), decision: str(req.body.decision), note: str(req.body.note), statement: str(req.body.statement) }));

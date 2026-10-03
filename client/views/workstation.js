@@ -34,6 +34,7 @@ import { poisoningPanel } from './poisoning.js';
 import { withdrawalPanel } from './withdrawal.js';
 import { dangerPanel } from './danger.js';
 import { observationPanel } from './observation.js';
+import { oxygenPanel } from './oxygen.js';
 import { traumaPanel } from './trauma.js';
 import { feedingPanel } from './feeding.js';
 import { resultsPanel } from './diagnostics.js';
@@ -426,7 +427,7 @@ export async function workstationView(personId, initialView) {
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, `Nothing recorded in ${d.view.label} yet.`));
       case 'events':
       case 'history':
-        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), dangerPanel(personId, d.danger, () => go(`/work/patient/${personId}/${d.view.code}`)), observationPanel(personId, d.observation, () => go(`/work/patient/${personId}/${d.view.code}`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.withdrawal || d.danger || d.observation || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
+        return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), dangerPanel(personId, d.danger, () => go(`/work/patient/${personId}/${d.view.code}`)), observationPanel(personId, d.observation, () => go(`/work/patient/${personId}/${d.view.code}`)), oxygenPanel(personId, d.oxygen, () => go(`/work/patient/${personId}/${d.view.code}`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.withdrawal || d.danger || d.observation || d.oxygen || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
       case 'meds': return h('div', { class: 'stack' },
@@ -443,7 +444,7 @@ export async function workstationView(personId, initialView) {
       case 'appointments': return appointmentsPanel(personId, d, () => openView('appointments'));
       // Raising or resolving an alert changes the record banner, so the whole record redraws.
       case 'communications': return communicationsPanel(personId, d, () => openView('communications'));
-      case 'monitoring': return h('div', { class: 'stack' }, observationPanel(personId, d.observation, () => go(`/work/patient/${personId}/monitoring`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/monitoring`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/monitoring`)), monitoringPanel(personId, d, () => openView('monitoring')));
+      case 'monitoring': return h('div', { class: 'stack' }, oxygenPanel(personId, d.oxygen, () => go(`/work/patient/${personId}/monitoring`)), observationPanel(personId, d.observation, () => go(`/work/patient/${personId}/monitoring`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/monitoring`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/monitoring`)), monitoringPanel(personId, d, () => openView('monitoring')));
       case 'support': return supportPanel(personId, d, () => go(`/work/patient/${personId}/support`));
       case 'reported': return reportsPanel(personId, d, () => go(`/work/patient/${personId}/reported`));
       case 'team': return teamPanel(personId, d, () => go(`/work/patient/${personId}/team`));
@@ -703,6 +704,12 @@ export async function workstationView(personId, initialView) {
     if (patient.legalHold) block.append(h('div', { class: 'banner' }, h('b', {}, 'Legal hold: '), 'this record is on hold. Ask the privacy officer before it is changed or disposed of.'));
     for (const c of patient.corrections ?? []) {
       block.append(h('div', { class: 'banner' }, h('b', {}, 'Statement of correction on file: '), c.statement));
+    }
+    if (patient.oxygen) {
+      const x = patient.oxygen;
+      const l = x.last;
+      block.append(h('button', { class: `patient-poison${l?.outside ? ' overdue' : ''}`, onclick: () => x.view && openView(x.view) }, icon('alert'),
+        h('span', {}, h('b', {}, 'ON OXYGEN'), `Target ${x.targetLow} to ${x.targetHigh}%${l ? ` · last ${l.spo2}%${l.outside ? ' (outside the range)' : ''}, ${fmtDateTime(l.at)}` : ' · no reading yet'}`)));
     }
     if (patient.observation) {
       const x = patient.observation;

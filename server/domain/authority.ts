@@ -42,6 +42,8 @@ export type Operation =
   | { op: 'POISON'; personId: string }
   | { op: 'DANGER'; personId: string }
   | { op: 'OBSERVATION'; personId: string }
+  | { op: 'OXYGEN'; personId: string }
+  | { op: 'OXYGEN_PRESCRIBE'; personId: string }
   | { op: 'WITHDRAWAL'; personId: string }
   | { op: 'WITHDRAWAL_MANAGE'; personId: string }
   | { op: 'TRAUMA'; personId: string }
@@ -458,6 +460,14 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'withdrawal.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-WITHDRAWAL-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their withdrawal care`));
+    case 'OXYGEN':
+      return (ctx.role.capabilities.includes('oxygen.prescribe') ? null : need(ctx, 'oxygen.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-OXYGEN-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their oxygen`));
+    case 'OXYGEN_PRESCRIBE':
+      return need(ctx, 'oxygen.prescribe') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-OXYGEN-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can prescribe their oxygen`));
     case 'OBSERVATION':
       return (ctx.role.capabilities.includes('observation.manage') ? null : need(ctx, 'observation.view')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-OBSERVATION-001'])

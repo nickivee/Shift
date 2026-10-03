@@ -441,6 +441,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-OXYGEN-001',
+    question: 'What New Zealand requires for giving oxygen in hospital: who may prescribe and change it, the target saturation ranges for different conditions, the devices and flows that may be used, how often saturations must be recorded, when a clinician must be told, and how weaning and stopping are decided (Medicines Act 1981 and Regulations, Medicines Regulations 1984, Health and Disability Services Standards and the service\'s own protocol).',
+    blocks: 'The target ranges, devices and flows, how often to record, and when a doctor must be told. SHIFT has none of its own: the doctor writes the target range, device and flow, nurses record readings, and SHIFT shows when a reading is outside the range the doctor set. It never advises a flow or a change.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',
