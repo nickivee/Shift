@@ -4,7 +4,7 @@ const CARDS = [
   ['Your shift', ['workstation', 'tasks', 'search', 'handover', 'received', 'allocation', 'team', 'delegation', 'caredue', 'checklists', 'arrivals', 'knowledge']],
   ['Watch closely', ['escalations', 'alerts', 'deterioration', 'acuity', 'monitoring', 'usual', 'priorities', 'function']],
   ['Care', ['wounds', 'careplans', 'meals', 'restrictions', 'preferences', 'communications', 'whanau', 'interpreters', 'equipment', 'instruments', 'problems', 'symptoms', 'interventions', 'treatmentplans', 'pathways', 'recommendations', 'requirements', 'infections', 'antimicrobials', 'sitechecks', 'readiness', 'variances', 'declined', 'capacity', 'reports', 'external']],
-  ['Coming and going', ['transfers', 'flow', 'moves', 'discharges', 'absences', 'consults', 'referrals', 'appointments', 'visits', 'afterhours', 'education', 'chronic', 'followups', 'recalls', 'surveillance', 'screening']],
+  ['Coming and going', ['transfers', 'flow', 'moves', 'discharges', 'absences', 'consults', 'referrals', 'appointments', 'visits', 'afterhours', 'education', 'immunisation', 'chronic', 'followups', 'recalls', 'surveillance', 'screening']],
   ['Roster', ['vacancies', 'swaps', 'leave']],
   ['Safety and records', ['incidents', 'deaths', 'duplicates', 'breakglass', 'downtime', 'cdbook', 'coding', 'codingqueries']],
 ];
@@ -14,7 +14,7 @@ const VIEWS = [
   ['Assessment and plans', ['assess', 'medical', 'history', 'problems', 'review', 'careplan', 'cares', 'nutrition', 'diet', 'restrictions', 'wounds', 'mobility', 'function', 'goals', 'treatment', 'outcomes', 'instruments', 'treatmentplans', 'pathways', 'checklists', 'caredue', 'recommendations', 'requirements', 'interventions', 'capacity', 'readiness', 'sitechecks', 'variances', 'declined', 'priorities']],
   ['Medicines and results', ['meds', 'allergies', 'results', 'procedures', 'infections', 'antimicrobials']],
   ['Person and whānau', ['family', 'support', 'access', 'communications', 'preferences', 'identity', 'external', 'equipment']],
-  ['Coming and going', ['location', 'transfers', 'discharge', 'disposition', 'absence', 'consults', 'referrals', 'appointments', 'visits', 'afterhours', 'education', 'chronic', 'followups', 'recalls', 'surveillance', 'screening']],
+  ['Coming and going', ['location', 'transfers', 'discharge', 'disposition', 'absence', 'consults', 'referrals', 'appointments', 'visits', 'afterhours', 'education', 'immunisation', 'chronic', 'followups', 'recalls', 'surveillance', 'screening']],
   ['Safety and records', ['incidents', 'death', 'coding']],
 ];
 

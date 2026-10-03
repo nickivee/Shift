@@ -5026,4 +5026,35 @@ CREATE TABLE chronic_step (
 CREATE INDEX chronic_step_plan ON chronic_step(plan_id, at);
 `,
   },
+{
+    version: 102,
+    name: 'immunisation',
+    sql: `
+-- Each vaccine given or not given to a person: which, when, the dose in the clinician's words, where and the batch number.
+-- SHIFT sets no ages, intervals, eligibility or reporting (RR-IMMUNISATION-001); the vaccine list is a rule value.
+CREATE TABLE immunisation (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- GIVEN | NOT_GIVEN | ENTERED_IN_ERROR
+  vaccine TEXT NOT NULL,
+  given_at TEXT NOT NULL,
+  dose TEXT,
+  site TEXT,
+  batch TEXT,
+  reason TEXT,                          -- why not given
+  note TEXT,
+  reaction TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  closed_note TEXT
+);
+CREATE INDEX immunisation_person ON immunisation(person_id, given_at);
+CREATE INDEX immunisation_service ON immunisation(service_id, state, given_at);
+INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status, effective_from, category, source_ref, source_url, note, proposed_at, decided_at) VALUES
+ ('rs-nz-vaccines', 'NZ', 'immunisation.vaccines', '[{"code":"DTAP_IPV_HEPB_HIB","label":"Diphtheria, tetanus, whooping cough, polio, hepatitis B and Hib (DTaP-IPV-HepB/Hib)"},{"code":"PCV13","label":"Pneumococcal (PCV13)"},{"code":"MENB","label":"Meningococcal B (MenB)"},{"code":"RV1","label":"Rotavirus (RV1)"},{"code":"MMR","label":"Measles, mumps and rubella (MMR)"},{"code":"HIB","label":"Hib (Hib-PRP)"},{"code":"VV","label":"Chickenpox (VV)"},{"code":"DTAP_IPV","label":"Diphtheria, tetanus, whooping cough and polio (DTaP-IPV)"},{"code":"TDAP","label":"Tetanus, diphtheria and whooping cough (Tdap)"},{"code":"HPV9","label":"Human papillomavirus (HPV9)"},{"code":"FLU","label":"Influenza"},{"code":"RZV","label":"Shingles (rZV)"},{"code":"COVID19","label":"COVID-19"},{"code":"OTHER","label":"Another vaccine, as written in the note"}]', 1, 'ACTIVE', '2026-10-03', 'NATIONAL/SECTOR STANDARD', 'RR-IMMUNISATION-001', 'https://www.tewhatuora.govt.nz/for-health-professionals/clinical-guidance/immunisation-handbook/national-immunisation-schedule', 'The vaccines named in the National Immunisation Schedule on the Health NZ website (read 3 October 2026) and checked against the Immunisation Advisory Centre schedule page. Ages and intervals are not copied; clinicians record what was given.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
+`,
+  },
 ];

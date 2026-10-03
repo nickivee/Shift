@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 103;
+const SET = 104;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -428,6 +428,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 101) set101(store);
     if (at < 102) set102(store);
     if (at < 103) set103(store);
+    if (at < 104) set104(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5951,4 +5952,27 @@ function set103(store: Store): void {
   plan('ZZZ0315', 'Asthma', 'No night waking; uses the reliever no more than twice a week.', -10, 200000, { mins: 150000, note: 'Using the reliever three times a week; technique checked. Next review set.' });
   plan('ZZZ0316', 'Type 2 diabetes', 'Keep blood sugar steady; check feet daily.', 12, 120000, { mins: 90000, note: 'Blood sugar steady; no change to medicines.' });
   plan('ZZZ0317', 'High blood pressure', 'Blood pressure checked at home each week and noted down.', 70, 80000, null);
+}
+
+// Immunisations at the sample practice: a vaccine given with a batch number, one not given because it was declined, one with a reaction.
+function set104(store: Store): void {
+  if (store.get('SELECT 1 FROM immunisation LIMIT 1')) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const worker = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const nurse = worker('jane.doe');
+  const person = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id;
+  if (!nurse) return;
+  const rec = (nhi: string, mins: number, vaccine: string, state: string, f: { dose?: string; site?: string; batch?: string; reason?: string; note?: string; reaction?: string }) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    const id = newId();
+    store.insert('immunisation', {
+      id, person_id: pid, service_id: 'svc-gp', state, vaccine, given_at: at(mins), dose: f.dose ?? null, site: f.site ?? null, batch: f.batch ?? null, reason: f.reason ?? null,
+      note: f.note ?? null, reaction: f.reaction ?? null, recorded_by: nurse, recorded_at: at(mins - 5),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'immunisation', object_id: id, from_state: null, to_state: state, actor_id: nurse, work_context_id: null, at: at(mins - 5), reason: vaccine, transaction_id: null });
+  };
+  rec('ZZZ0315', 2000, 'FLU', 'GIVEN', { dose: 'Annual dose', site: 'Left upper arm', batch: 'SYN-FLU-0001' });
+  rec('ZZZ0316', 3000, 'TDAP', 'GIVEN', { dose: 'Booster', site: 'Right upper arm', batch: 'SYN-TD-0007', reaction: 'Sore arm for two days; settled with paracetamol.' });
+  rec('ZZZ0317', 1500, 'RZV', 'NOT_GIVEN', { reason: 'DECLINED', note: 'Wants to think about it and talk to whānau first.' });
 }

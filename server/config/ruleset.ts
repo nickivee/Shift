@@ -38,6 +38,10 @@ export const RULE_KEYS: RuleKey[] = [
     what: 'The list a nurse chooses from when a planned visit could not be done.',
   },
   {
+    key: 'immunisation.vaccines', label: 'Vaccines to choose from', group: 'Immunisation', kind: 'reasons', category: 'NATIONAL/SECTOR STANDARD', ref: 'RR-IMMUNISATION-001',
+    what: 'The list of vaccines a clinician chooses from when recording a vaccine given or not given.',
+  },
+  {
     key: 'cd.check_interval_days', label: 'Controlled drug book: joint check every', group: 'Controlled drugs', kind: 'int', min: 1, max: 31, unit: 'days', category: 'LAW', ref: 'RR-CDREGISTER-001',
     what: 'How often each page of the ward book is checked with a colleague before it shows as due.',
   },
