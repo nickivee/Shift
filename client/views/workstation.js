@@ -700,6 +700,7 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-poison overdue', onclick: () => openView(x.view) }, icon('alert'),
         h('span', {}, h('b', {}, 'IMMEDIATE DANGER'), `${x.kind}: ${x.what}`)));
     }
+    if (patient.legalHold) block.append(h('div', { class: 'banner' }, h('b', {}, 'Legal hold: '), 'this record is on hold. Ask the privacy officer before it is changed or disposed of.'));
     for (const c of patient.corrections ?? []) {
       block.append(h('div', { class: 'banner' }, h('b', {}, 'Statement of correction on file: '), c.statement));
     }

@@ -4626,4 +4626,45 @@ CREATE INDEX privacy_request_org ON privacy_request(organisation_id, state);
 CREATE INDEX privacy_request_person ON privacy_request(person_id, kind);
 `,
   },
+  {
+    version: 92,
+    name: 'records retention and legal holds',
+    sql: `
+-- Record retention, legal hold and disposal evidence (entries 27, 28).
+CREATE TABLE records_hold (
+  id TEXT PRIMARY KEY,
+  organisation_id TEXT NOT NULL REFERENCES organisation(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- ACTIVE | RELEASED
+  reason TEXT NOT NULL,
+  asked_by TEXT NOT NULL,
+  reference TEXT,
+  placed_by TEXT NOT NULL REFERENCES workforce_person(id),
+  placed_at TEXT NOT NULL,
+  released_by TEXT REFERENCES workforce_person(id),
+  released_at TEXT,
+  release_note TEXT
+);
+CREATE INDEX records_hold_person ON records_hold(person_id, state);
+CREATE TABLE records_review (
+  id TEXT PRIMARY KEY,
+  organisation_id TEXT NOT NULL REFERENCES organisation(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- DUE | DECIDED | DONE
+  scope TEXT NOT NULL,
+  why TEXT NOT NULL,
+  decision TEXT,                        -- KEEP | DISPOSE | TRANSFER
+  basis TEXT,
+  decision_note TEXT,
+  decided_by TEXT REFERENCES workforce_person(id),
+  decided_at TEXT,
+  done_note TEXT,
+  done_by TEXT REFERENCES workforce_person(id),
+  done_at TEXT,
+  raised_by TEXT NOT NULL REFERENCES workforce_person(id),
+  raised_at TEXT NOT NULL
+);
+CREATE INDEX records_review_org ON records_review(organisation_id, state);
+`,
+  },
 ];

@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 90;
+const SET = 91;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -418,6 +418,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 88) set88(store);
     if (at < 89) set89(store);
     if (at < 90) set90(store, password);
+    if (at < 91) set91(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5279,4 +5280,40 @@ function set90(store: Store, password: string): void {
   add({ who: ['Mate', 'Eruera'], kind: 'CORRECTION', by: 'SELF', asked: 'Wants the triage note changed: it says he had been drinking and he says he had not.', recvDays: -12, dueDays: -2,
     state: 'CLOSED', identity: 'Photo ID seen at the ED desk', decision: 'NOT_CORRECTED', note: 'Triage nurse stands by what was observed at the time, so the note is not changed',
     statement: 'I had not been drinking; my speech was slurred because of the head injury.', sent: 'Letter sent explaining the decision and that his statement is kept with the record' });
+}
+
+// Set 91: records retention. William Grant's record is on legal hold while a complaint is reviewed;
+// other records are at each stage of review.
+function set91(store: Store): void {
+  const hana = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'hana'")?.id;
+  if (!hana || store.get('SELECT 1 FROM records_hold LIMIT 1')) return;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const DAY = 24 * 60;
+  const nhi = (v: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", v)?.id ?? null;
+  const step = (type: string, id: string, from: string | null, to: string, mins: number, reason: string) =>
+    store.insert('state_transition', { id: newId(), object_type: type, object_id: id, from_state: from, to_state: to, actor_id: hana, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+  const grant = nhi('ZZZ0091');
+  if (grant) {
+    const id = newId();
+    store.insert('records_hold', { id, organisation_id: 'org-hosp', person_id: grant, state: 'ACTIVE', reason: 'Complaint about the heel injury is being reviewed and the full record is needed', asked_by: 'Quality and risk team', reference: 'Complaint review', placed_by: hana, placed_at: ago(3 * DAY) });
+    step('records_hold', id, null, 'ACTIVE', 3 * DAY, 'Complaint review');
+  }
+  const review = (v: string, scope: string, why: string, state: string, d?: { decision: string; basis: string; note: string }, done?: string) => {
+    const person = nhi(v);
+    if (!person) return;
+    const id = newId();
+    store.insert('records_review', {
+      id, organisation_id: 'org-hosp', person_id: person, state, scope, why, raised_by: hana, raised_at: ago(6 * DAY),
+      decision: d?.decision ?? null, basis: d?.basis ?? null, decision_note: d?.note ?? null, decided_by: d ? hana : null, decided_at: d ? ago(2 * DAY) : null,
+      done_note: done ?? null, done_by: done ? hana : null, done_at: done ? ago(60 * 6) : null,
+    });
+    step('records_review', id, null, 'DUE', 6 * DAY, why);
+    if (d) step('records_review', id, 'DUE', 'DECIDED', 2 * DAY, d.note);
+    if (done) step('records_review', id, 'DECIDED', 'DONE', 60 * 6, done);
+  };
+  review('ZZZ0156', 'Paper file and electronic record of the residential stay', 'Resident died and the stay ended; due for retention review', 'DUE');
+  review('ZZZ0276', 'Electronic record of the emergency visit', 'Moving to another provider and asked for his records', 'DECIDED',
+    { decision: 'TRANSFER', basis: 'Person\'s written request and the organisation\'s transfer procedure', note: 'Copy of the record to be sent securely to his new provider' });
+  review('ZZZ0292', 'Electronic record of the short stay', 'Checking the retention review process works for a recent record', 'DONE',
+    { decision: 'KEEP', basis: 'Organisation retention schedule, recent record', note: 'Too recent to review; kept' }, 'Marked as kept in the review log; no change to the record');
 }
