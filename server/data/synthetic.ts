@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 96;
+const SET = 97;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -424,6 +424,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 94) set94(store);
     if (at < 95) set95(store, password);
     if (at < 96) set96(store, password);
+    if (at < 97) set97(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5572,4 +5573,76 @@ function set96(store: Store, password: string): void {
   given(hiria, morphine, '2.5 mg', 300, moana, entry('GIVEN', 1.25, 300, moana, { person_id: hiria, medication_id: morphine }));
   const para = order(hiria, 'PARACETAMOL', '1 g', 'Oral', 'As needed', 'Mild pain', { prn: 1, prn_indication: 'Mild pain', prn_min_hours: 4, prn_max_24h: 4 });
   given(hiria, para, '1 g', 420, moana);
+}
+
+// District nursing for a community health provider, and visits (also planned for the hospice patient at home).
+function set97(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'rua'")) return;
+  const S = 'SYNTHETIC';
+  const today = todayLocal();
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ahead = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  store.insert('organisation', { id: 'org-community', name: 'Te Awa Community Health', kind: 'COMMUNITY_PROVIDER', data_source: S });
+  store.insert('facility', { id: 'fac-community', organisation_id: 'org-community', name: 'Te Awa Community Base, Otara' });
+  store.insert('service', { id: 'svc-community', organisation_id: 'org-community', facility_id: 'fac-community', name: 'District Nursing', sector: 'Primary & community care', subject_label: 'Patient' });
+  const dest = (alias: string, label: string, role: string | null) =>
+    store.insert('destination', { id: newId(), organisation_id: 'org-community', alias, label, kind: role ? 'ROLE_IN_SERVICE' : 'SERVICE', service_id: 'svc-community', role_key: role, requires_acceptance: 0 });
+  dest('rn', 'RN, District Nursing', 'community-rn');
+  dest('team', 'District Nursing team', null);
+
+  const pw = hashPassword(password);
+  const staff = (user: string, given: string, family: string, display: string, reg: string) => {
+    const wid = newWorker(store, pw, user, given, family, display);
+    store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession: 'Registered Nurse', regulator: 'Nursing Council of New Zealand', registration_number: reg, scope: 'Registered nurse', valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: 'org-community', employment_type: 'PERMANENT', start_date: '2023-05-01' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-community', title: 'Registered Nurse', role_key: 'community-rn', start_date: '2023-05-01' });
+    for (let d = -7; d < 28; d++) {
+      const date = addDays(today, d);
+      if ([0, 6].includes(new Date(`${date}T00:00:00`).getDay())) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: wid, position_id: pos, service_id: 'svc-community', shift_date: date, start_time: '08:00', end_time: '16:30', state: 'PLANNED', data_source: S });
+    }
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Annual leave', hours: 72, as_at: today, data_source: S });
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Sick leave', hours: 44, as_at: today, data_source: S });
+    return wid;
+  };
+  const rua = staff('rua', 'Rua', 'Parata', 'Rua Parata', 'SYN-RN-52077');
+  const hemi = staff('hemi', 'Hemi', 'Anderson', 'Hemi Anderson', 'SYN-RN-52078');
+
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (given: string, family: string, dob: string, gender: string, nhi: string, location: string) => {
+    const person = newId();
+    store.insert('person', { id: person, family_name: family, given_name: given, date_of_birth: dob, gender, ethnicity: 'Pacific', iwi: null, data_source: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: nhi, verification: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: S, created_at: at(9000) });
+    store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-community', location, kind: 'COMMUNITY', started_at: at(9000), state: 'ACTIVE' });
+    store.insert('allergy', { id: newId(), person_id: person, kind: 'NO_KNOWN_ALLERGIES', substance: null, reaction: null, severity: null, certainty: null, state: 'ACTIVE', source: 'Patient report at referral', recorded_by: rua, recorded_at: at(9000), data_source: S });
+    return person;
+  };
+  const visit = (person: string, service: string, state: string, plannedMins: number, purpose: string, place: string, goer: string | null, by: string, extra: Record<string, unknown> = {}) => {
+    const id = newId();
+    const plannedFor = plannedMins >= 0 ? ahead(plannedMins) : at(-plannedMins);
+    store.insert('visit', { id, person_id: person, service_id: service, state: 'PLANNED', planned_for: plannedFor, purpose, place, assigned_to: goer, planned_by: by, planned_at: at(3000) });
+    store.insert('state_transition', { id: newId(), object_type: 'visit', object_id: id, from_state: null, to_state: 'PLANNED', actor_id: by, work_context_id: null, at: at(3000), reason: purpose, transaction_id: null });
+    store.insert('visit_step', { id: newId(), visit_id: id, kind: 'PLANNED', body: `${purpose}. ${place}.`, by_id: by, at: at(3000) });
+    if (state === 'DONE') {
+      const note = String(extra.note);
+      store.run('UPDATE visit SET state = ?, ended_by = ?, ended_at = ?, ended_note = ? WHERE id = ?', 'DONE', by, at(1440), note, id);
+      store.insert('state_transition', { id: newId(), object_type: 'visit', object_id: id, from_state: 'PLANNED', to_state: 'DONE', actor_id: by, work_context_id: null, at: at(1440), reason: note, transaction_id: null });
+      store.insert('visit_step', { id: newId(), visit_id: id, kind: 'DONE', body: note, by_id: by, at: at(1440) });
+    }
+    return id;
+  };
+
+  const eru = patient('Eru', 'Walker', '1947-08-19', 'Male', 'ZZZ0312', 'At home, Otara');
+  const mabel = patient('Mabel', 'Tuala', '1939-01-30', 'Female', 'ZZZ0313', 'At home, Mangere');
+  const tevita = patient('Tevita', 'Fifita', '1955-06-08', 'Male', 'ZZZ0314', 'At home, Papatoetoe');
+  visit(eru, 'svc-community', 'DONE', -1500, 'Leg ulcer dressing change', 'At home, 22 Rata Street, Otara', rua, rua, { note: 'Dressing changed; ulcer smaller, clean edges. Eru walked to the letterbox.' });
+  visit(eru, 'svc-community', 'PLANNED', 120, 'Leg ulcer dressing change', 'At home, 22 Rata Street, Otara', rua, rua);
+  visit(mabel, 'svc-community', 'PLANNED', -90, 'Insulin and blood sugar check', 'At home, 8 Kauri Place, Mangere', hemi, rua);
+  visit(tevita, 'svc-community', 'PLANNED', 24 * 60 + 60, 'Catheter care and review', 'At home, 5 Matai Road, Papatoetoe', rua, rua);
+  const raymond = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0310'");
+  const moana = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'moana'");
+  if (raymond && moana) visit(raymond.id, 'svc-hospice', 'PLANNED', 180, 'Breathing and swallowing check', 'At home, Papakura', moana.id, moana.id);
 }

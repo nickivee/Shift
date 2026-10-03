@@ -4856,4 +4856,41 @@ INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status,
  ('rs-nz-notgiven', 'NZ', 'medicine.not_given_reasons', '[{"code":"REFUSED","label":"They refused it"},{"code":"AWAY","label":"They were away from the unit"},{"code":"UNABLE","label":"They could not take it"},{"code":"UNAVAILABLE","label":"The medicine was not available"},{"code":"HELD","label":"Held on the prescriber''s instruction"},{"code":"OTHER","label":"Another reason, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of reasons a dose is not given.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
 `,
   },
+  {
+    version: 97,
+    name: 'visits',
+    sql: `
+-- Visits to people where they are (community and hospice nursing): planned for a day and time, then
+-- done, not done with a reason, or cancelled. SHIFT sets no visit frequency or response time (RR-VISITS-001).
+CREATE TABLE visit (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- PLANNED | DONE | NOT_DONE | CANCELLED
+  planned_for TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  place TEXT NOT NULL,
+  assigned_to TEXT REFERENCES workforce_person(id),
+  planned_by TEXT NOT NULL REFERENCES workforce_person(id),
+  planned_at TEXT NOT NULL,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  ended_reason TEXT,                    -- NOT_DONE: a reason from the organisation's list
+  ended_note TEXT
+);
+CREATE INDEX visit_person ON visit(person_id, planned_for);
+CREATE INDEX visit_service ON visit(service_id, state, planned_for);
+CREATE TABLE visit_step (
+  id TEXT PRIMARY KEY,
+  visit_id TEXT NOT NULL REFERENCES visit(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX visit_step_visit ON visit_step(visit_id, at);
+INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status, effective_from, category, source_ref, source_url, note, proposed_at, decided_at) VALUES
+ ('rs-nz-visit-reasons', 'NZ', 'visit.not_done_reasons', '[{"code":"NOT_HOME","label":"They were not at the address"},{"code":"DECLINED","label":"They declined the visit"},{"code":"UNWELL","label":"Unwell or admitted to hospital"},{"code":"UNABLE","label":"Could not get there"},{"code":"OTHER","label":"Another reason, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of reasons a visit is not done.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
+`,
+  },
 ];

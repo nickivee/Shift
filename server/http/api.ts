@@ -50,6 +50,7 @@ import * as requirements from '../domain/requirements.ts';
 import * as careDue from '../domain/caredue.ts';
 import * as recalls from '../domain/recalls.ts';
 import * as followups from '../domain/followups.ts';
+import * as visits from '../domain/visits.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
@@ -542,6 +543,13 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/followups/:id/:action', (req) => followups.act(store, work(req), req.params.id, req.params.action, {
     note: str(req.body.note), told: str(req.body.told), link: str(req.body.link), ref: str(req.body.ref), when: str(req.body.when), where: str(req.body.where),
     outcome: str(req.body.outcome), furtherWhat: str(req.body.furtherWhat), furtherDue: str(req.body.furtherDue),
+  }));
+  r.on('GET', '/api/work/visits', (req) => visits.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/visits', (req) => visits.plan(store, work(req), req.params.id, {
+    when: str(req.body.when), purpose: str(req.body.purpose), place: str(req.body.place), assignedTo: str(req.body.assignedTo),
+  }));
+  r.on('POST', '/api/work/visits/:id/:action', (req) => visits.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), reason: str(req.body.reason), when: str(req.body.when),
   }));
   r.on('GET', '/api/work/recalls', (req) => recalls.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/recalls', (req) => recalls.setUp(store, work(req), req.params.id, {

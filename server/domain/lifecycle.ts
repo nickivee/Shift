@@ -591,6 +591,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ORDERED: ['VERIFIED', 'ACTIVE', 'CEASED'], VERIFIED: ['ACTIVE', 'CEASED'], ACTIVE: ['HELD', 'CEASED'], HELD: ['ACTIVE', 'CEASED'] },
   },
+  visit: {
+    table: 'visit',
+    initial: 'PLANNED',
+    next: { PLANNED: ['DONE', 'NOT_DONE', 'CANCELLED'] },
+  },
   oxygen_therapy: {
     table: 'oxygen_therapy',
     initial: 'ON',
