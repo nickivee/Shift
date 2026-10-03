@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 102;
+const SET = 103;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -427,6 +427,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 100) set100(store);
     if (at < 101) set101(store);
     if (at < 102) set102(store);
+    if (at < 103) set103(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5926,4 +5927,28 @@ function set102(store: Store): void {
   session('ZZZ0315', 300, 'Using the inhaler and spacer', 'PERSON', 'PARTLY', 'Could do the puff but missed the breathing out first; will practise again at the next visit.', nurse);
   session('ZZZ0316', 1500, 'Looking after the feet with diabetes', 'BOTH', 'UNDERSTOOD', null, gp);
   session('ZZZ0317', 4000, 'What the new blood pressure tablet is for', 'PERSON', 'UNDERSTOOD', 'Repeated back the dose and when to take it.', nurse);
+}
+
+// Long-term condition plans at the sample practice: one review overdue, one due soon, one later.
+function set103(store: Store): void {
+  if (store.get('SELECT 1 FROM chronic_plan LIMIT 1')) return;
+  const today = todayLocal();
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const worker = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const gp = worker('john.doe');
+  const nurse = worker('jane.doe');
+  const person = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id;
+  if (!gp || !nurse) return;
+  const plan = (nhi: string, condition: string, goals: string, dueDays: number, startedMins: number, reviewed: { mins: number; note: string } | null) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    const id = newId();
+    store.insert('chronic_plan', { id, person_id: pid, service_id: 'svc-gp', state: 'ACTIVE', condition, goals, review_due: addDays(today, dueDays), last_reviewed_at: reviewed ? at(reviewed.mins) : null, started_by: gp, started_at: at(startedMins) });
+    store.insert('state_transition', { id: newId(), object_type: 'chronic', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: gp, work_context_id: null, at: at(startedMins), reason: condition, transaction_id: null });
+    store.insert('chronic_step', { id: newId(), plan_id: id, kind: 'STARTED', body: `${condition}. Goals: ${goals}`, by_id: gp, at: at(startedMins) });
+    if (reviewed) store.insert('chronic_step', { id: newId(), plan_id: id, kind: 'REVIEW', body: reviewed.note, by_id: nurse, at: at(reviewed.mins) });
+  };
+  plan('ZZZ0315', 'Asthma', 'No night waking; uses the reliever no more than twice a week.', -10, 200000, { mins: 150000, note: 'Using the reliever three times a week; technique checked. Next review set.' });
+  plan('ZZZ0316', 'Type 2 diabetes', 'Keep blood sugar steady; check feet daily.', 12, 120000, { mins: 90000, note: 'Blood sugar steady; no change to medicines.' });
+  plan('ZZZ0317', 'High blood pressure', 'Blood pressure checked at home each week and noted down.', 70, 80000, null);
 }

@@ -396,6 +396,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-CHRONIC-001',
+    question: 'What New Zealand requires or funds for long-term condition care in general practice: review intervals and content for each condition (for example the Ministry of Health and Health NZ guidance for diabetes and cardiovascular risk), care plan requirements, and any funded programme rules.',
+    blocks: 'Review intervals, care standards, targets and programme eligibility are not set by SHIFT. It records each condition and its goals as the clinician writes them, the next review date the clinician chooses, and every review.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-EDUCATION-001',
     question: 'What New Zealand requires of patient education in general practice and other services: what must be explained and recorded (for example informed consent information under the Code of Health and Disability Services Consumers\' Rights, Right 6 and Right 7), health literacy and interpreter expectations, and any content or schedule a funder or the Royal New Zealand College of General Practitioners sets.',
     blocks: 'Education content, schedules, teaching materials and what counts as understood are not set by SHIFT. It records what the clinician explained, to whom, how well it was understood in their judgement, and whether more is needed.',

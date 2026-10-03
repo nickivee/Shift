@@ -101,6 +101,7 @@ const PATHS = {
   deterioration: 'M3 6l6 6 4-4 8 8M21 10v6h-6',
   interventions: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
   followups: 'M5 12h14M13 6l6 6-6 6M5 5v14',
+  chronic: 'M4 5h16v14H4zM8 9h8M8 13h5',
   education: 'M3 8l9-4 9 4-9 4-9-4ZM7 10.5V15c0 1.5 2.2 3 5 3s5-1.5 5-3v-4.5',
   afterhours: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z',
   visits: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5',

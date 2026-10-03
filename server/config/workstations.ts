@@ -176,7 +176,8 @@ export type Capability =
   | 'visit.record'
   | 'pregnancy.record'
   | 'afterhours.record'
-  | 'education.record';
+  | 'education.record'
+  | 'chronic.record';
 
 export interface HomeCard {
   id: string;
@@ -270,6 +271,7 @@ const CARD = {
   visits: { id: 'visits', label: 'Visits', required: true },
   afterhours: { id: 'afterhours', label: 'After-hours', required: true },
   education: { id: 'education', label: 'Education', required: true },
+  chronic: { id: 'chronic', label: 'Chronic care', required: true },
   surveillance: { id: 'surveillance', label: 'Surveillance', required: true },
   screening: { id: 'screening', label: 'Screening', required: true },
   infections: { id: 'infections', label: 'Infections', required: true },
@@ -620,9 +622,9 @@ ROLES.push({
 // General practice (matrix, "Primary & community care"): the GP and the practice nurse, set up from the general
 // medicine physician and nurse. Orders, Immunisation, Chronic Care and Education have no screen yet, and Schedule
 // is the appointments screen.
-const GP_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Orders, Immunisation and Chronic Care tabs are not built yet';
-const GP_VIEWS = ['overview', 'history', 'problems', 'assess', 'meds', 'obs', 'results', 'screening', 'referrals', 'communications', 'notes', 'tasks', 'followups', 'recalls', 'appointments', 'education'];
-const NURSE_VIEWS = ['recalls', 'assess', 'obs', 'meds', 'screening', 'wounds', 'tasks', 'notes', 'appointments', 'followups', 'education'];
+const GP_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Orders and Immunisation tabs are not built yet';
+const GP_VIEWS = ['overview', 'history', 'problems', 'assess', 'meds', 'obs', 'results', 'screening', 'referrals', 'communications', 'notes', 'tasks', 'followups', 'recalls', 'appointments', 'education', 'chronic'];
+const NURSE_VIEWS = ['recalls', 'assess', 'obs', 'meds', 'screening', 'wounds', 'tasks', 'notes', 'appointments', 'followups', 'education', 'chronic'];
 ROLES.push(
   {
     ...roleOf('genmed-physician'),
@@ -637,12 +639,12 @@ ROLES.push(
       { id: 'appointments', label: 'Schedule' }, { id: 'list', label: 'Patients' }, { id: 'overview', label: 'Patient Overview' }, { id: 'history', label: 'History' },
       { id: 'problems', label: 'Problems' }, { id: 'assess', label: 'Assessment' }, { id: 'meds', label: 'Medicines' }, { id: 'obs', label: 'Observations' },
       { id: 'results', label: 'Results' }, { id: 'screening', label: 'Preventive Care' }, { id: 'referrals', label: 'Referrals' },
-      { id: 'communications', label: 'Correspondence' }, { id: 'notes', label: 'Notes' }, { id: 'tasks', label: 'Inbox/Tasks' }, { id: 'followups', label: 'Follow-up' }, { id: 'education', label: 'Education' },
+      { id: 'communications', label: 'Correspondence' }, { id: 'notes', label: 'Notes' }, { id: 'tasks', label: 'Inbox/Tasks' }, { id: 'followups', label: 'Follow-up' }, { id: 'chronic', label: 'Chronic Care' }, { id: 'education', label: 'Education' },
     ],
-    capabilities: [...roleOf('genmed-physician').capabilities, 'education.record'],
-    homeCards: withCards(roleOf('genmed-physician'), [CARD.education]),
+    capabilities: [...roleOf('genmed-physician').capabilities, 'education.record', 'chronic.record'],
+    homeCards: withCards(roleOf('genmed-physician'), [CARD.chronic, CARD.education]),
     homeFour: ['workstation', 'tasks', 'appointments', 'followups'],
-    ownCards: [...new Set([...(roleOf('genmed-physician').ownCards ?? []), 'education'])],
+    ownCards: [...new Set([...(roleOf('genmed-physician').ownCards ?? []), 'chronic', 'education'])],
     consultsTo: undefined,
     refersTo: undefined,
   },
@@ -652,17 +654,17 @@ ROLES.push(
     label: 'Practice Nurse',
     matrixRow: 'Practice nursing',
     evidenceStatus: GP_EVIDENCE,
-    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'appointment.manage', 'education.record'],
+    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'appointment.manage', 'education.record', 'chronic.record'],
     views: withViews(roleOf('genmed-rn'), NURSE_VIEWS),
     ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), ...NURSE_VIEWS])],
     tabs: [
       { id: 'appointments', label: 'Schedule' }, { id: 'list', label: 'Patients' }, { id: 'recalls', label: 'Recalls' }, { id: 'assess', label: 'Assessment' },
       { id: 'obs', label: 'Observations' }, { id: 'meds', label: 'Medicines' }, { id: 'screening', label: 'Screening' }, { id: 'wounds', label: 'Wounds' },
-      { id: 'tasks', label: 'Tasks' }, { id: 'notes', label: 'Notes' }, { id: 'education', label: 'Education' },
+      { id: 'chronic', label: 'Chronic Care' }, { id: 'tasks', label: 'Tasks' }, { id: 'notes', label: 'Notes' }, { id: 'education', label: 'Education' },
     ],
-    homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.appointments, CARD.recalls, CARD.followups, CARD.education]),
+    homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.appointments, CARD.recalls, CARD.followups, CARD.chronic, CARD.education]),
     homeFour: ['workstation', 'tasks', 'recalls', 'appointments'],
-    ownCards: [...new Set([...(roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'), 'appointments', 'recalls', 'followups', 'education'])],
+    ownCards: [...new Set([...(roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'), 'appointments', 'recalls', 'followups', 'chronic', 'education'])],
     escalatesTo: ['gp'],
   },
 );
