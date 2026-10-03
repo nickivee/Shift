@@ -58,6 +58,7 @@ import { followupsView } from './views/followups.js';
 import { visitsView } from './views/visits.js';
 import { afterhoursView } from './views/afterhours.js';
 import { educationView } from './views/education.js';
+import { chronicView } from './views/chronic.js';
 import { surveillanceView } from './views/surveillance.js';
 import { screeningView } from './views/screening.js';
 import { infectionsView } from './views/infections.js';
@@ -166,6 +167,7 @@ const routes = [
   [/^\/work\/visits$/, () => visitsView(), { work: true }],
   [/^\/work\/afterhours$/, () => afterhoursView(), { work: true }],
   [/^\/work\/education$/, () => educationView(), { work: true }],
+  [/^\/work\/chronic$/, () => chronicView(), { work: true }],
   [/^\/work\/surveillance$/, () => surveillanceView(), { work: true }],
   [/^\/work\/screening$/, () => screeningView(), { work: true }],
   [/^\/work\/infections$/, () => infectionsView(), { work: true }],

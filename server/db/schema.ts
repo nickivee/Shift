@@ -4992,4 +4992,38 @@ CREATE INDEX education_person ON education_session(person_id, given_at);
 CREATE INDEX education_service ON education_session(service_id, state, given_at);
 `,
   },
+  {
+    version: 101,
+    name: 'chronic care',
+    sql: `
+-- A long-term condition plan under a service's care: the condition and goals as the clinician writes them, when the
+-- next review is due, and each review. SHIFT sets no review interval or care standard (RR-CHRONIC-001).
+CREATE TABLE chronic_plan (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ACTIVE | ENDED | ENTERED_IN_ERROR
+  condition TEXT NOT NULL,              -- in the clinician's words
+  goals TEXT NOT NULL,                  -- in the clinician's words
+  review_due TEXT NOT NULL,             -- chosen by the clinician
+  last_reviewed_at TEXT,
+  started_by TEXT NOT NULL REFERENCES workforce_person(id),
+  started_at TEXT NOT NULL,
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX chronic_person ON chronic_plan(person_id, started_at);
+CREATE INDEX chronic_service ON chronic_plan(service_id, state, review_due);
+CREATE TABLE chronic_step (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES chronic_plan(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX chronic_step_plan ON chronic_step(plan_id, at);
+`,
+  },
 ];
