@@ -599,19 +599,19 @@ ROLES.push(
 
 // District / community nursing (matrix: Caseload | Referral | Eligibility | Assessment | Care Plan | Visits |
 // Medicines | Clinical Care | Equipment/Supplies | Monitoring | Whanau/Providers | Tasks | Review | Discharge).
-// Set up from the general medicine nurse. Eligibility, Clinical Care and Providers have no screen yet.
+// Set up from the general medicine nurse. Eligibility has no screen yet; Clinical Care is the Interventions screen and Providers the Whānau and support screen.
 ROLES.push({
   ...roleOf('genmed-rn'),
   roleKey: 'community-rn',
   label: 'Registered Nurse',
   matrixRow: 'District / community nursing',
-  evidenceStatus: 'Matrix names the service, not its positions, so this position is provisional; Eligibility, Clinical Care and Providers tabs are not built yet',
+  evidenceStatus: 'Matrix names the service, not its positions, so this position is provisional; Eligibility is not built yet (Clinical Care is the Interventions screen, Providers is the Whānau and support screen)',
   capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'visit.plan', 'visit.record'],
-  views: withViews(roleOf('genmed-rn'), ['visits', 'referrals', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge']),
-  ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), 'visits', 'referrals', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge'])],
+  views: withViews(roleOf('genmed-rn'), ['visits', 'referrals', 'interventions', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge']),
+  ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), 'visits', 'referrals', 'interventions', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge'])],
   tabs: [
     { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' },
-    { id: 'referrals', label: 'Referral' }, { id: 'meds', label: 'Medicines' }, { id: 'equipment', label: 'Equipment/Supplies' }, { id: 'monitoring', label: 'Monitoring' }, { id: 'support', label: 'Whānau' },
+    { id: 'referrals', label: 'Referral' }, { id: 'interventions', label: 'Clinical Care' }, { id: 'meds', label: 'Medicines' }, { id: 'equipment', label: 'Equipment/Supplies' }, { id: 'monitoring', label: 'Monitoring' }, { id: 'support', label: 'Whānau' },
     { id: 'tasks', label: 'Tasks' }, { id: 'review', label: 'Review' }, { id: 'discharge', label: 'Discharge' },
   ],
   homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.visits]),
