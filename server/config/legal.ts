@@ -435,6 +435,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'REGULATION/CODE',
   },
   {
+    ref: 'RR-PRIVACYREVIEW-001',
+    question: 'What New Zealand requires an organisation to do to monitor who opens health records and to follow up: how often and how access is reviewed, what counts as inappropriate access, when it is a notifiable privacy breach, who must be told (the person, the Privacy Commissioner, the employer or a professional body) and by when (Privacy Act 2020, Health Information Privacy Code 2020 rule 5 and the organisation\'s own policy).',
+    blocks: 'What counts as inappropriate access, when it must be reported and to whom. SHIFT lists who opened a record and whether a care link is on file, records the privacy officer\'s notes, finding and what was done, and decides nothing about what is a breach.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',

@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 91;
+const SET = 92;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -419,6 +419,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 89) set89(store);
     if (at < 90) set90(store, password);
     if (at < 91) set91(store);
+    if (at < 92) set92(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5316,4 +5317,44 @@ function set91(store: Store): void {
     { decision: 'TRANSFER', basis: 'Person\'s written request and the organisation\'s transfer procedure', note: 'Copy of the record to be sent securely to his new provider' });
   review('ZZZ0292', 'Electronic record of the short stay', 'Checking the retention review process works for a recent record', 'DONE',
     { decision: 'KEEP', basis: 'Organisation retention schedule, recent record', note: 'Too recent to review; kept' }, 'Marked as kept in the review log; no change to the record');
+}
+
+// Set 92: privacy access review. Kate, in Residential Care, opened two ED records she has no care
+// link to; one of them (Mate Eruera, who raised a concern) is being looked into, and an earlier
+// routine check of Rua Hēnare's record has been closed.
+function set92(store: Store): void {
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id ?? null;
+  const nhi = (v: string) => store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = ?", v)?.id ?? null;
+  const hana = who('hana'); const kate = who('kate');
+  const mate = nhi('ZZZ0276'); const kane = nhi('ZZZ0292'); const rua = nhi('ZZZ0059');
+  if (!hana || !kate || !mate || !kane || !rua || store.get('SELECT 1 FROM privacy_review LIMIT 1')) return;
+  const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const DAY = 24 * 60;
+  const pos = store.get<{ id: string }>(
+    "SELECT p.id FROM position p JOIN employment e ON e.id = p.employment_id WHERE e.workforce_person_id = ? AND p.service_id = 'svc-arc'", kate)?.id;
+  if (!pos) return;
+  const session = newId();
+  const ctx = newId();
+  store.insert('session', { id: session, token_hash: `seed-${newId()}`, workforce_person_id: kate, created_at: ago(2 * DAY), last_seen_at: ago(2 * DAY - 30), ended_at: ago(2 * DAY - 30), end_reason: 'SIGNED_OUT' });
+  store.insert('work_context', { id: ctx, session_id: session, workforce_person_id: kate, position_id: pos, service_id: 'svc-arc', established_at: ago(2 * DAY), ended_at: ago(2 * DAY - 30) });
+  const base = { actorId: kate, sessionId: session, workContextId: ctx, space: 'WORK' as const, purpose: 'DIRECT_CARE', decision: 'ALLOW' };
+  for (const person of [mate, mate, kane]) audit(store, { ...base, subjectPersonId: person, operation: 'VIEW_RECORD', objectType: 'person', outcome: 'VIEWED' });
+  const add = (person: string, state: string, source: string, why: string, d: { finding?: string; note?: string; outcome?: string; steps?: string[] } = {}) => {
+    const id = newId();
+    const at = state === 'OPEN' ? 1 : 5;
+    store.insert('privacy_review', {
+      id, organisation_id: 'org-hosp', person_id: person, state, source, why, opened_by: hana, opened_at: ago(at * DAY),
+      finding: d.finding ?? null, finding_note: d.note ?? null, found_by: d.finding ? hana : null, found_at: d.finding ? ago(3 * DAY) : null,
+      outcome_note: d.outcome ?? null, closed_by: d.outcome ? hana : null, closed_at: d.outcome ? ago(60 * 8) : null,
+    });
+    const step = (from: string | null, to: string, mins: number, reason: string) =>
+      store.insert('state_transition', { id: newId(), object_type: 'privacy_review', object_id: id, from_state: from, to_state: to, actor_id: hana, work_context_id: null, at: ago(mins), reason, transaction_id: null });
+    step(null, 'OPEN', at * DAY, why);
+    if (d.finding) step('OPEN', 'FINDING', 3 * DAY, d.note ?? '');
+    if (d.outcome) step('FINDING', 'CLOSED', 60 * 8, d.outcome);
+    for (const body of d.steps ?? []) store.insert('privacy_review_step', { id: newId(), review_id: id, body, by_id: hana, at: ago(at * DAY - 120) });
+  };
+  add(mate, 'OPEN', 'COMPLAINT', 'He says someone who works here knew about his visit and he had not told them', { steps: ['Asked Kate Rowe, Residential Care, why she opened his record. Waiting for her answer.'] });
+  add(rua, 'CLOSED', 'ROUTINE', 'Routine check after the emergency access for her allergies and medicines', {
+    finding: 'APPROPRIATE', note: 'The emergency access was reviewed by Dr Singh and what was opened matches the reason given', outcome: 'No further action' });
 }
