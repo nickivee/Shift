@@ -62,6 +62,7 @@ import { forPerson as proceduresFor, current as recoveringNow } from './procedur
 import { forPerson as decisionsFor } from './decisions.ts';
 import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
 import { forPerson as poisoningFor, current as poisoningNow } from './poisoning.ts';
+import { forPerson as medsFor } from './medicines.ts';
 import { forPerson as oxyFor, current as oxyNow, PLACE as OXY_IN } from './oxygen.ts';
 import { statements as privacyStatements } from './privacy.ts';
 import { onHold as recordOnHold } from './retention.ts';
@@ -355,15 +356,7 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       body = { ...overview(store, ctx, personId), decisions: DECISIONS_IN[ctx.role.roleKey] === 'overview' ? decisionsFor(store, ctx, personId) : null };
       break;
     case 'meds':
-      body = {
-        medicines: store.all(
-          `SELECT medicine, dose, route, frequency, indication, state, prescriber, started_at AS startedAt, ceased_at AS ceasedAt, source
-             FROM medication WHERE person_id = ? ORDER BY CASE state WHEN 'ACTIVE' THEN 0 WHEN 'HELD' THEN 1 ELSE 2 END, medicine`,
-          personId,
-        ),
-        prescribing: evaluate(store, ctx, { op: 'PRESCRIBE' }),
-        administration: evaluate(store, ctx, { op: 'ADMINISTER' }),
-      };
+      body = medsFor(store, ctx, personId);
       break;
     case 'results':
       body = diagnosticsFor(store, ctx, personId);

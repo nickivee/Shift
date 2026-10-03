@@ -2,6 +2,7 @@ import type { Store } from '../db/database.ts';
 import type { WorkContext } from './identity.ts';
 import type { Capability } from '../config/workstations.ts';
 import { now } from '../lib/util.ts';
+import { PRESCRIBERS } from '../config/medicines.ts';
 
 export type Decision = 'ALLOW' | 'BLOCK' | 'HOLD' | 'UNRESOLVED';
 
@@ -43,6 +44,9 @@ export type Operation =
   | { op: 'DANGER'; personId: string }
   | { op: 'OBSERVATION'; personId: string }
   | { op: 'OXYGEN'; personId: string }
+  | { op: 'MEDICINE_PRESCRIBE'; personId: string }
+  | { op: 'MEDICINE_GIVE'; personId: string }
+  | { op: 'CD_BOOK' }
   | { op: 'OXYGEN_PRESCRIBE'; personId: string }
   | { op: 'WITHDRAWAL'; personId: string }
   | { op: 'WITHDRAWAL_MANAGE'; personId: string }
@@ -154,6 +158,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return { decision: 'UNRESOLVED', reasons: ['NZ early-warning thresholds have not been researched for this service'], ruleRefs: ['RR-EWS-001'] };
     case 'ACUITY_SCORE':
       return { decision: 'UNRESOLVED', reasons: ['Which NZ acuity or early-warning tool applies here, and how it is calculated, has not been researched'], ruleRefs: ['RR-ACU-001', 'RR-EWS-001'] };
+    case 'CD_BOOK':
+      return need(ctx, 'cd.register') ?? professional(ctx) ?? allow([ORG, 'RR-CDREGISTER-001']);
     case 'KNOWLEDGE':
       return need(ctx, 'knowledge.use') ?? professional(ctx) ?? allow();
     case 'TRANSFER_RESPOND': {
@@ -460,6 +466,16 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'withdrawal.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-WITHDRAWAL-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their withdrawal care`));
+    case 'MEDICINE_PRESCRIBE':
+      return need(ctx, 'medicine.prescribe') ?? professional(ctx)
+        ?? (PRESCRIBERS.includes(String(ctx.role.profession)) ? null : block('Only an authorised prescriber prescribes a medicine', [ORG, 'RR-MEDICINES-001']))
+        ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+          ? allow([ORG, 'RR-MEDICINES-001'])
+          : block(`Only a prescriber caring for this ${ctx.subjectLabel.toLowerCase()} can prescribe for them`, [ORG, 'RR-MEDICINES-001']));
+    case 'MEDICINE_GIVE':
+      return need(ctx, 'medicine.give') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'RR-MEDICINES-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can record their medicines`, [ORG, 'RR-MEDICINES-001']));
     case 'OXYGEN':
       return (ctx.role.capabilities.includes('oxygen.prescribe') ? null : need(ctx, 'oxygen.record')) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'RR-OXYGEN-001'])

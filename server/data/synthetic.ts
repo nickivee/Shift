@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 93;
+const SET = 94;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -421,6 +421,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 91) set91(store);
     if (at < 92) set92(store);
     if (at < 93) set93(store);
+    if (at < 94) set94(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5392,4 +5393,54 @@ function set93(store: Store): void {
   reading(94, 'NASAL', '3 L/min', grace, 600, null, 0, '94% on nasal prongs, 3 L/min.');
   reading(93, 'NASAL', '3 L/min', grace, 300, null, 0, '93% on nasal prongs, 3 L/min.');
   reading(90, 'NASAL', '3 L/min', grace, 35, 'Coughing, sat up in bed', 1, '90% on nasal prongs, 3 L/min. Outside the range 92 to 96% set by Dr Hannah Li. Coughing, sat up in bed.');
+}
+
+// Set 94: medicines. Tipene Rawiri on Ward K has a controlled drug and an as-needed paracetamol
+// ordered by Dr Li; the ward's book is overdue for its weekly check and its stocktake.
+function set94(store: Store): void {
+  if (store.get("SELECT 1 FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0308'")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const who = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const hannah = who('hannah'), grace = who('grace'), nicki = who('nicki');
+  if (!hannah || !grace || !nicki) return;
+  const wardKind = store.get<{ k: string }>("SELECT kind AS k FROM encounter WHERE service_id = 'svc-genmed' LIMIT 1")?.k ?? 'INPATIENT';
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const person = newId();
+  store.insert('person', { id: person, family_name: 'Rawiri', given_name: 'Tipene', date_of_birth: '1958-08-09', gender: 'Male', ethnicity: 'Maori', iwi: null, data_source: 'SYNTHETIC', created_at: at(2900) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: 'ZZZ0308', verification: 'SYNTHETIC', created_at: at(2900) });
+  store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: at(2900) });
+  store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-genmed', location: 'Ward K Bed 3', kind: wardKind, started_at: at(2900), state: 'ACTIVE' });
+  store.insert('allergy', { id: newId(), person_id: person, kind: 'NO_KNOWN_ALLERGIES', substance: null, reaction: null, severity: null, certainty: null, state: 'ACTIVE', source: 'Patient report, confirmed on admission', recorded_by: hannah, recorded_at: at(2880), data_source: 'SYNTHETIC' });
+  const acuity = newId();
+  store.insert('acuity_assessment', { id: acuity, person_id: person, service_id: 'svc-genmed', level: 'STABLE', basis: 'Comfortable, pain controlled', evidence_json: null, change: 'FIRST',
+    review_due: new Date(Date.now() + 18 * 60 * 60_000).toISOString(), state: 'CURRENT', assessed_by: grace, assessed_at: at(300), supersedes: null });
+  store.insert('state_transition', { id: newId(), object_type: 'acuity', object_id: acuity, from_state: null, to_state: 'CURRENT', actor_id: grace, work_context_id: null, at: at(300), reason: 'Stable', transaction_id: null });
+  // The ward's controlled drug book.
+  const page = newId();
+  store.insert('cd_book_page', { id: page, service_id: 'svc-genmed', drug: 'MORPHINE injection 10 mg/mL', unit: 'mL', created_by: grace, created_at: at(15000) });
+  let bal = 0;
+  const entry = (kind: string, qty: number | null, mins: number, by: string, extra: Record<string, unknown> = {}) => {
+    if (kind === 'RECEIPT') bal += qty!; else if (kind === 'GIVEN') bal = Math.round((bal - qty!) * 1e6) / 1e6;
+    const id = newId();
+    store.insert('cd_book_entry', { id, page_id: page, kind, qty, balance: bal, variance: 0, by_id: by, at: at(mins), ...extra });
+    return id;
+  };
+  entry('RECEIPT', 10, 14000, grace, { issued_by: 'Pharmacy, J Singh' });
+  entry('CHECK', null, 9 * 1440, nicki, { counted: 10, second_id: grace });
+  const order = (medicine: string, dose: string, route: string, frequency: string, indication: string, extra: Record<string, unknown>) => {
+    const id = newId();
+    store.insert('medication', { id, person_id: person, medicine, dose, route, frequency, indication, state: 'ACTIVE', prescriber: 'Dr Hannah Li', started_at: at(2800), source: 'Prescribed in SHIFT', data_source: 'SYNTHETIC',
+      service_id: 'svc-genmed', prescribed_by_id: hannah, ...extra });
+    store.insert('state_transition', { id: newId(), object_type: 'medication', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: hannah, work_context_id: null, at: at(2800), reason: `${medicine} ${dose}`, transaction_id: null });
+    store.insert('medication_step', { id: newId(), medication_id: id, kind: 'PRESCRIBED', body: `Prescribed: ${medicine} ${dose}, ${route}, ${frequency.toLowerCase()}, for ${indication}.`, by_id: hannah, at: at(2800) });
+    return id;
+  };
+  const given = (medId: string, dose: string, mins: number, by: string, book: string | null = null) =>
+    store.insert('medication_dose', { id: newId(), medication_id: medId, person_id: person, service_id: 'svc-genmed', kind: 'GIVEN', dose, given_at: at(mins), by_id: by, book_entry_id: book, recorded_at: at(mins) });
+  const morphine = order('MORPHINE', '2.5 mg', 'Subcutaneous', 'As needed', 'Pain after surgery', { controlled: 1, prn: 1, prn_indication: 'Pain not eased by paracetamol', prn_min_hours: 4, prn_max_24h: 6 });
+  given(morphine, '2.5 mg', 1500, grace, entry('GIVEN', 0.25, 1500, grace, { person_id: person, medication_id: morphine }));
+  given(morphine, '2.5 mg', 330, nicki, entry('GIVEN', 0.25, 330, nicki, { person_id: person, medication_id: morphine }));
+  const para = order('PARACETAMOL', '1 g', 'Oral', 'As needed', 'Pain', { prn: 1, prn_indication: 'Mild pain or temperature', prn_min_hours: 4, prn_max_24h: 4 });
+  given(para, '1 g', 600, grace);
+  given(para, '1 g', 90, grace);
 }

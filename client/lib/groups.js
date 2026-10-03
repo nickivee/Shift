@@ -6,7 +6,7 @@ const CARDS = [
   ['Care', ['wounds', 'careplans', 'meals', 'restrictions', 'preferences', 'communications', 'whanau', 'interpreters', 'equipment', 'instruments', 'problems', 'symptoms', 'interventions', 'treatmentplans', 'pathways', 'recommendations', 'requirements', 'infections', 'antimicrobials', 'sitechecks', 'readiness', 'variances', 'declined', 'capacity', 'reports', 'external']],
   ['Coming and going', ['transfers', 'flow', 'moves', 'discharges', 'absences', 'consults', 'referrals', 'appointments', 'followups', 'recalls', 'surveillance', 'screening']],
   ['Roster', ['vacancies', 'swaps', 'leave']],
-  ['Safety and records', ['incidents', 'deaths', 'duplicates', 'breakglass', 'downtime', 'coding', 'codingqueries']],
+  ['Safety and records', ['incidents', 'deaths', 'duplicates', 'breakglass', 'downtime', 'cdbook', 'coding', 'codingqueries']],
 ];
 const VIEWS = [
   ['Now', ['overview', 'handover', 'tasks', 'alerts', 'escalations', 'changes', 'deterioration', 'acuity', 'usual', 'notes', 'progress', 'routes', 'team']],

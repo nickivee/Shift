@@ -35,6 +35,7 @@ import { withdrawalPanel } from './withdrawal.js';
 import { dangerPanel } from './danger.js';
 import { observationPanel } from './observation.js';
 import { oxygenPanel } from './oxygen.js';
+import { medicinesPanel } from './medicines.js';
 import { traumaPanel } from './trauma.js';
 import { feedingPanel } from './feeding.js';
 import { resultsPanel } from './diagnostics.js';
@@ -138,6 +139,8 @@ export async function workstationView(personId, initialView) {
       h('button', { class: `dest${ws.view === null ? ' active' : ''}`, onclick: () => { ws.view = null; ws.data = null; ws.embeds = []; ws.form = null; ws.selected = null; draw(); input.focus(); } }, h('span', {}, 'Live Workstation')),
       config.views.some((v) => !v.shown) ? h('button', { class: 'dest dest-add', onclick: screensDialog }, h('span', {}, '+ Add a screen')) : null,
     );
+    // On a phone the tabs run along the top: keep the open one in view.
+    if (window.matchMedia('(max-width: 760px)').matches) destCol.querySelector('.dest.active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   // Add a screen this workstation is authorised for but the department does not show by default,
   // or take an added one away again. This only changes the side list, never authority.
@@ -430,12 +433,7 @@ export async function workstationView(personId, initialView) {
         return h('div', { class: 'stack' }, traumaPanel(personId, d.trauma, () => go(`/work/patient/${personId}/${d.view.code}`)), feedingPanel(personId, d.feeding, () => go(`/work/patient/${personId}/${d.view.code}`)), poisoningPanel(personId, d.poisoning, () => go(`/work/patient/${personId}/${d.view.code}`)), dangerPanel(personId, d.danger, () => go(`/work/patient/${personId}/${d.view.code}`)), observationPanel(personId, d.observation, () => go(`/work/patient/${personId}/${d.view.code}`)), oxygenPanel(personId, d.oxygen, () => go(`/work/patient/${personId}/${d.view.code}`)), withdrawalPanel(personId, d.withdrawal, () => go(`/work/patient/${personId}/${d.view.code}`)), decisionsPanel(personId, d.decisions, () => openView(d.view.code)), proceduresPanel(personId, d.procedures, () => go(`/work/patient/${personId}/${d.view.code}`)), rehabPanel(personId, d.rehab, () => openView(d.view.code)), conferencesPanel(personId, d.conferences, () => openView(d.view.code)), d.conferences || d.rehab || d.procedures || d.decisions || d.poisoning || d.withdrawal || d.danger || d.observation || d.oxygen || d.trauma || d.feeding ? h('h3', {}, d.procedures ? 'Other procedure notes' : d.view.label) : null, addButton(),
           d.events.length ? d.events.map(entryItem) : h('div', { class: 'empty' }, d.procedures ? 'No other procedure notes.' : `Nothing recorded in ${d.view.label} yet.`));
       case 'overview': return h('div', { class: 'stack' }, overview(d), decisionsPanel(personId, d.decisions, () => openView('overview')));
-      case 'meds': return h('div', { class: 'stack' },
-        restriction(d.prescribing, 'Prescribing'), restriction(d.administration, 'Administration recording'),
-        d.medicines.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'data' },
-          h('thead', {}, h('tr', {}, ['Medicine', 'Dose', 'Route', 'Frequency', 'Indication', 'State', 'Prescriber'].map((c) => h('th', {}, c)))),
-          h('tbody', {}, d.medicines.map((m) => h('tr', {}, h('td', {}, h('b', {}, m.medicine)), h('td', {}, m.dose), h('td', {}, m.route), h('td', {}, m.frequency), h('td', {}, m.indication), h('td', {}, stateTag(m.state)), h('td', {}, m.prescriber)))),
-        )) : h('div', { class: 'empty' }, 'No medicines recorded.'));
+      case 'meds': return medicinesPanel(personId, d, () => go(`/work/patient/${personId}/meds`));
       // A critical result changes the record banner, so the whole record redraws.
       case 'results': return resultsPanel(personId, d, () => go(`/work/patient/${personId}/results`));
       case 'allergies': return allergiesPanel(personId, d, () => go(`/work/patient/${personId}/allergies`));
