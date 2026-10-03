@@ -536,4 +536,53 @@ export const ROLES: RoleConfig[] = [
   },
 ];
 
+// Palliative care / hospice (matrix, "Older people, palliative & disability support"). The matrix names the
+// service and its tabs but not its positions, so a nurse and a doctor are set up from the shared roles and
+// the position names are provisional. Each sees the matrix tabs that SHIFT already has; Visits and
+// After-hours have no screen yet, and Bereavement sits inside End of life.
+const roleOf = (key: string) => ROLES.find((r) => r.roleKey === key)!;
+const withViews = (r: RoleConfig, extra: string[]) => [...new Set([...r.views, ...extra])];
+const withCards = (r: RoleConfig, extra: HomeCard[]) => [...r.homeCards, ...extra.filter((c) => !r.homeCards.some((x) => x.id === c.id))];
+const HOSPICE_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Visits and After-hours tabs are not built yet';
+ROLES.push(
+  {
+    ...roleOf('arc-rn'),
+    roleKey: 'hospice-rn',
+    label: 'Registered Nurse',
+    matrixRow: 'Palliative care / hospice',
+    evidenceStatus: HOSPICE_EVIDENCE,
+    keys: [...new Set([...roleOf('arc-rn').keys, '.goals', '.symptom'])],
+    views: withViews(roleOf('arc-rn'), ['symptoms', 'goals', 'death', 'support', 'equipment']),
+    ownViews: [...new Set([...(roleOf('arc-rn').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'equipment'])],
+    tabs: [
+      { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'symptoms', label: 'Symptoms' }, { id: 'meds', label: 'Medicines' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'equipment', label: 'Equipment' }, { id: 'support', label: 'Whānau' },
+      { id: 'death', label: 'End-of-life' },
+    ],
+    homeCards: withCards(roleOf('arc-rn'), [CARD.symptoms, CARD.deaths]),
+    homeFour: ['workstation', 'tasks', 'symptoms', 'handover'],
+    ownCards: [...new Set([...(roleOf('arc-rn').ownCards ?? []), 'symptoms', 'deaths'])],
+    escalatesTo: ['hospice-physician'],
+  },
+  {
+    ...roleOf('genmed-physician'),
+    roleKey: 'hospice-physician',
+    label: 'Physician',
+    matrixRow: 'Palliative care / hospice',
+    evidenceStatus: HOSPICE_EVIDENCE,
+    keys: [...new Set([...roleOf('genmed-physician').keys, '.goals', '.symptom'])],
+    views: withViews(roleOf('genmed-physician'), ['symptoms', 'goals', 'death', 'support', 'equipment']),
+    ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), 'symptoms', 'goals', 'death', 'support'])],
+    tabs: [
+      { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'symptoms', label: 'Symptoms' }, { id: 'meds', label: 'Medicines' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'support', label: 'Whānau' }, { id: 'death', label: 'End-of-life' },
+    ],
+    homeCards: withCards(roleOf('genmed-physician'), [CARD.symptoms, CARD.deaths]),
+    homeFour: ['workstation', 'tasks', 'symptoms', 'deaths'],
+    ownCards: [...new Set([...(roleOf('genmed-physician').ownCards ?? []), 'symptoms', 'deaths'])],
+    consultsTo: undefined,
+    refersTo: undefined,
+  },
+);
+
 export const ROLE_BY_KEY = new Map(ROLES.map((r) => [r.roleKey, r]));

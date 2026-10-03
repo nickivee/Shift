@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 95;
+const SET = 96;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -423,6 +423,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 93) set93(store);
     if (at < 94) set94(store);
     if (at < 95) set95(store, password);
+    if (at < 96) set96(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5465,4 +5466,110 @@ function set95(store: Store, password: string): void {
       store.insert('roster_shift', { id: newId(), workforce_person_id: id, position_id: pos, service_id: 'svc-rules', shift_date: date, start_time: '08:00', end_time: '16:30', state: 'PLANNED', data_source: 'SYNTHETIC' });
     }
   }
+}
+
+// Set 96: a hospice (matrix: Palliative care / hospice). Te Rangi Hospice has an inpatient unit and a home
+// caseload. Moana Edwards (RN) and Dr Sione Tuilagi (physician) work there. Hiria Kingi is on a
+// palliative plan with morphine charted and entered in the unit's controlled drug book, Raymond
+// Faasavalu is cared for at home with his plan due for review, and Joan McKenzie is in her last days.
+function set96(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'moana'")) return;
+  const S = 'SYNTHETIC';
+  const today = todayLocal();
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const ahead = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  store.insert('organisation', { id: 'org-hospice', name: 'Te Rangi Hospice', kind: 'HOSPICE', data_source: S });
+  store.insert('facility', { id: 'fac-hospice', organisation_id: 'org-hospice', name: 'Te Rangi Hospice House' });
+  store.insert('service', { id: 'svc-hospice', organisation_id: 'org-hospice', facility_id: 'fac-hospice', name: 'Palliative Care Service', sector: 'Older people, palliative & disability support', subject_label: 'Patient' });
+  const dest = (alias: string, label: string, role: string | null, acceptance = 0) =>
+    store.insert('destination', { id: newId(), organisation_id: 'org-hospice', alias, label, kind: role ? 'ROLE_IN_SERVICE' : 'SERVICE', service_id: 'svc-hospice', role_key: role, requires_acceptance: acceptance });
+  dest('rn', 'RN, Palliative Care Service', 'hospice-rn');
+  dest('dr', 'Physician, Palliative Care Service', 'hospice-physician', 1);
+  dest('team', 'Palliative Care Service team', null);
+
+  const pw = hashPassword(password);
+  const staff = (user: string, given: string, family: string, display: string, profession: string, regulator: string, reg: string, scope: string, title: string, role: string, start: string, end: string) => {
+    const wid = newWorker(store, pw, user, given, family, display);
+    store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession, regulator, registration_number: reg, scope, valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: 'org-hospice', employment_type: 'PERMANENT', start_date: '2023-05-01' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-hospice', title, role_key: role, start_date: '2023-05-01' });
+    for (let d = -7; d < 28; d++) {
+      const date = addDays(today, d);
+      if ([0, 6].includes(new Date(`${date}T00:00:00`).getDay())) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: wid, position_id: pos, service_id: 'svc-hospice', shift_date: date, start_time: start, end_time: end, state: 'PLANNED', data_source: S });
+    }
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Annual leave', hours: 72, as_at: today, data_source: S });
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Sick leave', hours: 44, as_at: today, data_source: S });
+    return wid;
+  };
+  const moana = staff('moana', 'Moana', 'Edwards', 'Moana Edwards', 'Registered Nurse', 'Nursing Council of New Zealand', 'SYN-RN-44120', 'Registered nurse', 'Registered Nurse', 'hospice-rn', '07:00', '15:30');
+  const sione = staff('sione', 'Sione', 'Tuilagi', 'Dr Sione Tuilagi', 'Medical Practitioner', 'Medical Council of New Zealand', 'SYN-MC-71203', 'Vocational: palliative medicine', 'Physician', 'hospice-physician', '08:00', '17:00');
+
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (given: string, family: string, dob: string, gender: string, nhi: string, kind: string, location: string, allergy: [string, string | null, string | null] | null) => {
+    const person = newId();
+    store.insert('person', { id: person, family_name: family, given_name: given, date_of_birth: dob, gender, ethnicity: 'Maori', iwi: null, data_source: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: nhi, verification: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: S, created_at: at(9000) });
+    store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-hospice', location, kind, started_at: at(9000), state: 'ACTIVE' });
+    const [akind, substance, reaction] = allergy ?? ['NO_KNOWN_ALLERGIES', null, null];
+    store.insert('allergy', { id: newId(), person_id: person, kind: akind, substance, reaction, severity: substance ? 'MODERATE' : null, certainty: substance ? 'CONFIRMED' : null, state: 'ACTIVE', source: 'Patient report at referral', recorded_by: moana, recorded_at: at(8900), data_source: S });
+    return person;
+  };
+  const plan = (person: string, state: string, basis: string, agreed: string, discussed: string, care: string, death: string, wishes: string, call: string, reviewMins: number, extra: Record<string, unknown> = {}) => {
+    const id = newId();
+    store.insert('eol_plan', { id, person_id: person, service_id: 'svc-hospice', state: 'PALLIATIVE', basis, agreed_with: agreed, discussed, place_care: care, place_death: death, wishes, call, anticipatory: null,
+      review_due: ahead(reviewMins), recorded_by: moana, recorded_at: at(8000) });
+    store.insert('state_transition', { id: newId(), object_type: 'eol_plan', object_id: id, from_state: null, to_state: 'PALLIATIVE', actor_id: moana, work_context_id: null, at: at(8000), reason: basis, transaction_id: null });
+    store.insert('eol_log', { id: newId(), plan_id: id, kind: 'STARTED', body: `Palliative care. ${basis} Agreed with ${agreed}.`, by_id: moana, at: at(8000) });
+    if (state === 'LAST_DAYS') {
+      const note = 'Sleeping most of the day, not taking fluids, breathing has changed. Whānau told at the bedside.';
+      store.run('UPDATE eol_plan SET state = ?, last_days_by = ?, last_days_at = ?, last_days_note = ? WHERE id = ?', 'LAST_DAYS', sione, at(300), note, id);
+      store.insert('state_transition', { id: newId(), object_type: 'eol_plan', object_id: id, from_state: 'PALLIATIVE', to_state: 'LAST_DAYS', actor_id: sione, work_context_id: null, at: at(300), reason: note, transaction_id: null });
+      store.insert('eol_log', { id: newId(), plan_id: id, kind: 'LAST_DAYS', body: note, by_id: sione, at: at(300) });
+    }
+    return id;
+  };
+
+  const hiria = patient('Hiria', 'Kingi', '1944-05-12', 'Female', 'ZZZ0309', 'INPATIENT', 'Room 2', ['ALLERGY', 'Codeine', 'Nausea']);
+  plan(hiria, 'PALLIATIVE', 'Advanced pancreatic cancer; pain and nausea, no longer having treatment.', 'Dr Sione Tuilagi with Hiria and her daughter Mere',
+    'Talked with Hiria in Room 2 with her daughter. She wants to stay at the hospice and have her mokopuna visit every day.', 'HOSPICE', 'HOSPICE',
+    'Karakia each morning. Window open to the garden. Her daughter Mere stays overnight.', 'Her daughter Mere, any time of day or night', 60 * 30);
+  const raymond = patient('Raymond', 'Faasavalu', '1951-11-03', 'Male', 'ZZZ0310', 'COMMUNITY', 'At home, Papakura', null);
+  plan(raymond, 'PALLIATIVE', 'Motor neurone disease; breathing and swallowing getting harder.', 'Dr Sione Tuilagi at his home visit, with Raymond and his wife Sina',
+    'Raymond said he wants to stay at home with Sina and the church family; he does not want to go back to hospital.', 'HOME', 'HOME',
+    'Hymns in the evening. Keep the front room as his bed space so he sees the street.', 'Sina, then the hospice after-hours line', 60 * 3);
+  const joan = patient('Joan', 'McKenzie', '1938-02-27', 'Female', 'ZZZ0311', 'INPATIENT', 'Room 4', null);
+  plan(joan, 'LAST_DAYS', 'Heart failure with no further treatment options; weaker over the last month.', 'Dr Sione Tuilagi with Joan and her son Ian',
+    'Joan said she is tired and ready; she wants Ian and her sister near and no more hospital visits.', 'HOSPICE', 'HOSPICE',
+    'Her sister reads to her. Keep the lamp on at night.', 'Her son Ian, any time of day or night', 60 * 6);
+
+  // The unit's controlled drug book and Hiria's orders.
+  const page = newId();
+  store.insert('cd_book_page', { id: page, service_id: 'svc-hospice', drug: 'MORPHINE oral solution 10 mg/5 mL', unit: 'mL', created_by: moana, created_at: at(15000) });
+  let bal = 0;
+  const entry = (kind: string, qty: number | null, mins: number, by: string, extra: Record<string, unknown> = {}) => {
+    if (kind === 'RECEIPT') bal += qty!; else if (kind === 'GIVEN') bal = Math.round((bal - qty!) * 1e6) / 1e6;
+    const id = newId();
+    store.insert('cd_book_entry', { id, page_id: page, kind, qty, balance: bal, variance: 0, by_id: by, at: at(mins), ...extra });
+    return id;
+  };
+  entry('RECEIPT', 100, 14000, moana, { issued_by: 'Pharmacy, J Singh' });
+  const order = (person: string, medicine: string, dose: string, route: string, frequency: string, indication: string, extra: Record<string, unknown>) => {
+    const id = newId();
+    store.insert('medication', { id, person_id: person, medicine, dose, route, frequency, indication, state: 'ACTIVE', prescriber: 'Dr Sione Tuilagi', started_at: at(7000), source: 'Prescribed in SHIFT', data_source: S,
+      service_id: 'svc-hospice', prescribed_by_id: sione, ...extra });
+    store.insert('state_transition', { id: newId(), object_type: 'medication', object_id: id, from_state: null, to_state: 'ACTIVE', actor_id: sione, work_context_id: null, at: at(7000), reason: `${medicine} ${dose}`, transaction_id: null });
+    store.insert('medication_step', { id: newId(), medication_id: id, kind: 'PRESCRIBED', body: `Prescribed: ${medicine} ${dose}, ${route}, ${frequency.toLowerCase()}, for ${indication}.`, by_id: sione, at: at(7000) });
+    return id;
+  };
+  const given = (person: string, medId: string, dose: string, mins: number, by: string, book: string | null = null) =>
+    store.insert('medication_dose', { id: newId(), medication_id: medId, person_id: person, service_id: 'svc-hospice', kind: 'GIVEN', dose, given_at: at(mins), by_id: by, book_entry_id: book, recorded_at: at(mins) });
+  const morphine = order(hiria, 'MORPHINE', '2.5 mg', 'Oral', 'As needed', 'Pain', { controlled: 1, prn: 1, prn_indication: 'Pain not eased by paracetamol', prn_min_hours: 4, prn_max_24h: 6 });
+  given(hiria, morphine, '2.5 mg', 900, moana, entry('GIVEN', 1.25, 900, moana, { person_id: hiria, medication_id: morphine }));
+  given(hiria, morphine, '2.5 mg', 300, moana, entry('GIVEN', 1.25, 300, moana, { person_id: hiria, medication_id: morphine }));
+  const para = order(hiria, 'PARACETAMOL', '1 g', 'Oral', 'As needed', 'Mild pain', { prn: 1, prn_indication: 'Mild pain', prn_min_hours: 4, prn_max_24h: 4 });
+  given(hiria, para, '1 g', 420, moana);
 }
