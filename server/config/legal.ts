@@ -417,6 +417,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-OBSERVATION-001',
+    question: 'What New Zealand requires for a short stay in an emergency department for observation: who may place someone in observation, how long it may last, how often they must be reviewed, what must be recorded at each review and when the stay must end in admission or discharge.',
+    blocks: 'The longest stay, the review interval and who may end it. SHIFT records why the person is staying, what to watch for, when the next review is due and how the stay ended, shows an overdue review on the record, and decides nothing itself.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',
