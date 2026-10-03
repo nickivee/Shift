@@ -5067,4 +5067,30 @@ INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status,
  ('rs-nz-retention-years', 'NZ', 'retention.minimum_years', '10', 1, 'ACTIVE', '2026-10-03', 'REGULATION/CODE', 'RR-RETENTION-001', 'https://www.privacy.org.nz/privacy-principles/codes-of-practice/hipc2020/hipc-factsheet-5-storage-security-retention-and-disposal-of-health-information/', 'Health (Retention of Health Information) Regulations 1996, as set out in the Privacy Commissioner fact sheet 5 (read 3 October 2026): health information held by providers is kept for 10 years from the last encounter with the patient, unless transferred to another clinician or the patient.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
 `,
   },
+{
+    version: 104,
+    name: 'eligibility',
+    sql: `
+-- Each check of whether a person is eligible for publicly funded services: the outcome, what it is based on and what was seen,
+-- in the checker's words. SHIFT sets no categories or evidence rules (RR-ELIGIBILITY-001).
+CREATE TABLE eligibility_check (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- CHECKED | ENTERED_IN_ERROR
+  outcome TEXT NOT NULL,                -- ELIGIBLE | NOT_ELIGIBLE | UNCONFIRMED
+  basis TEXT NOT NULL,
+  evidence TEXT,
+  checked_on TEXT NOT NULL,
+  note TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  closed_note TEXT
+);
+CREATE INDEX eligibility_person ON eligibility_check(person_id, checked_on);
+CREATE INDEX eligibility_service ON eligibility_check(service_id, state, checked_on);
+`,
+  },
 ];

@@ -276,7 +276,7 @@ export const KEY_BY_CODE = new Map(KEYS.map((k) => [k.code, k]));
 export interface RetrieveView {
   code: string;
   label: string;
-  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups' | 'visits' | 'pregnancy' | 'afterhours' | 'education' | 'immunisation' | 'chronic' | 'surveillance' | 'screening' | 'infections' | 'antimicrobials' | 'sitechecks' | 'readiness' | 'variances' | 'declined' | 'priorities' | 'identity';
+  kind: 'events' | 'overview' | 'meds' | 'results' | 'allergies' | 'careplan' | 'tasks' | 'handover' | 'routes' | 'history' | 'transfers' | 'discharge' | 'escalations' | 'consults' | 'wounds' | 'referrals' | 'appointments' | 'alerts' | 'communications' | 'monitoring' | 'restrictions' | 'diet' | 'equipment' | 'location' | 'leave' | 'preferences' | 'capacity' | 'support' | 'access' | 'external' | 'coding' | 'reported' | 'instruments' | 'function' | 'usual' | 'team' | 'acuity' | 'deterioration' | 'incidents' | 'death' | 'problems' | 'symptoms' | 'interventions' | 'treatmentplans' | 'pathways' | 'checklists' | 'recommendations' | 'requirements' | 'caredue' | 'recalls' | 'followups' | 'visits' | 'pregnancy' | 'afterhours' | 'education' | 'immunisation' | 'eligibility' | 'chronic' | 'surveillance' | 'screening' | 'infections' | 'antimicrobials' | 'sitechecks' | 'readiness' | 'variances' | 'declined' | 'priorities' | 'identity';
   categories?: string[];
   key?: string;   // the .key a worker would use to add to this view
 }
@@ -309,6 +309,7 @@ export const VIEWS: RetrieveView[] = [
   { code: 'afterhours', label: 'After-hours', kind: 'afterhours' },
   { code: 'education', label: 'Education', kind: 'education' },
   { code: 'immunisation', label: 'Immunisation', kind: 'immunisation' },
+  { code: 'eligibility', label: 'Eligibility', kind: 'eligibility' },
   { code: 'chronic', label: 'Chronic Care', kind: 'chronic' },
   { code: 'surveillance', label: 'Surveillance', kind: 'surveillance' },
   { code: 'screening', label: 'Screening', kind: 'screening' },
