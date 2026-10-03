@@ -11,7 +11,8 @@ import { formDialog as dialog } from '../lib/forms.js';
 const STATE_WORDS = { DRAFT: 'Drafted', SUBMITTED: 'Submitted for review', CONFIRMED: 'Confirmed', ACTIVE: 'Started', ENDED: 'Ended', CANCELLED: 'Cancelled' };
 const TONE = { DRAFT: 'muted', SUBMITTED: 'warn', CONFIRMED: 'ok', ACTIVE: 'ok', ENDED: 'muted', CANCELLED: 'muted' };
 
-const firstName = (name) => String(name).split(' ')[0];
+// The whole name: staff can share a first name.
+const firstName = (name) => String(name);
 
 function addStaffDialog(d, reload) {
   const who = h('select', {}, h('option', { value: '' }, 'Choose…'),

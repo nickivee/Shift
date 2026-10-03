@@ -35,7 +35,7 @@ function candidateRow(c, onChoose) {
     : h('span', { class: 'tag muted' }, 'No availability recorded');
   return h('div', { class: 'candidate' },
     h('div', { class: 'row' }, h('b', {}, c.name), avail, c.rosteredThatDay ? h('span', { class: 'tag danger' }, 'Already rostered that day') : null),
-    h('button', { class: 'btn primary small', disabled: c.rosteredThatDay, onclick: onChoose }, `Give to ${c.name.split(' ')[0]}`),
+    h('button', { class: 'btn primary small', disabled: c.rosteredThatDay, onclick: onChoose }, `Give to ${c.name}`),
   );
 }
 
