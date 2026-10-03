@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 101;
+const SET = 102;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -426,6 +426,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 99) set99(store, password);
     if (at < 100) set100(store);
     if (at < 101) set101(store);
+    if (at < 102) set102(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5903,4 +5904,26 @@ function set101(store: Store): void {
   contact('ZZZ0310', 420, 'PERSON', 'Pain in the back not eased by the usual tablets.', 'Checked what had been taken. On-call nurse arranged a visit for the morning; the as-needed dose was given at home meanwhile.', 'VISIT', 'Morning visit arranged for 08:00.', nurse);
   contact('ZZZ0311', 3300, 'SERVICE', 'Night staff at the hospice unit asked about vomiting that had not stopped.', 'Doctor on call advised a change to the anti-sickness medicine and a review in the morning.', 'ADVICE', null, doctor,
     { mins: 3000, by: nurse, note: 'Reviewed with the unit: vomiting settled on the new medicine; no further change.' });
+}
+
+// Education recorded at the sample practice: one needs more teaching, one is done.
+function set102(store: Store): void {
+  if (store.get('SELECT 1 FROM education_session LIMIT 1')) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const worker = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const nurse = worker('jane.doe');
+  const gp = worker('john.doe');
+  const person = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id;
+  if (!nurse || !gp) return;
+  const session = (nhi: string, mins: number, topic: string, givenTo: string, understanding: string, note: string | null, by: string) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    const id = newId();
+    const state = understanding === 'PARTLY' || understanding === 'NEEDS_MORE' ? 'FOLLOW_UP' : 'DONE';
+    store.insert('education_session', { id, person_id: pid, service_id: 'svc-gp', state, given_at: at(mins), topic, given_to: givenTo, understanding, note, recorded_by: by, recorded_at: at(mins - 5) });
+    store.insert('state_transition', { id: newId(), object_type: 'education', object_id: id, from_state: null, to_state: state, actor_id: by, work_context_id: null, at: at(mins - 5), reason: topic.slice(0, 200), transaction_id: null });
+  };
+  session('ZZZ0315', 300, 'Using the inhaler and spacer', 'PERSON', 'PARTLY', 'Could do the puff but missed the breathing out first; will practise again at the next visit.', nurse);
+  session('ZZZ0316', 1500, 'Looking after the feet with diabetes', 'BOTH', 'UNDERSTOOD', null, gp);
+  session('ZZZ0317', 4000, 'What the new blood pressure tablet is for', 'PERSON', 'UNDERSTOOD', 'Repeated back the dose and when to take it.', nurse);
 }

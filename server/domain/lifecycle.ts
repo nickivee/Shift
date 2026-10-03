@@ -596,6 +596,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'PLANNED',
     next: { PLANNED: ['DONE', 'NOT_DONE', 'CANCELLED'] },
   },
+  education: {
+    table: 'education_session',
+    initial: 'DONE',
+    next: { DONE: ['ENTERED_IN_ERROR'], FOLLOW_UP: ['DONE', 'ENTERED_IN_ERROR'] },
+  },
   afterhours: {
     table: 'afterhours_contact',
     initial: 'OPEN',

@@ -396,6 +396,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-EDUCATION-001',
+    question: 'What New Zealand requires of patient education in general practice and other services: what must be explained and recorded (for example informed consent information under the Code of Health and Disability Services Consumers\' Rights, Right 6 and Right 7), health literacy and interpreter expectations, and any content or schedule a funder or the Royal New Zealand College of General Practitioners sets.',
+    blocks: 'Education content, schedules, teaching materials and what counts as understood are not set by SHIFT. It records what the clinician explained, to whom, how well it was understood in their judgement, and whether more is needed.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-AFTERHOURS-001',
     question: 'What New Zealand requires of after-hours palliative care access: response times, who must answer and with what training, how an after-hours contact is triaged and recorded, and how it is handed to the day team (Health NZ palliative care service specifications and the Hospice New Zealand and Palliative Care Council standards).',
     blocks: 'Response times, triage rules, advice content, on-call rosters and handover deadlines are not set by SHIFT. It records each contact as the clinician enters it (who made contact, the concern, the advice given and what came of it) and the day team\'s review.',

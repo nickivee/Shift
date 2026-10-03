@@ -4966,4 +4966,30 @@ CREATE INDEX afterhours_person ON afterhours_contact(person_id, contact_at);
 CREATE INDEX afterhours_service ON afterhours_contact(service_id, state, contact_at);
 `,
   },
+  {
+    version: 100,
+    name: 'education',
+    sql: `
+-- Education given to a person or their whanau: the topic, who it was given to, how well it was understood, and
+-- whether more is needed. SHIFT sets no education content or schedule (RR-EDUCATION-001).
+CREATE TABLE education_session (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- DONE | FOLLOW_UP | ENTERED_IN_ERROR
+  given_at TEXT NOT NULL,
+  topic TEXT NOT NULL,                  -- in the clinician's words
+  given_to TEXT NOT NULL,               -- who it was given to
+  understanding TEXT NOT NULL,          -- how well it was understood
+  note TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  closed_note TEXT
+);
+CREATE INDEX education_person ON education_session(person_id, given_at);
+CREATE INDEX education_service ON education_session(service_id, state, given_at);
+`,
+  },
 ];
