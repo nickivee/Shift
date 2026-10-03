@@ -279,7 +279,7 @@ export function queries(store: Store, ctx: WorkContext) {
     `${QUERY.replace('FROM coding_query q', `, c.person_id AS personId, p.given_name || ' ' || p.family_name AS patient, e.started_at AS startedAt, e.ended_at AS endedAt, e.location
       FROM coding_query q JOIN coding_case c ON c.id = q.case_id JOIN person p ON p.id = c.person_id JOIN encounter e ON e.id = c.encounter_id`)}
       WHERE q.service_id = ? AND ${where}`, ctx.serviceId, ...args);
-  const withCodes = (q: Row) => ({ ...q, codes: store.all<Row>("SELECT code, term, role FROM coding_entry WHERE case_id = ? AND state = 'ACTIVE' ORDER BY role = 'PRINCIPAL' DESC", String(q.caseId)).map(shapeEntry) });
+  const withCodes = (q: Row) => ({ ...q, codes: store.all<Row>("SELECT system, code, term, role FROM coding_entry WHERE case_id = ? AND state = 'ACTIVE' ORDER BY role = 'PRINCIPAL' DESC", String(q.caseId)).map(shapeEntry) });
   return {
     open: rows("q.state = 'OPEN' ORDER BY q.asked_at").map(withCodes),
     answered: rows("q.state = 'ANSWERED' AND q.answered_at >= ? ORDER BY q.answered_at DESC", new Date(Date.now() - 7 * 24 * 3600_000).toISOString()).map(withCodes),
