@@ -15,23 +15,20 @@ import { OUTCOMES as DETERIORATION_OUTCOMES } from '../domain/deterioration.ts';
 import { newId, now, todayLocal, addDays, sha256 } from '../lib/util.ts';
 
 export const SYNTHETIC_USERS = [
-  { username: 'nicki', label: 'Nicki V, Registered Nurse (Residential Care and General Medicine)' },
-  { username: 'tama', label: 'Tama Walker, Caregiver (Residential Care)' },
-  { username: 'hannah', label: 'Dr Hannah Li, Consultant Physician (General Medicine)' },
-  { username: 'sam', label: 'Dr Sam Patel, Medical Registrar (General Medicine)' },
-  { username: 'alex', label: 'Alex Morgan, Registered Nurse whose practising certificate has expired' },
-  { username: 'kate', label: 'Kate Rowe, Registered Nurse (Residential Care)' },
-  { username: 'jo', label: 'Jo Tipene, Rostering (Residential Care)' },
-  { username: 'mere', label: 'Mere Parata, Registered Nurse (Emergency Department)' },
-  { username: 'ravi', label: 'Dr Ravi Singh, Emergency Physician (Emergency Department)' },
-  { username: 'lena', label: 'Lena Fox, Physiotherapist (General Medicine caseload)' },
-  { username: 'pita', label: 'Pita Hohaia, Patient Flow Coordinator (Te Awa Hospital)' },
-  { username: 'grace', label: 'Grace Tupou, Registered Nurse (General Medicine)' },
-  { username: 'lee', label: 'Lee Wong, Clinical Coder (Te Awa Hospital)' },
-  { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
+  { username: 'jane.doe', label: 'Jane Doe, Registered Nurse' },
+  { username: 'john.doe', label: 'Dr John Doe, Doctor' },
+  { username: 'jill.doe', label: 'Jill Doe, Midwife' },
+  { username: 'joan.doe', label: 'Joan Doe, Physiotherapist' },
+  { username: 'june.doe', label: 'June Doe, Caregiver' },
+  { username: 'jack.doe', label: 'Jack Doe, Rostering' },
+  { username: 'jess.doe', label: 'Jess Doe, Patient Flow Coordinator' },
+  { username: 'jody.doe', label: 'Jody Doe, Clinical Coder' },
+  { username: 'jamie.doe', label: 'Jamie Doe, Privacy Officer' },
+  { username: 'jules.doe', label: 'Jules Doe, Rules and Standards Officer' },
+  { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 99;
+const SET = 100;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -427,6 +424,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 97) set97(store, password);
     if (at < 98) set98(store, password);
     if (at < 99) set99(store, password);
+    if (at < 100) set100(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5770,4 +5768,112 @@ function set99(store: Store, password: string): void {
   preg(sela, 'LABOUR', -2, 'Last period and early scan agree', 3, 2, null, { labour: 240 });
   const tia = patient('Tia', 'Harawira', '1998-01-19', 'ZZZ0320', 'Postnatal room 2', 'INPATIENT');
   preg(tia, 'POSTNATAL', -4, 'Dating scan at 11 weeks', 1, 0, null, { labour: 3300, birth: 3000, postnatal: 2900 });
+}
+
+// Set 100: obviously fictional people. Every staff identity is a Doe/Roe-style name and every patient has an
+// artificial name (an element name with the family name "Testpatient"), so nothing here can be mistaken for a real
+// person. One identity per role (Jane Doe, John Doe and so on) can sign in to that role in every department; the
+// "Roe" identities are second people, kept only where a rule needs two different people (witness, joint check,
+// proposing and approving). Runs on top of every earlier set, so it renames data already on a device as well.
+const STAFF_RENAME: [string, string, string, string, string, string][] = [["nicki", "Nicki V", "jane.doe", "Jane", "Doe", "Jane Doe"], ["hannah", "Dr Hannah Li", "john.doe", "John", "Doe", "Dr John Doe"], ["hinemoa", "Hinemoa Walsh", "jill.doe", "Jill", "Doe", "Jill Doe"], ["lena", "Lena Fox", "joan.doe", "Joan", "Doe", "Joan Doe"], ["tama", "Tama Walker", "june.doe", "June", "Doe", "June Doe"], ["jo", "Jo Tipene", "jack.doe", "Jack", "Doe", "Jack Doe"], ["pita", "Pita Hohaia", "jess.doe", "Jess", "Doe", "Jess Doe"], ["lee", "Lee Wong", "jody.doe", "Jody", "Doe", "Jody Doe"], ["hana", "Hana Reid", "jamie.doe", "Jamie", "Doe", "Jamie Doe"], ["ngaire", "Ngaire Ward", "jules.doe", "Jules", "Doe", "Jules Doe"], ["alex", "Alex Morgan", "jean.doe", "Jean", "Doe", "Jean Doe"], ["kate", "Kate Rowe", "jane.roe1", "Jane", "Roe 1", "Jane Roe 1"], ["mere", "Mere Parata", "jane.roe2", "Jane", "Roe 2", "Jane Roe 2"], ["grace", "Grace Tupou", "jane.roe3", "Jane", "Roe 3", "Jane Roe 3"], ["moana", "Moana Edwards", "jane.roe4", "Jane", "Roe 4", "Jane Roe 4"], ["rua", "Rua Parata", "jane.roe5", "Jane", "Roe 5", "Jane Roe 5"], ["hemi", "Hemi Anderson", "jane.roe6", "Jane", "Roe 6", "Jane Roe 6"], ["pania", "Pania Rewi", "jane.roe7", "Jane", "Roe 7", "Jane Roe 7"], ["anika", "Anika Shah", "jane.roe8", "Jane", "Roe 8", "Jane Roe 8"], ["mele", "Mele Fifita", "jane.roe9", "Jane", "Roe 9", "Jane Roe 9"], ["ruth", "Ruth Bennett", "jane.roe10", "Jane", "Roe 10", "Jane Roe 10"], ["sam", "Dr Sam Patel", "john.roe1", "John", "Roe 1", "Dr John Roe 1"], ["ravi", "Dr Ravi Singh", "john.roe2", "John", "Roe 2", "Dr John Roe 2"], ["sione", "Dr Sione Tuilagi", "john.roe3", "John", "Roe 3", "Dr John Roe 3"], ["aroha", "Dr Aroha Ngata", "john.roe4", "John", "Roe 4", "Dr John Roe 4"], ["mata", "Dr Mata Solomona", "john.roe5", "John", "Roe 5", "Dr John Roe 5"], ["ben", "Ben Taufa", "june.roe1", "June", "Roe 1", "June Roe 1"], ["dan", "Dan Murphy", "june.roe2", "June", "Roe 2", "June Roe 2"], ["hine", "Hine Rāwiri", "june.roe3", "June", "Roe 3", "June Roe 3"], ["joseph", "Joseph Faleolo", "june.roe4", "June", "Roe 4", "June Roe 4"], ["kiri", "Kiri Paora", "june.roe5", "June", "Roe 5", "June Roe 5"], ["lisa", "Lisa Tan", "june.roe6", "June", "Roe 6", "June Roe 6"], ["mei", "Mei Chen", "june.roe7", "June", "Roe 7", "June Roe 7"], ["priya", "Priya Singh", "june.roe8", "June", "Roe 8", "June Roe 8"], ["rosa", "Rosa Mendes", "june.roe9", "June", "Roe 9", "June Roe 9"], ["tane", "Tane Hohepa", "jules.roe1", "Jules", "Roe 1", "Jules Roe 1"]];
+const PATIENT_RENAME: [string, string, string, string, number][] = [["Wiremu", "Te Whare", "Argon", "Testpatient", 1], ["Sione", "Tuilagi", "Boron", "Testpatient", 1], ["Margaret", "Oliver", "Cobalt", "Testpatient", 1], ["James", "Chen", "Neon", "Testpatient", 1], ["Rua", "Hēnare", "Xenon", "Testpatient", 1], ["Elsie", "Morgan", "Radon", "Testpatient", 1], ["Frank", "Dawson", "Helium", "Testpatient", 1], ["Losa", "Faleolo", "Lithium", "Testpatient", 1], ["William", "Grant", "Carbon", "Testpatient", 1], ["Kiri", "Moana", "Silicon", "Testpatient", 1], ["Daniel", "Brooks", "Sodium", "Testpatient", 1], ["Ana", "Lemalu", "Zinc", "Testpatient", 0], ["Tom", "Harris", "Copper", "Testpatient", 1], ["Hēmi", "Parata", "Iron", "Testpatient", 1], ["Ivy", "Clarke", "Nickel", "Testpatient", 1], ["Tipene", "Walker", "Tin", "Testpatient", 1], ["Jess", "Walker", "Lead", "Testpatient", 1], ["Rangi", "Tane", "Gold", "Testpatient", 1], ["Josh", "Taylor", "Silver", "Testpatient", 1], ["Tom", "Hughes", "Platinum", "Testpatient", 0], ["Betty", "Clarke", "Iodine", "Testpatient", 1], ["George", "Fraser", "Sulfur", "Testpatient", 1], ["Sefo", "Tuilagi", "Calcium", "Testpatient", 1], ["Mereana", "Hohepa", "Barium", "Testpatient", 1], ["Lucas", "Petrov", "Cerium", "Testpatient", 1], ["Ana", "Fifita", "Erbium", "Testpatient", 0], ["Wayne", "Cooper", "Gallium", "Testpatient", 1], ["Dave", "Hutana", "Indium", "Testpatient", 1], ["Mate", "Eruera", "Osmium", "Testpatient", 1], ["Troy", "Walsh", "Radium", "Testpatient", 1], ["Kane", "Wihongi", "Cesium", "Testpatient", 1], ["Ngaire", "Tamihana", "Titanium", "Testpatient", 0], ["Tipene", "Rawiri", "Vanadium", "Testpatient", 0], ["Hiria", "Kingi", "Chromium", "Testpatient", 1], ["Raymond", "Faasavalu", "Krypton", "Testpatient", 1], ["Joan", "McKenzie", "Fluorine", "Testpatient", 1], ["Eru", "Walker", "Oxygen", "Testpatient", 1], ["Mabel", "Tuala", "Nitrogen", "Testpatient", 1], ["Tevita", "Fifita", "Hydrogen", "Testpatient", 1], ["Wiremu", "Hohepa", "Bromine", "Testpatient", 0], ["Lani", "Tuilagi", "Arsenic", "Testpatient", 1], ["Ngaire", "Cooper", "Selenium", "Testpatient", 0], ["Anika", "Ruatapu", "Yttrium", "Testpatient", 1], ["Sela", "Fonoti", "Niobium", "Testpatient", 1], ["Tia", "Harawira", "Rhodium", "Testpatient", 1], ["Aroha", "Rangi", "Iridium", "Testpatient", 1]];
+// Roles the single identity for a profession also holds, one position per department.
+const EXTRA_POSITIONS: [string, string, string, string][] = [
+  ['jane.doe', 'svc-ed', 'ed-rn', 'Registered Nurse'], ['jane.doe', 'svc-hospice', 'hospice-rn', 'Registered Nurse'],
+  ['jane.doe', 'svc-community', 'community-rn', 'Registered Nurse'], ['jane.doe', 'svc-gp', 'practice-nurse', 'Practice Nurse'],
+  ['john.doe', 'svc-ed', 'ed-doctor', 'Emergency Physician'], ['john.doe', 'svc-hospice', 'hospice-physician', 'Physician'],
+  ['john.doe', 'svc-gp', 'gp', 'General Practitioner'], ['john.doe', 'svc-maternity', 'obstetrician', 'Obstetrician'],
+];
+const NO_SWEEP = /audit|workforce|^person$|identifier|rule_setting|professional|destination|^meta$|sqlite|session|work_context/;
+
+function set100(store: Store): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'jane.doe'")) return;
+  const today = todayLocal();
+  store.tx(() => {
+    const textMap: [RegExp, string][] = [];
+    const staffFirst: [string, string][] = [];
+    // Relatives, outside clinicians and other people named in notes become labelled placeholders.
+    const placeholders: [string, string][] = [
+      ['Dr Grace Lin', 'Dr Ext Doe 1'], ['Dr Anna Whyte', 'Dr Ext Doe 2'], ['Dr Priya Nair', 'Dr Ext Doe 3'], ['Dr Paul Singh', 'Dr Ext Doe 4'],
+      ['Dr Anna Kerr', 'Dr Ext Doe 5'], ['Dr Rewi Karaka', 'Dr Ext Doe 6'], ['Dr Mereana Hohaia', 'Dr Ext Doe 7'], ['Dr Mark Tipene', 'Dr Ext Doe 8'],
+      ['Dr Mark Tane', 'Dr Ext Doe 9'], ['Dr Ana Fifita', 'Dr Ext Doe 10'], ['Dr Sione Vaifale', 'Dr Ext Doe 11'],
+      ['Ana Tuilagi', 'Relative A'], ['Karen Oliver', 'Relative B'], ['Paul Oliver', 'Relative C'], ['Sarah Oliver', 'Relative D'], ['Rawiri Te Whare', 'Relative E'],
+      ['Wiremu Te Whare', 'Relative F'], ['Mele Faleolo', 'Relative G'], ['Losa Faleolo', 'Relative H'], ['Aroha Hēnare', 'Relative I'], ['Aroha Rangi', 'Relative J'],
+      ['Mary Olsen', 'Person Roe 1'], ['Frank Dawson', 'Person Roe 2'], ['J Chen', 'Person Roe 3'], ['Anna Smith', 'Person Roe 4'], ['Rachel Ngata', 'Person Roe 5'],
+      ['Sam Reid', 'Person Roe 6'], ['Jo Ruru', 'Investigator Roe 1'], ['Matua Hemi', 'Interpreter Roe 1'], ['Who Mele', 'Who Relative G'],
+    ];
+    for (const [from, to] of placeholders) {
+      textMap.push([new RegExp(`\\b${from}\\b`, 'g'), to]);
+      store.run("UPDATE support_person SET name = ? WHERE name = ?", to, from);
+    }
+    for (const [from, to] of [['Ana', 'Relative A'], ['Sarah', 'Relative D'], ['Karen', 'Relative B'], ['Paul', 'Relative C'], ['Sam', 'Person Roe 6']] as [string, string][]) textMap.push([new RegExp(`\\b${from}\\b(?! [A-Z])`, 'g'), to]);
+    const worker = (u: string) => store.get<{ id: string; person_id: string; display_name: string }>('SELECT id, person_id, display_name FROM workforce_person WHERE username = ?', u);
+    // 1. Staff: usernames and names.
+    for (const [old, , nu, given, family, display] of STAFF_RENAME) {
+      const w = worker(old);
+      if (!w) continue;
+      textMap.push([new RegExp(`\\b${w.display_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), display]);
+      staffFirst.push([w.display_name.split(' ')[0], display]);
+      store.run('UPDATE workforce_person SET username = ?, display_name = ? WHERE id = ?', nu, display, w.id);
+      store.run('UPDATE person SET given_name = ?, family_name = ? WHERE id = ?', given, family, w.person_id);
+    }
+    // 2. Patients: artificial names. People who work here keep their staff names.
+    const staffPeople = new Set(store.all<{ person_id: string }>('SELECT person_id FROM workforce_person').map((r) => r.person_id));
+    for (const [og, of, ng, nf, first] of PATIENT_RENAME) {
+      const rows = store.all<{ id: string }>('SELECT id FROM person WHERE given_name = ? AND family_name = ?', og, of).filter((r) => !staffPeople.has(r.id));
+      for (const r of rows) store.run('UPDATE person SET given_name = ?, family_name = ? WHERE id = ?', ng, nf, r.id);
+      if (!rows.length) continue;
+      textMap.push([new RegExp(`\\b${og} ${of}\\b`, 'g'), `${ng} ${nf}`]);
+      if (first) textMap.push([new RegExp(`\\b${og}\\b`, 'g'), ng]);
+    }
+    // Names as stated at arrival follow the same rename.
+    const stated = store.get<{ t: string }>("SELECT name AS t FROM sqlite_master WHERE type = 'table' AND sql LIKE '%stated_given%'")?.t;
+    if (stated) for (const [og, of, ng, nf] of PATIENT_RENAME) store.run(`UPDATE ${stated} SET stated_given = ?, stated_family = ? WHERE stated_given = ? AND stated_family = ?`, ng, nf, og, of);
+    // Preferred names (what a patient likes to be called) are artificial too.
+    for (const [old, to] of [['Peggy', 'Boro'], ['Bill', 'Lithy']]) {
+      if (!store.get('SELECT 1 FROM person WHERE preferred_name = ?', old)) continue;
+      store.run('UPDATE person SET preferred_name = ? WHERE preferred_name = ?', to, old);
+      textMap.push([new RegExp(`\\b${old}\\b`, 'g'), to]);
+    }
+    // 3. Names written inside notes, steps and messages.
+    // Staff first names on their own (e.g. "given to Nicki") follow the same rename, unless a patient had that first name.
+    const patientGivens = new Set(PATIENT_RENAME.map((p) => p[0]));
+    for (const [first, display] of staffFirst) if (first.length > 2 && !patientGivens.has(first)) textMap.push([new RegExp(`(?<![A-Z][\\w']* )\\b${first}\\b(?! [A-Z])`, 'g'), display]);
+    // Only the tamper-evident audit log is left exactly as written (its entries are hash-chained).
+    // The other history tables hold no hashes; their update guards are lifted for this one rewrite and put back.
+    const appendOnly = new Set(['audit_event']);
+    const guards = store.all<{ name: string; sql: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND sql LIKE '%BEFORE UPDATE%' AND sql LIKE '%append-only%' AND tbl_name != 'audit_event'");
+    for (const g of guards) store.run(`DROP TRIGGER ${g.name}`);
+    for (const t of store.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")) {
+      if (NO_SWEEP.test(t.name) || appendOnly.has(t.name)) continue;
+      const cols = store.all<{ name: string; type: string; pk: number }>(`PRAGMA table_info(${t.name})`)
+        .filter((c) => /TEXT/i.test(c.type) && !c.pk && c.name !== 'id' && !c.name.endsWith('_id') && !/^(state|kind|status)$|hash/.test(c.name));
+      for (const c of cols) {
+        for (const r of store.all<{ rid: number; v: string }>(`SELECT rowid AS rid, ${c.name} AS v FROM ${t.name} WHERE ${c.name} IS NOT NULL AND length(${c.name}) > 6`)) {
+          let v = r.v;
+          for (const [re, to] of textMap) v = v.replace(re, to);
+          if (v !== r.v) store.run(`UPDATE ${t.name} SET ${c.name} = ? WHERE rowid = ?`, v, r.rid);
+        }
+      }
+    }
+    for (const g of guards) store.run(g.sql);
+    // 4. One identity per profession holds the role in every department.
+    for (const [user, serviceId, role, title] of EXTRA_POSITIONS) {
+      const w = worker(user);
+      const svc = store.get<{ organisation_id: string }>('SELECT organisation_id FROM service WHERE id = ?', serviceId);
+      if (!w || !svc) continue;
+      let eid = store.get<{ id: string }>('SELECT id FROM employment WHERE workforce_person_id = ? AND organisation_id = ?', w.id, svc.organisation_id)?.id;
+      if (!eid) {
+        eid = newId();
+        store.insert('employment', { id: eid, workforce_person_id: w.id, organisation_id: svc.organisation_id, employment_type: 'PERMANENT', start_date: '2023-05-01' });
+      }
+      const pos = newId();
+      store.insert('position', { id: pos, employment_id: eid, service_id: serviceId, title, role_key: role, start_date: '2023-05-01' });
+      for (let d = -7; d < 28; d++) {
+        const date = addDays(today, d);
+        if ([0, 6].includes(new Date(`${date}T00:00:00`).getDay())) continue;
+        store.insert('roster_shift', { id: newId(), workforce_person_id: w.id, position_id: pos, service_id: serviceId, shift_date: date, start_time: '07:00', end_time: '19:00', state: 'PLANNED', data_source: 'SYNTHETIC' });
+      }
+    }
+  });
 }

@@ -84,7 +84,7 @@ export function gapCard(s, decide, reload) {
           : h('span', { class: 'tag muted' }, 'No availability recorded')),
         h('button', { class: 'btn primary small', onclick: () => decide('Call in',
           `${c.name} will be rostered as a ${r.one} on ${shiftName(s)}. Only do this once they have said yes.`,
-          '/api/work/rostering/staffing/call-in', { ...body(r.roleKey), workerId: c.workerId }, `Rostered ${c.name}.`, reload) }, `Call in ${c.name.split(' ')[0]}`),
+          '/api/work/rostering/staffing/call-in', { ...body(r.roleKey), workerId: c.workerId }, `Rostered ${c.name}.`, reload) }, `Call in ${c.name}`),
       )) : h('p', { class: 'small muted' }, `No ${r.one} is free that day.`),
       h('div', { class: 'row' },
         r.status === 'GAP' ? h('button', { class: 'btn small', onclick: () => decide('Advertise as a vacancy',
