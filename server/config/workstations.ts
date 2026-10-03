@@ -171,7 +171,9 @@ export type Capability =
   | 'oxygen.record'
   | 'medicine.prescribe'
   | 'medicine.give'
-  | 'cd.register';
+  | 'cd.register'
+  | 'visit.plan'
+  | 'visit.record';
 
 export interface HomeCard {
   id: string;
@@ -262,6 +264,7 @@ const CARD = {
   caredue: { id: 'caredue', label: 'Care due', required: true },
   recalls: { id: 'recalls', label: 'Recalls', required: true },
   followups: { id: 'followups', label: 'Follow-ups', required: true },
+  visits: { id: 'visits', label: 'Visits', required: true },
   surveillance: { id: 'surveillance', label: 'Surveillance', required: true },
   screening: { id: 'screening', label: 'Screening', required: true },
   infections: { id: 'infections', label: 'Infections', required: true },
@@ -538,12 +541,11 @@ export const ROLES: RoleConfig[] = [
 
 // Palliative care / hospice (matrix, "Older people, palliative & disability support"). The matrix names the
 // service and its tabs but not its positions, so a nurse and a doctor are set up from the shared roles and
-// the position names are provisional. Each sees the matrix tabs that SHIFT already has; Visits and
-// After-hours have no screen yet, and Bereavement sits inside End of life.
+// the position names are provisional. Each sees the matrix tabs that SHIFT already has; After-hours has no screen yet, and Bereavement sits inside End of life.
 const roleOf = (key: string) => ROLES.find((r) => r.roleKey === key)!;
 const withViews = (r: RoleConfig, extra: string[]) => [...new Set([...r.views, ...extra])];
 const withCards = (r: RoleConfig, extra: HomeCard[]) => [...r.homeCards, ...extra.filter((c) => !r.homeCards.some((x) => x.id === c.id))];
-const HOSPICE_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Visits and After-hours tabs are not built yet';
+const HOSPICE_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; the After-hours tab is not built yet';
 ROLES.push(
   {
     ...roleOf('arc-rn'),
@@ -552,16 +554,17 @@ ROLES.push(
     matrixRow: 'Palliative care / hospice',
     evidenceStatus: HOSPICE_EVIDENCE,
     keys: [...new Set([...roleOf('arc-rn').keys, '.goals', '.symptom'])],
-    views: withViews(roleOf('arc-rn'), ['symptoms', 'goals', 'death', 'support', 'equipment']),
-    ownViews: [...new Set([...(roleOf('arc-rn').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'equipment'])],
+    views: withViews(roleOf('arc-rn'), ['symptoms', 'goals', 'death', 'support', 'equipment', 'visits']),
+    ownViews: [...new Set([...(roleOf('arc-rn').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'equipment', 'visits'])],
     tabs: [
       { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'symptoms', label: 'Symptoms' }, { id: 'meds', label: 'Medicines' },
-      { id: 'careplan', label: 'Care Plan' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'equipment', label: 'Equipment' }, { id: 'support', label: 'Whānau' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'equipment', label: 'Equipment' }, { id: 'support', label: 'Whānau' },
       { id: 'death', label: 'End-of-life' },
     ],
-    homeCards: withCards(roleOf('arc-rn'), [CARD.symptoms, CARD.deaths]),
+    capabilities: [...roleOf('arc-rn').capabilities, 'visit.plan', 'visit.record'],
+    homeCards: withCards(roleOf('arc-rn'), [CARD.symptoms, CARD.deaths, CARD.visits]),
     homeFour: ['workstation', 'tasks', 'symptoms', 'handover'],
-    ownCards: [...new Set([...(roleOf('arc-rn').ownCards ?? []), 'symptoms', 'deaths'])],
+    ownCards: [...new Set([...(roleOf('arc-rn').ownCards ?? []), 'symptoms', 'deaths', 'visits'])],
     escalatesTo: ['hospice-physician'],
   },
   {
@@ -584,5 +587,28 @@ ROLES.push(
     refersTo: undefined,
   },
 );
+
+// District / community nursing (matrix: Caseload | Referral | Eligibility | Assessment | Care Plan | Visits |
+// Medicines | Clinical Care | Equipment/Supplies | Monitoring | Whanau/Providers | Tasks | Review | Discharge).
+// Set up from the general medicine nurse. Referral, Eligibility, Clinical Care and Providers have no screen yet.
+ROLES.push({
+  ...roleOf('genmed-rn'),
+  roleKey: 'community-rn',
+  label: 'Registered Nurse',
+  matrixRow: 'District / community nursing',
+  evidenceStatus: 'Matrix names the service, not its positions, so this position is provisional; Referral, Eligibility, Clinical Care and Providers tabs are not built yet',
+  capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'visit.plan', 'visit.record'],
+  views: withViews(roleOf('genmed-rn'), ['visits', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge']),
+  ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), 'visits', 'assess', 'careplan', 'monitoring', 'support', 'equipment', 'review', 'discharge'])],
+  tabs: [
+    { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' },
+    { id: 'meds', label: 'Medicines' }, { id: 'equipment', label: 'Equipment/Supplies' }, { id: 'monitoring', label: 'Monitoring' }, { id: 'support', label: 'Whānau' },
+    { id: 'tasks', label: 'Tasks' }, { id: 'review', label: 'Review' }, { id: 'discharge', label: 'Discharge' },
+  ],
+  homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.visits]),
+  homeFour: ['workstation', 'tasks', 'visits', 'handover'],
+  ownCards: [...new Set([...(roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'), 'visits'])],
+  escalatesTo: undefined,
+});
 
 export const ROLE_BY_KEY = new Map(ROLES.map((r) => [r.roleKey, r]));

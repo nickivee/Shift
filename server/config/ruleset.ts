@@ -30,6 +30,10 @@ export const RULE_KEYS: RuleKey[] = [
     what: 'The list a nurse chooses from when a dose is not given.',
   },
   {
+    key: 'visit.not_done_reasons', label: 'Reasons a visit is not done', group: 'Visits', kind: 'reasons', category: 'ORGANISATIONAL CONFIGURATION', ref: 'ORG-SYN-001 v1',
+    what: 'The list a nurse chooses from when a planned visit could not be done.',
+  },
+  {
     key: 'cd.check_interval_days', label: 'Controlled drug book: joint check every', group: 'Controlled drugs', kind: 'int', min: 1, max: 31, unit: 'days', category: 'LAW', ref: 'RR-CDREGISTER-001',
     what: 'How often each page of the ward book is checked with a colleague before it shows as due.',
   },

@@ -390,6 +390,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-VISITS-001',
+    question: 'What New Zealand requires of community and home visits: the Nationwide Service Framework specifications for district and specialist community nursing and for home and community support (who is eligible, how soon a referral must be seen, how often a person is visited), and what the Health and Safety at Work Act 2015 expects of an employer whose staff work alone in people\'s homes.',
+    blocks: 'Visit frequency, response times, eligibility and lone-worker arrangements are not set by SHIFT. It records each visit as planned, done, not done with the reason from the organisation\'s own list, or cancelled, and who did it.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-QUEUE-001',
     question: 'What New Zealand settings require when work is missed: who must be told when a task is not accepted or not done by its due time, how quickly, and who is accountable at each step (for example a caregiver to the registered nurse on duty, a nurse to the doctor).',
     blocks: 'Treating SHIFT\'s escalation ladders and waiting times as a standard. SHIFT sends missed work one step up the service\'s ladder, needs the next person to acknowledge it and record what they did, sends it further up if no one does, and never reassigns work silently.',

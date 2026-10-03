@@ -118,6 +118,7 @@ export type Operation =
   | { op: 'CARE_DUE'; personId: string; cap: 'due.record' | 'due.manage' }
   | { op: 'RECALL'; personId: string }
   | { op: 'FOLLOWUP'; personId: string }
+  | { op: 'VISIT'; personId: string; cap: 'visit.plan' | 'visit.record' }
   | { op: 'SURVEILLANCE'; personId: string }
   | { op: 'SCREENING'; personId: string }
   | { op: 'INFECTION'; personId: string }
@@ -386,6 +387,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'followup.manage') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP', 'TRANSFER'].includes(rel) || followupFor(store, o.personId, ctx.serviceId)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-FU-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()}, or asked to follow them up, can see or act on their follow-ups`));
+    case 'VISIT':
+      return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-VISITS-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan or record visits to them`));
     case 'SURVEILLANCE':
       return need(ctx, 'surveillance.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-SURV-001'])
