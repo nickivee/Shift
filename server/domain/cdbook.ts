@@ -3,7 +3,8 @@ import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
 import { ROLE_BY_KEY } from '../config/workstations.ts';
-import { CD_REFS, CHECK_DAYS, STOCKTAKES } from '../config/medicines.ts';
+import { CD_REFS } from '../config/medicines.ts';
+import { requireRule } from './rulevalue.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // A ward's controlled drug book (Misuse of Drugs Regulations 1977 reg 44): one page for each form of
@@ -28,13 +29,19 @@ function logged(store: Store, ctx: WorkContext, operation: string, id: string, r
 const balanceOf = (store: Store, pageId: string) =>
   store.get<{ balance: number }>('SELECT balance FROM cd_book_entry WHERE page_id = ? ORDER BY at DESC, rowid DESC LIMIT 1', pageId)?.balance ?? 0;
 
-// The most recent stocktake date that has passed, and the one before it.
-export function stocktakeDates(today = todayLocal()): string[] {
+type Stocktake = { month: number; day: number };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const iso = (yr: number, s: Stocktake) => `${yr}-${String(s.month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`;
+
+// The most recent stocktake date that has passed, and the one before it. The dates are a rule the
+// organisation's jurisdiction sets (cd.stocktake_dates), so they can change and differ by place.
+export function stocktakeDates(store: Store, organisationId: string, today = todayLocal()): string[] {
   const y = Number(today.slice(0, 4));
-  const all = [y - 1, y].flatMap((yr) => STOCKTAKES.map((s) => `${yr}-${String(s.month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`)).filter((d) => d <= today);
+  const dates = requireRule<Stocktake[]>(store, organisationId, 'cd.stocktake_dates', today);
+  const all = [y - 1, y].flatMap((yr) => dates.map((s) => iso(yr, s))).filter((d) => d <= today).sort();
   return all.slice(-2).reverse();
 }
-const labelOf = (iso: string) => `${STOCKTAKES.find((s) => iso.endsWith(`-${String(s.month).padStart(2, '0')}-${String(s.day).padStart(2, '0')}`))?.label ?? iso} ${iso.slice(0, 4)}`;
+const labelOf = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
 
 // Pages for this ward, with the balance the book shows, for choosing where a dose is entered.
 export function pagesFor(store: Store, serviceId: string) {
@@ -68,7 +75,8 @@ function gate(store: Store, ctx: WorkContext) {
 
 export function list(store: Store, ctx: WorkContext) {
   gate(store, ctx);
-  const dates = stocktakeDates();
+  const dates = stocktakeDates(store, ctx.organisationId);
+  const checkDays = requireRule<number>(store, ctx.organisationId, 'cd.check_interval_days');
   const due = dates[0] ?? null;
   const pages = store.all<Row>('SELECT id, drug, unit, created_at AS createdAt FROM cd_book_page WHERE service_id = ? ORDER BY drug', ctx.serviceId).map((p): Record<string, any> => {
     const id = String(p.id);
@@ -81,12 +89,12 @@ export function list(store: Store, ctx: WorkContext) {
     const sinceCheck = lastCheck ? Date.now() - Date.parse(lastCheck) : Infinity;
     const stocktakeDone = due ? !!store.get("SELECT 1 FROM cd_book_entry WHERE page_id = ? AND kind = 'STOCKTAKE' AND as_at = ?", id, due) : true;
     return {
-      ...p, balance: balanceOf(store, id), entries, lastCheck, checkDue: sinceCheck >= CHECK_DAYS * DAY, checkOverdue: sinceCheck > CHECK_DAYS * DAY,
+      ...p, balance: balanceOf(store, id), entries, lastCheck, checkDue: sinceCheck >= checkDays * DAY, checkOverdue: sinceCheck > checkDays * DAY,
       stocktakeDue: !stocktakeDone && !!due, stocktakeFor: due && !stocktakeDone ? labelOf(due) : null,
     };
   });
   return {
-    pages, colleagues: colleagues(store, ctx), stocktakes: dates.map((d) => ({ value: d, label: labelOf(d) })), checkDays: CHECK_DAYS,
+    pages, colleagues: colleagues(store, ctx), stocktakes: dates.map((d) => ({ value: d, label: labelOf(d) })), checkDays, stocktakeNames: requireRule<Stocktake[]>(store, ctx.organisationId, 'cd.stocktake_dates').map((s) => `${s.day} ${MONTHS[s.month - 1]}`),
     toDo: pages.filter((p) => p.checkDue || p.stocktakeDue).length,
   };
 }
@@ -153,8 +161,8 @@ export function act(store: Store, ctx: WorkContext, action: string, b: Body) {
         if (variance && note.length < 5) throw new HttpError(400, 'VARIANCE', `The book shows ${bal} ${p.unit} and you counted ${counted}. Explain the difference.`);
         let asAt: string | null = null;
         if (action === 'stocktake') {
-          asAt = stocktakeDates().find((d) => d === text(b.asAt, 10)) ?? null;
-          if (!asAt) throw new HttpError(400, 'AS_AT', 'Choose which stocktake this is: 30 June or 31 December.');
+          asAt = stocktakeDates(store, ctx.organisationId).find((d) => d === text(b.asAt, 10)) ?? null;
+          if (!asAt) throw new HttpError(400, 'AS_AT', 'Choose which stocktake this is from the list.');
           if (store.get("SELECT 1 FROM cd_book_entry WHERE page_id = ? AND kind = 'STOCKTAKE' AND as_at = ?", String(p.id), asAt)) throw new HttpError(409, 'ALREADY', 'That stocktake is already recorded for this page.');
         }
         store.insert('cd_book_entry', {

@@ -6,7 +6,8 @@ import { audit } from './audit.ts';
 import { transition, recordInitial } from './lifecycle.ts';
 import { pagesFor } from './cdbook.ts';
 import { ROLE_BY_KEY } from '../config/workstations.ts';
-import { STATES, NOT_GIVEN, REFS, CD_REFS } from '../config/medicines.ts';
+import { STATES, REFS, CD_REFS } from '../config/medicines.ts';
+import { ruleValue, requireRule } from './rulevalue.ts';
 import { newId, now, todayLocal, HttpError } from '../lib/util.ts';
 
 // Medicines (entry 11):
@@ -51,11 +52,19 @@ function allergyStatus(store: Store, personId: string) {
   return { status: items.length ? 'RECORDED' : rows.length ? 'NONE_KNOWN' : 'NOT_RECORDED', items };
 }
 
+// The organisation's own list of reasons a dose is not given (a setting, see ruleset.ts).
+type Reason = { code: string; label: string };
+const reasonMap = (store: Store, organisationId: string | null | undefined): Record<string, string> =>
+  Object.fromEntries((organisationId ? ruleValue<Reason[]>(store, organisationId, 'medicine.not_given_reasons') ?? [] : []).map((x) => [x.code, x.label]));
+
 const dosesOf = (store: Store, id: string, limit = 6) => store.all<Row>(
   `SELECT d.id, d.kind, d.dose, d.reason, d.note, d.told, d.given_at AS givenAt, w.display_name AS "by", wi.display_name AS witness
      FROM medication_dose d JOIN workforce_person w ON w.id = d.by_id LEFT JOIN workforce_person wi ON wi.id = d.witness_id
     WHERE d.medication_id = ? ORDER BY d.given_at DESC, d.rowid DESC LIMIT ${limit}`, id)
-  .map((d): Record<string, any> => ({ ...d, reasonLabel: d.reason ? NOT_GIVEN[String(d.reason)] ?? null : null }));
+  .map((d, _i, all): Record<string, any> => {
+    const labels = reasonMap(store, store.get<{ o: string }>('SELECT s.organisation_id AS o FROM medication m JOIN service s ON s.id = m.service_id WHERE m.id = ?', id)?.o);
+    return { ...d, reasonLabel: d.reason ? labels[String(d.reason)] ?? null : null };
+  });
 
 // For an "as needed" medicine: what the prescriber's limits allow now.
 function prnState(store: Store, r: Row, at = Date.now()) {
@@ -94,7 +103,7 @@ export function forPerson(store: Store, ctx: WorkContext, personId: string) {
   return {
     canPrescribe, canGive, allergies: allergyStatus(store, personId),
     current: all.filter((x) => ['ACTIVE', 'HELD', 'ORDERED', 'VERIFIED'].includes(x.state)), past: all.filter((x) => x.state === 'CEASED'),
-    options: { notGiven: NOT_GIVEN }, pages: canGive ? pagesFor(store, ctx.serviceId) : [],
+    options: { notGiven: reasonMap(store, ctx.organisationId) }, pages: canGive ? pagesFor(store, ctx.serviceId) : [],
     witnesses: canGive ? witnessOptions(store, ctx) : [],
   };
 }
@@ -232,7 +241,9 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
       }
       case 'notgiven': {
         if (state !== 'ACTIVE') throw new HttpError(409, 'STATE', `${medicine} is ${(STATES[state] ?? state).toLowerCase()}.`);
-        const reason = NOT_GIVEN[String(b.reason)] ? String(b.reason) : '';
+        const reasons = reasonMap(store, ctx.organisationId);
+        if (!Object.keys(reasons).length) requireRule(store, ctx.organisationId, 'medicine.not_given_reasons');
+        const reason = reasons[String(b.reason)] ? String(b.reason) : '';
         if (!reason) throw new HttpError(400, 'REASON_REQUIRED', 'Choose why it was not given.');
         if (reason === 'OTHER' && note.length < 3) throw new HttpError(400, 'NOTE_REQUIRED', 'Write the reason.');
         const told = text(b.told, 120);
@@ -240,7 +251,7 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
         store.insert('medication_dose', {
           id: newId(), medication_id: id, person_id: personId, service_id: ctx.serviceId, kind: 'NOT_GIVEN', reason, note: note || null, told, given_at: now(), by_id: ctx.workerId, recorded_at: now(),
         });
-        step(store, id, 'NOT_GIVEN', `Not given: ${NOT_GIVEN[reason].toLowerCase()}. Told ${told}.${note ? ` ${sentence(note)}` : ''}`, ctx.workerId);
+        step(store, id, 'NOT_GIVEN', `Not given: ${reasons[reason].toLowerCase()}. Told ${told}.${note ? ` ${sentence(note)}` : ''}`, ctx.workerId);
         logged(store, ctx, 'MEDICINE_NOT_GIVEN', personId, id, `${medicine}: ${reason}`, controlled);
         break;
       }

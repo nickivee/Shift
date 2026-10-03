@@ -2,7 +2,7 @@ import type { Store } from '../db/database.ts';
 import type { WorkContext } from './identity.ts';
 import type { Capability } from '../config/workstations.ts';
 import { now } from '../lib/util.ts';
-import { PRESCRIBERS } from '../config/medicines.ts';
+import { ruleValue } from './rulevalue.ts';
 
 export type Decision = 'ALLOW' | 'BLOCK' | 'HOLD' | 'UNRESOLVED';
 
@@ -47,6 +47,8 @@ export type Operation =
   | { op: 'MEDICINE_PRESCRIBE'; personId: string }
   | { op: 'MEDICINE_GIVE'; personId: string }
   | { op: 'CD_BOOK' }
+  | { op: 'RULES_PROPOSE' }
+  | { op: 'RULES_APPROVE' }
   | { op: 'OXYGEN_PRESCRIBE'; personId: string }
   | { op: 'WITHDRAWAL'; personId: string }
   | { op: 'WITHDRAWAL_MANAGE'; personId: string }
@@ -145,6 +147,8 @@ const block = (reason: string, refs: string[] = [ORG]): AuthorityResult => ({ de
 // Every operation is evaluated against actor, active context, relationship and object.
 // Unknown operations and missing context fail closed. Creating a record, routing it and
 // disclosing it are separate authorities (Package 6).
+const prescribers = (store: Store, ctx: WorkContext) => ruleValue<string[]>(store, ctx.organisationId, 'medicine.prescribers');
+
 export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): AuthorityResult {
   if (!ctx) return block('No active WORK context', ['WORK-CTX-001']);
 
@@ -160,6 +164,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return { decision: 'UNRESOLVED', reasons: ['Which NZ acuity or early-warning tool applies here, and how it is calculated, has not been researched'], ruleRefs: ['RR-ACU-001', 'RR-EWS-001'] };
     case 'CD_BOOK':
       return need(ctx, 'cd.register') ?? professional(ctx) ?? allow([ORG, 'RR-CDREGISTER-001']);
+    case 'RULES_PROPOSE':
+      return need(ctx, 'rules.manage') ?? allow([ORG, 'SHIFT-DESIGN-RULESET-001']);
+    case 'RULES_APPROVE':
+      return need(ctx, 'rules.approve') ?? allow([ORG, 'SHIFT-DESIGN-RULESET-001']);
     case 'KNOWLEDGE':
       return need(ctx, 'knowledge.use') ?? professional(ctx) ?? allow();
     case 'TRANSFER_RESPOND': {
@@ -468,7 +476,8 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan their withdrawal care`));
     case 'MEDICINE_PRESCRIBE':
       return need(ctx, 'medicine.prescribe') ?? professional(ctx)
-        ?? (PRESCRIBERS.includes(String(ctx.role.profession)) ? null : block('Only an authorised prescriber prescribes a medicine', [ORG, 'RR-MEDICINES-001']))
+        ?? (prescribers(store, ctx) === undefined ? block('This organisation has not set who may prescribe for its jurisdiction yet', [ORG, 'RR-MEDICINES-001']) : null)
+        ?? (prescribers(store, ctx)!.includes(String(ctx.role.profession)) ? null : block('Only an authorised prescriber prescribes a medicine', [ORG, 'RR-MEDICINES-001']))
         ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
           ? allow([ORG, 'RR-MEDICINES-001'])
           : block(`Only a prescriber caring for this ${ctx.subjectLabel.toLowerCase()} can prescribe for them`, [ORG, 'RR-MEDICINES-001']));

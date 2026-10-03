@@ -4816,4 +4816,44 @@ CREATE TABLE cd_book_entry (
 CREATE INDEX cd_book_entry_page ON cd_book_entry(page_id, at);
 `,
   },
+  {
+    version: 96,
+    name: 'rules',
+    sql: `
+-- Rules that can change over time and differ by country, state or health system. A rule value is data:
+-- it has a source, a start date and a version, and a second person approves it before it takes effect.
+CREATE TABLE jurisdiction (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,                   -- COUNTRY | STATE | HEALTH_SYSTEM
+  parent_id TEXT REFERENCES jurisdiction(id)
+);
+INSERT INTO jurisdiction (id, name, kind, parent_id) VALUES ('NZ', 'New Zealand', 'COUNTRY', NULL);
+ALTER TABLE organisation ADD COLUMN jurisdiction_id TEXT NOT NULL DEFAULT 'NZ';
+CREATE TABLE rule_setting (
+  id TEXT PRIMARY KEY,
+  jurisdiction_id TEXT NOT NULL REFERENCES jurisdiction(id),
+  rule_key TEXT NOT NULL,
+  value TEXT NOT NULL,                  -- JSON
+  version INTEGER NOT NULL,
+  status TEXT NOT NULL,                 -- PROPOSED | ACTIVE | REJECTED
+  effective_from TEXT NOT NULL,
+  category TEXT NOT NULL,
+  source_ref TEXT NOT NULL,
+  source_url TEXT,
+  note TEXT,
+  proposed_by TEXT REFERENCES workforce_person(id),
+  proposed_at TEXT NOT NULL,
+  decided_by TEXT REFERENCES workforce_person(id),
+  decided_at TEXT,
+  decision_note TEXT
+);
+CREATE INDEX rule_setting_key ON rule_setting(jurisdiction_id, rule_key, status);
+INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status, effective_from, category, source_ref, source_url, note, proposed_at, decided_at) VALUES
+ ('rs-nz-cd-check', 'NZ', 'cd.check_interval_days', '7', 1, 'ACTIVE', '2026-01-01', 'LAW', 'RR-CDREGISTER-001', 'https://www.legislation.govt.nz/regulation/public/1977/0037/latest/', 'Misuse of Drugs Regulations 1977 reg 44: the ward book is checked jointly once in every week.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z'),
+ ('rs-nz-cd-stock', 'NZ', 'cd.stocktake_dates', '[{"month":6,"day":30},{"month":12,"day":31}]', 1, 'ACTIVE', '2026-01-01', 'LAW', 'RR-CDREGISTER-001', 'https://www.legislation.govt.nz/regulation/public/1977/0037/latest/', 'Misuse of Drugs Regulations 1977 reg 44: stock counted as at 30 June and 31 December.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z'),
+ ('rs-nz-prescribers', 'NZ', 'medicine.prescribers', '["Medical Practitioner","Nurse Practitioner"]', 1, 'ACTIVE', '2026-01-01', 'LAW', 'RR-MEDICINES-001', 'https://www.legislation.govt.nz/act/public/1981/0118/latest/', 'Professions the Ministry of Health lists as authorised prescribers, among those this synthetic organisation employs.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z'),
+ ('rs-nz-notgiven', 'NZ', 'medicine.not_given_reasons', '[{"code":"REFUSED","label":"They refused it"},{"code":"AWAY","label":"They were away from the unit"},{"code":"UNABLE","label":"They could not take it"},{"code":"UNAVAILABLE","label":"The medicine was not available"},{"code":"HELD","label":"Held on the prescriber''s instruction"},{"code":"OTHER","label":"Another reason, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of reasons a dose is not given.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
+`,
+  },
 ];

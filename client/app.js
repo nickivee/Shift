@@ -33,6 +33,7 @@ import { externalView } from './views/external.js';
 import { codingView, codingCaseView, codingQueriesView } from './views/coding.js';
 import { privacyView } from './views/privacy.js';
 import { cdBookView } from './views/cdbook.js';
+import { rulesView } from './views/rules.js';
 import { reportsView } from './views/reports.js';
 import { questionnairesView } from './views/questionnaires.js';
 import { functionView } from './views/function.js';
@@ -140,6 +141,7 @@ const routes = [
   [/^\/work\/coding$/, () => codingView(), { work: true }],
   [/^\/work\/privacy$/, () => privacyView(), { work: true }],
   [/^\/work\/controlled-drugs$/, () => cdBookView(), { work: true }],
+  [/^\/work\/rules$/, () => rulesView(), { work: true }],
   [/^\/work\/reports$/, () => reportsView(), { work: true }],
   [/^\/work\/questionnaires$/, () => questionnairesView(), { work: true }],
   [/^\/work\/function$/, () => functionView(), { work: true }],

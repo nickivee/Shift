@@ -7,9 +7,9 @@ import { formDialog as dialog, field, select } from '../lib/forms.js';
 
 // Home → Controlled drug book (nurses). A page for each form of each drug → each receipt signed by the
 // person who issued it and the person who received it → each dose entered as it is given (where the
-// dose is recorded) → a joint check against stock once in every week → a count as at 30 June and
-// 31 December, with any difference explained.
-const KIND = { RECEIPT: 'Received', GIVEN: 'Given', CHECK: 'Weekly check', STOCKTAKE: 'Stocktake' };
+// dose is recorded) → a joint check against stock regularly → a count as at the stocktake
+// dates (a rule set by the jurisdiction), with any difference explained.
+const KIND = { RECEIPT: 'Received', GIVEN: 'Given', CHECK: 'Joint check', STOCKTAKE: 'Stocktake' };
 
 function pageDialog(reload) {
   const drug = h('input', { 'aria-label': 'Drug and form', placeholder: 'e.g. MORPHINE injection 10 mg/mL' });
@@ -38,7 +38,7 @@ function countDialog(p, d, action, reload) {
   const second = select(d.colleagues.map((c) => [c.id, c.name]), 'Checked with', action === 'check' ? 'Choose…' : 'No second person');
   const asAt = action === 'stocktake' ? select(d.stocktakes.map((x) => [x.value, x.label]), 'As at') : null;
   const note = h('textarea', { 'aria-label': 'Explanation', placeholder: 'Only needed if the count differs from the book' });
-  dialog(action === 'check' ? `Weekly check: ${p.drug}` : `Stocktake: ${p.drug}`, h('div', { class: 'stack' },
+  dialog(action === 'check' ? `Joint check: ${p.drug}` : `Stocktake: ${p.drug}`, h('div', { class: 'stack' },
     h('p', { class: 'small' }, `The book shows ${p.balance} ${p.unit}. Count the stock and write what you counted.`),
     asAt ? field('Stocktake as at', asAt) : null, field(`Counted (${p.unit})`, counted),
     field(action === 'check' ? 'Checked jointly with' : 'Counted with (optional)', second), field('If the count differs, why', note)), 'Save', async () => {
@@ -60,11 +60,11 @@ function pageCard(p, d, reload) {
   return h('div', { class: `tile stack${p.checkOverdue || p.stocktakeDue ? ' overdue' : ''}` },
     h('div', { class: 'spread' }, h('b', {}, p.drug), h('span', { class: 'tag' }, `${p.balance} ${p.unit} in the book`)),
     h('div', { class: 'row' },
-      h('span', { class: `tag${p.checkDue ? ' warn' : ' ok'}` }, p.lastCheck ? `Weekly check: last ${fmtDateTime(p.lastCheck)}${p.checkDue ? ', due' : ''}` : 'Weekly check: none yet'),
+      h('span', { class: `tag${p.checkDue ? ' warn' : ' ok'}` }, p.lastCheck ? `Joint check: last ${fmtDateTime(p.lastCheck)}${p.checkDue ? ', due' : ''}` : 'Joint check: none yet'),
       p.stocktakeFor ? h('span', { class: 'tag warn' }, `Stocktake due: as at ${p.stocktakeFor}`) : h('span', { class: 'tag ok' }, 'Stocktakes up to date')),
     h('div', { class: 'row' },
       h('button', { class: 'btn small', onclick: () => receiptDialog(p, reload) }, 'Receive stock'),
-      h('button', { class: `btn small${p.checkDue ? ' primary' : ''}`, onclick: () => countDialog(p, d, 'check', reload) }, 'Weekly check'),
+      h('button', { class: `btn small${p.checkDue ? ' primary' : ''}`, onclick: () => countDialog(p, d, 'check', reload) }, 'Joint check'),
       h('button', { class: `btn small${p.stocktakeDue ? ' primary' : ''}`, onclick: () => countDialog(p, d, 'stocktake', reload) }, 'Stocktake')),
     p.entries.length ? h('details', {}, h('summary', { class: 'small' }, `Entries (${p.entries.length} most recent)`), h('ol', { class: 'det-steps' }, p.entries.map((e) => entryRow(e, p.unit)))) : h('div', { class: 'small muted' }, 'No entries yet.'));
 }
@@ -76,7 +76,7 @@ export async function cdBookView() {
     mount(root,
       workHeader(),
       pageTitle('Controlled drug book', () => go('/work/home')),
-      h('div', { class: 'banner' }, `This ward's book: each receipt is signed by who issued it and who received it, each dose is entered as it is given, the book is checked with a colleague every ${d.checkDays} days, and the stock is counted as at 30 June and 31 December.`),
+      h('div', { class: 'banner' }, `This ward's book: each receipt is signed by who issued it and who received it, each dose is entered as it is given, the book is checked with a colleague every ${d.checkDays} days, and the stock is counted as at ${d.stocktakeNames.join(' and ')}.`),
       h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: () => pageDialog(load) }, 'Add a page')),
       d.pages.length ? d.pages.map((p) => pageCard(p, d, load)) : h('div', { class: 'card empty' }, 'No pages in this ward\'s book yet.'),
     );

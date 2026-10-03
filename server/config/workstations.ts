@@ -48,6 +48,8 @@ export type Capability =
   | 'capacity.concern'
   | 'capacity.assess'
   | 'whanau.manage'
+  | 'rules.manage'
+  | 'rules.approve'
   | 'access.manage'
   | 'external.manage'
   | 'coding.assign'
@@ -237,6 +239,7 @@ const CARD = {
   coding: { id: 'coding', label: 'Clinical coding', required: true },
   privacy: { id: 'privacy', label: 'Privacy requests', required: true },
   cdbook: { id: 'cdbook', label: 'Controlled drug book', required: true },
+  rules: { id: 'rules', label: 'Rules and settings', required: true },
   codingqueries: { id: 'codingqueries', label: 'Coding questions', required: true },
   reports: { id: 'reports', label: 'In their own words', required: true },
   instruments: { id: 'instruments', label: 'Questionnaires', required: true },
@@ -506,6 +509,18 @@ export const ROLES: RoleConfig[] = [
     views: [],
     tabs: [],
     homeCards: [CARD.privacy],
+  },
+  {
+    roleKey: 'rules-officer',
+    label: 'Rules and Standards Officer',
+    matrixRow: 'Governance / rules and standards',
+    evidenceStatus: 'Workflow-derived; who holds this role is the organisation\'s own choice (SHIFT-DESIGN-RULESET-001)',
+    profession: null,
+    capabilities: ['rules.manage', 'rules.approve'],
+    keys: [],
+    views: [],
+    tabs: [],
+    homeCards: [CARD.rules],
   },
   {
     roleKey: 'arc-rostering',

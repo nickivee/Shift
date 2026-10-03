@@ -75,6 +75,7 @@ import * as privacy from '../domain/privacy.ts';
 import * as oxygen from '../domain/oxygen.ts';
 import * as medicines from '../domain/medicines.ts';
 import * as cdbook from '../domain/cdbook.ts';
+import * as ruleset from '../domain/ruleset.ts';
 import * as retention from '../domain/retention.ts';
 import * as privacyReview from '../domain/privacyreview.ts';
 import * as trauma from '../domain/trauma.ts';
@@ -710,6 +711,8 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/oxygen/:id/:action', (req) => oxygen.act(store, work(req), req.params.id, req.params.action, { spo2: str(req.body.spo2), low: str(req.body.low), high: str(req.body.high), device: str(req.body.device), flow: str(req.body.flow), note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/medicines', (req) => medicines.prescribe(store, work(req), req.params.id, { medicine: str(req.body.medicine), dose: str(req.body.dose), route: str(req.body.route), frequency: str(req.body.frequency), indication: str(req.body.indication), prn: str(req.body.prn), prnIndication: str(req.body.prnIndication), prnMinHours: str(req.body.prnMinHours), prnMax24h: str(req.body.prnMax24h), controlled: str(req.body.controlled), override: str(req.body.override) }));
   r.on('POST', '/api/work/medicines/:id/:action', (req) => medicines.act(store, work(req), req.params.id, req.params.action, { doseGiven: str(req.body.doseGiven), minutesAgo: str(req.body.minutesAgo), note: str(req.body.note), pageId: str(req.body.pageId), qty: str(req.body.qty), witness: str(req.body.witness), reason: str(req.body.reason), told: str(req.body.told) }));
+  r.on('GET', '/api/work/rules', (req) => ruleset.list(store, work(req)));
+  r.on('POST', '/api/work/rules/:action', (req) => ruleset.act(store, work(req), req.params.action, { id: str(req.body.id), jurisdictionId: str(req.body.jurisdictionId), key: str(req.body.key), value: req.body.value, effectiveFrom: str(req.body.effectiveFrom), sourceRef: str(req.body.sourceRef), sourceUrl: str(req.body.sourceUrl), note: str(req.body.note), name: str(req.body.name), kind: str(req.body.kind), parentId: str(req.body.parentId) }));
   r.on('GET', '/api/work/controlled-drugs', (req) => cdbook.list(store, work(req)));
   r.on('POST', '/api/work/controlled-drugs/:action', (req) => cdbook.act(store, work(req), req.params.action, { drug: str(req.body.drug), unit: str(req.body.unit), pageId: str(req.body.pageId), qty: str(req.body.qty), issuedBy: str(req.body.issuedBy), counted: str(req.body.counted), second: str(req.body.second), note: str(req.body.note), asAt: str(req.body.asAt) }));
   r.on('GET', '/api/work/privacy', (req) => privacy.list(store, work(req)));

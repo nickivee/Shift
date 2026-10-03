@@ -1,4 +1,5 @@
 import type { Store } from '../db/database.ts';
+import { ruleValue } from './rulevalue.ts';
 import type { WorkContext } from './identity.ts';
 import { enforce } from './record.ts';
 import { audit } from './audit.ts';
@@ -76,7 +77,7 @@ export function list(store: Store, ctx: WorkContext) {
     toDecide: reviews("v.state = 'DUE' ORDER BY v.raised_at"),
     toDo: reviews("v.state = 'DECIDED' ORDER BY v.decided_at"),
     done: reviews("v.state = 'DONE' AND v.done_at >= ? ORDER BY v.done_at DESC", since),
-    options: { decision: DECISION },
+    options: { decision: DECISION }, minimumYears: ruleValue<number>(store, ctx.organisationId, 'retention.minimum_years') ?? null,
   };
 }
 

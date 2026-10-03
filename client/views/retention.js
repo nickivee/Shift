@@ -68,7 +68,7 @@ export function retentionSections(d, reload) {
   const section = (title, rows, empty, make) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${rows.length})`),
     rows.length ? rows.map(make) : h('div', { class: 'card empty' }, empty));
   return [
-    h('div', { class: 'banner' }, 'Legal holds and record reviews. SHIFT sets no retention period and deletes nothing. It records the hold, what was decided against the rule you name, and what was done.'),
+    h('div', { class: 'banner' }, 'Legal holds and record reviews. SHIFT deletes nothing. It records the hold, what was decided against the rule you name, and what was done.' + (d.minimumYears ? ` Your organisation\'s rules say to keep a record for at least ${d.minimumYears} years.` : ' Your organisation has not set a minimum time to keep a record.')),
     h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => holdDialog(reload) }, 'Put a record on hold'), h('button', { class: 'btn', onclick: () => reviewDialog(reload) }, 'Review a record')),
     section('On legal hold', d.holds, 'No records on hold.', (x) => holdCard(x, reload)),
     section('Records to decide', d.toDecide, 'No records waiting for a decision.', (x) => reviewCard(x, d.options, reload)),

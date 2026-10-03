@@ -24,6 +24,15 @@ export interface LegalSource {
 // 11 September 2026. Current-version checks remain required at release.
 export const LEGAL_REGISTER: LegalSource[] = [
   {
+    ref: 'SHIFT-DESIGN-RULESET-001',
+    title: 'Rules held as dated, sourced data for each jurisdiction',
+    category: 'SHIFT PRODUCT DESIGN',
+    status: 'Built 3 October 2026 on Shifty\'s instruction.',
+    relevance: 'Law, standards and policies change and differ by country, state and health system. A rule value is data with its source, start date and version, approved by a second person, so it can change without rebuilding the app. Where a jurisdiction has no value, nothing is assumed.',
+    source: 'Project instruction from Shifty, 3 October 2026',
+    verifiedAsAt: '2026-10-03',
+  },
+  {
     ref: 'LAW-NZ-001',
     title: 'Privacy Act 2020',
     category: 'LAW',
