@@ -71,6 +71,7 @@ import * as poisoning from '../domain/poisoning.ts';
 import * as withdrawal from '../domain/withdrawal.ts';
 import * as danger from '../domain/danger.ts';
 import * as observation from '../domain/observation.ts';
+import * as privacy from '../domain/privacy.ts';
 import * as trauma from '../domain/trauma.ts';
 import * as feeding from '../domain/feeding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
@@ -692,6 +693,9 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/reports/:id/:action', (req) => reports.act(store, work(req), req.params.id, req.params.action, {
     ...reportFields(req.body), outcome: str(req.body.outcome), note: str(req.body.note),
   }));
+  r.on('GET', '/api/work/privacy', (req) => privacy.list(store, work(req)));
+  r.on('POST', '/api/work/privacy', (req) => privacy.log(store, work(req), { nhi: str(req.body.nhi), kind: str(req.body.kind), who: str(req.body.who), requester: str(req.body.requester), asked: str(req.body.asked), receivedOn: str(req.body.receivedOn), dueOn: str(req.body.dueOn) }));
+  r.on('POST', '/api/work/privacy/:id/:action', (req) => privacy.act(store, work(req), req.params.id, req.params.action, { identity: str(req.body.identity), authority: str(req.body.authority), decision: str(req.body.decision), note: str(req.body.note), statement: str(req.body.statement) }));
   r.on('GET', '/api/work/coding', (req) => coding.list(store, work(req)));
   r.on('GET', '/api/work/coding/queries', (req) => coding.queries(store, work(req)));
   r.on('POST', '/api/work/coding/queries/:id/answer', (req) => coding.answer(store, work(req), req.params.id, { answer: str(req.body.answer) }));

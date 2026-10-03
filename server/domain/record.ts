@@ -62,6 +62,7 @@ import { forPerson as proceduresFor, current as recoveringNow } from './procedur
 import { forPerson as decisionsFor } from './decisions.ts';
 import { PLACE as DECISIONS_IN } from '../config/decisions.ts';
 import { forPerson as poisoningFor, current as poisoningNow } from './poisoning.ts';
+import { statements as privacyStatements } from './privacy.ts';
 import { forPerson as obsFor, current as obsNow, PLACE as OBS_IN } from './observation.ts';
 import { forPerson as dangerFor, current as dangerNow, PLACE as DANGER_IN } from './danger.ts';
 import { forPerson as withdrawalFor, current as withdrawalNow, PLACE as WITHDRAWAL_IN } from './withdrawal.ts';
@@ -246,6 +247,7 @@ export function header(store: Store, ctx: WorkContext, personId: string) {
     recovering: recoveringNow(store, personId),
     trauma: ((x) => x && { ...x, view: TRAUMA_IN[ctx.role.roleKey] ?? null })(traumaNow(store, personId)),
     feeding: ((x) => x && { ...x, view: FEED_IN[ctx.role.roleKey] ?? null })(feedingNow(store, personId)),
+    corrections: privacyStatements(store, personId),
     observation: ((x) => x && { ...x, view: OBS_IN[ctx.role.roleKey] ?? null })(obsNow(store, personId)),
     danger: ((x) => x && { ...x, view: DANGER_IN[ctx.role.roleKey] ?? null })(dangerNow(store, personId)),
     withdrawal: ((x) => x && { ...x, view: WITHDRAWAL_IN[ctx.role.roleKey] ?? null })(withdrawalNow(store, personId)),

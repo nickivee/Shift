@@ -700,6 +700,9 @@ export async function workstationView(personId, initialView) {
       block.append(h('button', { class: 'patient-poison overdue', onclick: () => openView(x.view) }, icon('alert'),
         h('span', {}, h('b', {}, 'IMMEDIATE DANGER'), `${x.kind}: ${x.what}`)));
     }
+    for (const c of patient.corrections ?? []) {
+      block.append(h('div', { class: 'banner' }, h('b', {}, 'Statement of correction on file: '), c.statement));
+    }
     if (patient.observation) {
       const x = patient.observation;
       block.append(h('button', { class: `patient-poison${x.overdue ? ' overdue' : ''}`, onclick: () => openView(x.view) }, icon('alert'),

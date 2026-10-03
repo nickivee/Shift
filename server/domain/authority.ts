@@ -91,6 +91,7 @@ export type Operation =
   | { op: 'USUAL'; personId: string; cap: 'usual.record' | 'usual.act' }
   | { op: 'REPORT'; personId: string; cap: 'report.record' | 'report.review' }
   | { op: 'CODING'; organisationId: string }
+  | { op: 'PRIVACY'; organisationId: string }
   | { op: 'CODING_ANSWER'; serviceId: string }
   | { op: 'CAPACITY'; personId: string; cap: 'capacity.concern' | 'capacity.assess' }
   | { op: 'MEAL_RECORD'; personId: string }
@@ -215,6 +216,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       if (o.destinationServiceId !== ctx.serviceId) return block('Destination is not your active service');
       if (o.destinationRoleKey && o.destinationRoleKey !== ctx.role.roleKey) return block('Destination is addressed to another role');
       return need(ctx, 'route.receive') ?? allow();
+    case 'PRIVACY':
+      return need(ctx, 'privacy.manage') ?? (o.organisationId === ctx.organisationId
+        ? allow([ORG, 'LAW-NZ-001', 'RR-PRIVACY-001'])
+        : block('Only the privacy officer of the organisation that holds the information can handle requests for it'));
     case 'CODING':
       return need(ctx, 'coding.assign') ?? (o.organisationId === ctx.organisationId
         ? allow([ORG, 'LAW-NZ-002'])
