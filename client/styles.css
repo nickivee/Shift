@@ -1040,3 +1040,4 @@ table.staffing-week td.short { color: var(--danger, #b3261e); font-weight: 600; 
 .tile.observation { border-left: 6px solid var(--accent, var(--ink)); }
 .tile.observation.overdue { border-left-color: var(--danger); background: var(--danger-bg); }
 .tile.privacy.overdue { border-left: 6px solid var(--danger); }
+.tile.hold { border-left: 6px solid var(--warn); }

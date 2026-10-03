@@ -429,6 +429,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'LAW',
   },
   {
+    ref: 'RR-RETENTION-001',
+    question: 'What New Zealand requires for how long health records must be kept, who may dispose of them and how (Health (Retention of Health Information) Regulations 1996, the Public Records Act 2005 where it applies, and the organisation\'s own schedule), what a legal hold is and what it stops, and what evidence of disposal or transfer must be kept.',
+    blocks: 'The retention period for each kind of record and what counts as a valid legal hold. SHIFT sets no period and deletes nothing. It records holds, the review of a record against the rule the privacy officer names, the decision, and the evidence of what was done, and it refuses to record disposal of a record on hold.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-INCEFFECT-001',
     question: 'What New Zealand requires after an adverse event has been closed: whether and when the actions must be checked to see that they worked (Health Quality & Safety Commission adverse events policy, Ngā Paerewa Health and Disability Services Standard), who may do the check, and what must happen when they did not.',
     blocks: 'Whether a check is required, its timing, who does it, and what counts as the actions having worked. SHIFT records who checked, what they looked at and found, and whether the actions worked, partly worked or did not, and puts the incident back to actions when they did not fully work. It sets no timing and decides nothing itself.',
