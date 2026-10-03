@@ -671,9 +671,9 @@ ROLES.push(
 
 // Maternity (matrix, "Maternity, neonatal & child"): the midwife and the obstetric doctor, set up from the general
 // medicine nurse and physician. Labour and Birth sit inside the Pregnancy screen. Fetal Monitoring, Feeding, the
-// baby's own record, Investigations, Imaging, Orders and Operative Care have no screen yet.
-const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding, Baby, Investigations, Orders and Operative Care are not built yet';
-const MID_VIEWS = ['pregnancy', 'assess', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
+// baby's own record, Imaging and Operative Care have no screen yet (Investigations is the Results screen; orders are the Medicines and Investigations tabs).
+const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding, Baby and Operative Care are not built yet; orders are the Medicines and Investigations tabs';
+const MID_VIEWS = ['pregnancy', 'assess', 'results', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
 const OBS_VIEWS = ['pregnancy', 'problems', 'results', 'meds', 'consults', 'progress', 'discharge'];
 ROLES.push(
   {
@@ -687,7 +687,7 @@ ROLES.push(
     views: withViews(roleOf('genmed-rn'), MID_VIEWS),
     ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), ...MID_VIEWS])],
     tabs: [
-      { id: 'list', label: 'Caseload' }, { id: 'pregnancy', label: 'Pregnancy' }, { id: 'assess', label: 'Assessment' }, { id: 'meds', label: 'Medicines' },
+      { id: 'list', label: 'Caseload' }, { id: 'pregnancy', label: 'Pregnancy' }, { id: 'assess', label: 'Assessment' }, { id: 'results', label: 'Investigations' }, { id: 'meds', label: 'Medicines' },
       { id: 'careplan', label: 'Care Plan' }, { id: 'referrals', label: 'Referrals/Consults' }, { id: 'discharge', label: 'Transfer/Discharge' },
     ],
     homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, []),
