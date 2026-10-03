@@ -671,10 +671,10 @@ ROLES.push(
 
 // Maternity (matrix, "Maternity, neonatal & child"): the midwife and the obstetric doctor, set up from the general
 // medicine nurse and physician. Labour and Birth sit inside the Pregnancy screen. Fetal Monitoring, Feeding, the
-// baby's own record, Imaging and Operative Care have no screen yet (Investigations is the Results screen; orders are the Medicines and Investigations tabs).
-const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding, Baby and Operative Care are not built yet; orders are the Medicines and Investigations tabs';
+// baby's own record, and Imaging have no screen yet (Operative Care is the Procedures screen, Investigations is the Results screen; orders are the Medicines and Investigations tabs).
+const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding and Baby are not built yet (Operative Care is the Procedures screen); orders are the Medicines and Investigations tabs';
 const MID_VIEWS = ['pregnancy', 'assess', 'results', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
-const OBS_VIEWS = ['pregnancy', 'problems', 'results', 'meds', 'consults', 'progress', 'discharge'];
+const OBS_VIEWS = ['pregnancy', 'problems', 'results', 'meds', 'procedures', 'consults', 'progress', 'discharge'];
 ROLES.push(
   {
     ...roleOf('genmed-rn'),
@@ -706,7 +706,7 @@ ROLES.push(
     ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), ...OBS_VIEWS])],
     tabs: [
       { id: 'list', label: 'Patient List' }, { id: 'pregnancy', label: 'Pregnancy Overview' }, { id: 'problems', label: 'Problems' }, { id: 'results', label: 'Investigations' },
-      { id: 'meds', label: 'Medicines' }, { id: 'consults', label: 'Consults' }, { id: 'progress', label: 'Progress' }, { id: 'discharge', label: 'Discharge' },
+      { id: 'meds', label: 'Medicines' }, { id: 'procedures', label: 'Operative Care' }, { id: 'consults', label: 'Consults' }, { id: 'progress', label: 'Progress' }, { id: 'discharge', label: 'Discharge' },
     ],
     consultsTo: undefined,
     refersTo: undefined,
