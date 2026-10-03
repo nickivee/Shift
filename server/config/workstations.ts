@@ -173,7 +173,8 @@ export type Capability =
   | 'medicine.give'
   | 'cd.register'
   | 'visit.plan'
-  | 'visit.record';
+  | 'visit.record'
+  | 'pregnancy.record';
 
 export interface HomeCard {
   id: string;
@@ -655,6 +656,50 @@ ROLES.push(
     homeFour: ['workstation', 'tasks', 'recalls', 'appointments'],
     ownCards: [...new Set([...(roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'), 'appointments', 'recalls', 'followups'])],
     escalatesTo: ['gp'],
+  },
+);
+
+// Maternity (matrix, "Maternity, neonatal & child"): the midwife and the obstetric doctor, set up from the general
+// medicine nurse and physician. Labour and Birth sit inside the Pregnancy screen. Fetal Monitoring, Feeding, the
+// baby's own record, Investigations, Imaging, Orders and Operative Care have no screen yet.
+const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding, Baby, Investigations, Orders and Operative Care are not built yet';
+const MID_VIEWS = ['pregnancy', 'assess', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
+const OBS_VIEWS = ['pregnancy', 'problems', 'results', 'meds', 'consults', 'progress', 'discharge'];
+ROLES.push(
+  {
+    ...roleOf('genmed-rn'),
+    roleKey: 'midwife',
+    label: 'Midwife',
+    matrixRow: 'Maternity - midwife',
+    evidenceStatus: MATERNITY_EVIDENCE,
+    profession: 'Midwife',
+    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'pregnancy.record'],
+    views: withViews(roleOf('genmed-rn'), MID_VIEWS),
+    ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), ...MID_VIEWS])],
+    tabs: [
+      { id: 'list', label: 'Caseload' }, { id: 'pregnancy', label: 'Pregnancy' }, { id: 'assess', label: 'Assessment' }, { id: 'meds', label: 'Medicines' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'referrals', label: 'Referrals/Consults' }, { id: 'discharge', label: 'Transfer/Discharge' },
+    ],
+    homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, []),
+    homeFour: ['workstation', 'tasks', 'handover', 'escalations'],
+    ownCards: (roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'),
+    escalatesTo: ['obstetrician'],
+  },
+  {
+    ...roleOf('genmed-physician'),
+    roleKey: 'obstetrician',
+    label: 'Obstetrician',
+    matrixRow: 'Maternity - obstetric medical',
+    evidenceStatus: MATERNITY_EVIDENCE,
+    capabilities: [...roleOf('genmed-physician').capabilities, 'pregnancy.record'],
+    views: withViews(roleOf('genmed-physician'), OBS_VIEWS),
+    ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), ...OBS_VIEWS])],
+    tabs: [
+      { id: 'list', label: 'Patient List' }, { id: 'pregnancy', label: 'Pregnancy Overview' }, { id: 'problems', label: 'Problems' }, { id: 'results', label: 'Investigations' },
+      { id: 'meds', label: 'Medicines' }, { id: 'consults', label: 'Consults' }, { id: 'progress', label: 'Progress' }, { id: 'discharge', label: 'Discharge' },
+    ],
+    consultsTo: undefined,
+    refersTo: undefined,
   },
 );
 

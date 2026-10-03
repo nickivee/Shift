@@ -4893,4 +4893,50 @@ INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status,
  ('rs-nz-visit-reasons', 'NZ', 'visit.not_done_reasons', '[{"code":"NOT_HOME","label":"They were not at the address"},{"code":"DECLINED","label":"They declined the visit"},{"code":"UNWELL","label":"Unwell or admitted to hospital"},{"code":"UNABLE","label":"Could not get there"},{"code":"OTHER","label":"Another reason, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of reasons a visit is not done.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
 `,
   },
+  {
+    version: 98,
+    name: 'pregnancy',
+    sql: `
+-- A pregnancy under a maternity service's care: booked, in labour, birth recorded, postnatal, then closed.
+-- SHIFT records what the midwife or doctor enters. It sets no due-date rule, risk threshold or visit schedule (RR-MATERNITY-001).
+CREATE TABLE pregnancy (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ANTENATAL | LABOUR | BIRTHED | POSTNATAL | CLOSED | ENTERED_IN_ERROR
+  booked_by TEXT NOT NULL REFERENCES workforce_person(id),
+  booked_at TEXT NOT NULL,
+  due_date TEXT NOT NULL,               -- entered by the clinician
+  due_basis TEXT NOT NULL,              -- how it was dated, in the clinician's words
+  gravida INTEGER NOT NULL,
+  parity INTEGER NOT NULL,
+  considerations TEXT,                  -- things the team should know, in the clinician's words
+  labour_at TEXT,
+  labour_by TEXT REFERENCES workforce_person(id),
+  birth_at TEXT,
+  birth_by TEXT REFERENCES workforce_person(id),
+  birth_mode TEXT,                      -- a mode from the organisation's list
+  birth_note TEXT,
+  baby_note TEXT,
+  postnatal_at TEXT,
+  postnatal_by TEXT REFERENCES workforce_person(id),
+  ended_by TEXT REFERENCES workforce_person(id),
+  ended_at TEXT,
+  ended_note TEXT
+);
+CREATE INDEX pregnancy_person ON pregnancy(person_id, booked_at);
+CREATE INDEX pregnancy_service ON pregnancy(service_id, state);
+CREATE TABLE pregnancy_step (
+  id TEXT PRIMARY KEY,
+  pregnancy_id TEXT NOT NULL REFERENCES pregnancy(id),
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX pregnancy_step_p ON pregnancy_step(pregnancy_id, at);
+INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status, effective_from, category, source_ref, source_url, note, proposed_at, decided_at) VALUES
+ ('rs-nz-birth-modes', 'NZ', 'pregnancy.birth_modes', '[{"code":"VAGINAL","label":"Vaginal birth"},{"code":"ASSISTED","label":"Assisted vaginal birth"},{"code":"CAESAREAN","label":"Caesarean birth"},{"code":"OTHER","label":"Another way, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of ways a birth is recorded.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
+`,
+  },
 ];

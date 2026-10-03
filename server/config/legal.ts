@@ -396,6 +396,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-MATERNITY-001',
+    question: 'What New Zealand requires of maternity records: the Maternity Services Notice and Primary Maternity Services Notice under the Public Health and Disability Act, the Midwifery Council\'s standards, how a birth is notified and registered, how the baby\'s own health record and NHI are created, and the national maternity data collections.',
+    blocks: 'Due-date rules, risk thresholds, visit schedules, fetal monitoring, creating the baby\'s own record, NHI allocation and birth registration. SHIFT records the pregnancy as the midwife or doctor enters it (due date and how it was dated, gravida and parity, considerations), labour, the birth and how it was recorded from the organisation\'s own list, the baby in the clinician\'s words, and the postnatal stage, and who recorded each step.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-QUEUE-001',
     question: 'What New Zealand settings require when work is missed: who must be told when a task is not accepted or not done by its due time, how quickly, and who is accountable at each step (for example a caregiver to the registered nurse on duty, a nurse to the doctor).',
     blocks: 'Treating SHIFT\'s escalation ladders and waiting times as a standard. SHIFT sends missed work one step up the service\'s ladder, needs the next person to acknowledge it and record what they did, sends it further up if no one does, and never reassigns work silently.',

@@ -30,6 +30,10 @@ export const RULE_KEYS: RuleKey[] = [
     what: 'The list a nurse chooses from when a dose is not given.',
   },
   {
+    key: 'pregnancy.birth_modes', label: 'Ways a birth is recorded', group: 'Maternity', kind: 'reasons', category: 'ORGANISATIONAL CONFIGURATION', ref: 'ORG-SYN-001 v1',
+    what: 'The list a midwife or doctor chooses from when recording how a baby was born.',
+  },
+  {
     key: 'visit.not_done_reasons', label: 'Reasons a visit is not done', group: 'Visits', kind: 'reasons', category: 'ORGANISATIONAL CONFIGURATION', ref: 'ORG-SYN-001 v1',
     what: 'The list a nurse chooses from when a planned visit could not be done.',
   },

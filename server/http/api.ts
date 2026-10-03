@@ -51,6 +51,7 @@ import * as careDue from '../domain/caredue.ts';
 import * as recalls from '../domain/recalls.ts';
 import * as followups from '../domain/followups.ts';
 import * as visits from '../domain/visits.ts';
+import * as pregnancy from '../domain/pregnancy.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
@@ -550,6 +551,12 @@ export function buildApi(store: Store): Router {
   }));
   r.on('POST', '/api/work/visits/:id/:action', (req) => visits.act(store, work(req), req.params.id, req.params.action, {
     note: str(req.body.note), reason: str(req.body.reason), when: str(req.body.when),
+  }));
+  r.on('POST', '/api/work/patients/:id/pregnancy', (req) => pregnancy.book(store, work(req), req.params.id, {
+    dueDate: str(req.body.dueDate), dueBasis: str(req.body.dueBasis), gravida: str(req.body.gravida), parity: str(req.body.parity), considerations: str(req.body.considerations),
+  }));
+  r.on('POST', '/api/work/pregnancy/:id/:action', (req) => pregnancy.act(store, work(req), req.params.id, req.params.action, {
+    note: str(req.body.note), when: str(req.body.when), mode: str(req.body.mode), baby: str(req.body.baby),
   }));
   r.on('GET', '/api/work/recalls', (req) => recalls.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/recalls', (req) => recalls.setUp(store, work(req), req.params.id, {
