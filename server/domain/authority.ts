@@ -120,6 +120,7 @@ export type Operation =
   | { op: 'FOLLOWUP'; personId: string }
   | { op: 'VISIT'; personId: string; cap: 'visit.plan' | 'visit.record' }
   | { op: 'PREGNANCY'; personId: string }
+  | { op: 'AFTERHOURS'; personId: string }
   | { op: 'SURVEILLANCE'; personId: string }
   | { op: 'SCREENING'; personId: string }
   | { op: 'INFECTION'; personId: string }
@@ -392,6 +393,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, o.cap) ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-VISITS-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can plan or record visits to them`));
+    case 'AFTERHOURS':
+      return need(ctx, 'afterhours.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-AFTERHOURS-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record after-hours contacts about them`));
     case 'PREGNANCY':
       return need(ctx, 'pregnancy.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-MATERNITY-001'])
