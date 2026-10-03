@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 98;
+const SET = 99;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -426,6 +426,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 96) set96(store, password);
     if (at < 97) set97(store, password);
     if (at < 98) set98(store, password);
+    if (at < 99) set99(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5696,4 +5697,77 @@ function set98(store: Store, password: string): void {
   patient('Wiremu', 'Hohepa', '1962-03-14', 'Male', 'ZZZ0315');
   patient('Lani', 'Tuilagi', '1989-09-02', 'Female', 'ZZZ0316');
   patient('Ngaire', 'Cooper', '1948-12-21', 'Female', 'ZZZ0317');
+}
+
+// A primary maternity unit: a midwife and an obstetrician, with three pregnant patients at different stages.
+function set99(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'hinemoa'")) return;
+  const S = 'SYNTHETIC';
+  const today = todayLocal();
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  store.insert('organisation', { id: 'org-maternity', name: 'Te Whare Whanau Maternity', kind: 'MATERNITY_UNIT', data_source: S });
+  store.insert('facility', { id: 'fac-maternity', organisation_id: 'org-maternity', name: 'Te Whare Whanau Primary Birthing Unit' });
+  store.insert('service', { id: 'svc-maternity', organisation_id: 'org-maternity', facility_id: 'fac-maternity', name: 'Maternity Service', sector: 'Maternity, neonatal & child', subject_label: 'Patient' });
+  const dest = (alias: string, label: string, role: string | null, acceptance = 0) =>
+    store.insert('destination', { id: newId(), organisation_id: 'org-maternity', alias, label, kind: role ? 'ROLE_IN_SERVICE' : 'SERVICE', service_id: 'svc-maternity', role_key: role, requires_acceptance: acceptance });
+  dest('midwife', 'Midwife, Maternity Service', 'midwife');
+  dest('ob', 'Obstetrician, Maternity Service', 'obstetrician', 1);
+  dest('team', 'Maternity Service team', null);
+
+  const pw = hashPassword(password);
+  const staff = (user: string, given: string, family: string, display: string, profession: string, regulator: string, reg: string, scope: string, title: string, role: string) => {
+    const wid = newWorker(store, pw, user, given, family, display);
+    store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession, regulator, registration_number: reg, scope, valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: 'org-maternity', employment_type: 'PERMANENT', start_date: '2023-05-01' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-maternity', title, role_key: role, start_date: '2023-05-01' });
+    for (let d = -7; d < 28; d++) {
+      const date = addDays(today, d);
+      if ([0, 6].includes(new Date(`${date}T00:00:00`).getDay())) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: wid, position_id: pos, service_id: 'svc-maternity', shift_date: date, start_time: '07:00', end_time: '19:00', state: 'PLANNED', data_source: S });
+    }
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Annual leave', hours: 72, as_at: today, data_source: S });
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Sick leave', hours: 44, as_at: today, data_source: S });
+    return wid;
+  };
+  const hinemoa = staff('hinemoa', 'Hinemoa', 'Walsh', 'Hinemoa Walsh', 'Midwife', 'Midwifery Council of New Zealand', 'SYN-MW-30551', 'Midwife', 'Midwife', 'midwife');
+  staff('mata', 'Mata', 'Solomona', 'Dr Mata Solomona', 'Medical Practitioner', 'Medical Council of New Zealand', 'SYN-MC-90218', 'Vocational: obstetrics and gynaecology', 'Obstetrician', 'obstetrician');
+
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (given: string, family: string, dob: string, nhi: string, location: string, kind: string) => {
+    const person = newId();
+    store.insert('person', { id: person, family_name: family, given_name: given, date_of_birth: dob, gender: 'Female', ethnicity: 'Maori', iwi: null, data_source: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: nhi, verification: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: S, created_at: at(9000) });
+    store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-maternity', location, kind, started_at: at(9000), state: 'ACTIVE' });
+    store.insert('allergy', { id: newId(), person_id: person, kind: 'NO_KNOWN_ALLERGIES', substance: null, reaction: null, severity: null, certainty: null, state: 'ACTIVE', source: 'Patient report at booking', recorded_by: hinemoa, recorded_at: at(9000), data_source: S });
+    return person;
+  };
+  const preg = (person: string, state: string, dueDays: number, basis: string, gravida: number, parity: number, considerations: string | null, extra: { labour?: number; birth?: number; postnatal?: number } = {}) => {
+    const id = newId();
+    const steps: [string, string, string, number][] = [['BOOKED', `Due ${addDays(today, dueDays)} (${basis}). Pregnancies ${gravida}, births before ${parity}.${considerations ? ` ${considerations}` : ''}`, 'ANTENATAL', 8000]];
+    store.insert('pregnancy', { id, person_id: person, service_id: 'svc-maternity', state: 'ANTENATAL', booked_by: hinemoa, booked_at: at(8000), due_date: addDays(today, dueDays), due_basis: basis, gravida, parity, considerations });
+    store.insert('state_transition', { id: newId(), object_type: 'pregnancy', object_id: id, from_state: null, to_state: 'ANTENATAL', actor_id: hinemoa, work_context_id: null, at: at(8000), reason: `Due ${addDays(today, dueDays)}`, transaction_id: null });
+    let from = 'ANTENATAL';
+    const go = (to: string, kind: string, body: string, mins: number, sql: string, ...args: (string | number | null)[]) => {
+      store.run(sql, ...args, id);
+      store.insert('state_transition', { id: newId(), object_type: 'pregnancy', object_id: id, from_state: from, to_state: to, actor_id: hinemoa, work_context_id: null, at: at(mins), reason: body, transaction_id: null });
+      steps.push([kind, body, to, mins]);
+      from = to;
+    };
+    if (extra.labour !== undefined) go('LABOUR', 'LABOUR', 'Waters broke at home, contractions 4 minutes apart. Came in with her partner.', extra.labour, 'UPDATE pregnancy SET state = ?, labour_at = ?, labour_by = ? WHERE id = ?', 'LABOUR', at(extra.labour), hinemoa);
+    if (extra.birth !== undefined) go('BIRTHED', 'BIRTH', 'Vaginal birth at the unit. Baby: Girl, 3.3 kg, cried at once, skin to skin and feeding well.', extra.birth,
+      'UPDATE pregnancy SET state = ?, birth_at = ?, birth_by = ?, birth_mode = ?, birth_note = ?, baby_note = ? WHERE id = ?', 'BIRTHED', at(extra.birth), hinemoa, 'VAGINAL', null, 'Girl, 3.3 kg, cried at once, skin to skin and feeding well.');
+    if (extra.postnatal !== undefined) go('POSTNATAL', 'POSTNATAL', 'Mother and baby settled in the postnatal room.', extra.postnatal, 'UPDATE pregnancy SET state = ?, postnatal_at = ?, postnatal_by = ? WHERE id = ?', 'POSTNATAL', at(extra.postnatal), hinemoa);
+    void state;
+    for (const [kind, body, , mins] of steps) store.insert('pregnancy_step', { id: newId(), pregnancy_id: id, kind, body, by_id: hinemoa, at: at(mins) });
+    return id;
+  };
+  const anika = patient('Anika', 'Ruatapu', '1994-04-11', 'ZZZ0318', 'Antenatal clinic', 'COMMUNITY');
+  preg(anika, 'ANTENATAL', 70, 'Dating scan at 12 weeks', 2, 1, 'Previous birth was a caesarean; she would like to talk about her options.');
+  const sela = patient('Sela', 'Fonoti', '1991-08-30', 'ZZZ0319', 'Birthing room 1', 'INPATIENT');
+  preg(sela, 'LABOUR', -2, 'Last period and early scan agree', 3, 2, null, { labour: 240 });
+  const tia = patient('Tia', 'Harawira', '1998-01-19', 'ZZZ0320', 'Postnatal room 2', 'INPATIENT');
+  preg(tia, 'POSTNATAL', -4, 'Dating scan at 11 weeks', 1, 0, null, { labour: 3300, birth: 3000, postnatal: 2900 });
 }

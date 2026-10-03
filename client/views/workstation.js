@@ -63,6 +63,7 @@ import { careDuePanel } from './caredue.js';
 import { recallsPanel } from './recalls.js';
 import { followupsPanel } from './followups.js';
 import { visitsPanel } from './visits.js';
+import { pregnancyPanel } from './pregnancy.js';
 import { surveillancePanel } from './surveillance.js';
 import { screeningPanel } from './screening.js';
 import { infectionsPanel } from './infections.js';
@@ -461,6 +462,7 @@ export async function workstationView(personId, initialView) {
       case 'recalls': return recallsPanel(personId, d, () => go(`/work/patient/${personId}/recalls`));
       case 'followups': return followupsPanel(personId, d, () => go(`/work/patient/${personId}/followups`));
       case 'visits': return visitsPanel(personId, d, () => go(`/work/patient/${personId}/visits`));
+      case 'pregnancy': return pregnancyPanel(personId, d, () => go(`/work/patient/${personId}/pregnancy`));
       case 'surveillance': return surveillancePanel(personId, d, () => go(`/work/patient/${personId}/surveillance`));
       case 'screening': return screeningPanel(personId, d, () => go(`/work/patient/${personId}/screening`));
       case 'infections': return infectionsPanel(personId, d, () => go(`/work/patient/${personId}/infections`));
