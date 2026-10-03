@@ -31,7 +31,7 @@ export const SYNTHETIC_USERS = [
   { username: 'hana', label: 'Hana Reid, Privacy Officer (Te Awa Hospital)' },
 ];
 
-const SET = 97;
+const SET = 98;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -425,6 +425,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 95) set95(store, password);
     if (at < 96) set96(store, password);
     if (at < 97) set97(store, password);
+    if (at < 98) set98(store, password);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5645,4 +5646,54 @@ function set97(store: Store, password: string): void {
   const raymond = store.get<{ id: string }>("SELECT person_id AS id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0310'");
   const moana = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'moana'");
   if (raymond && moana) visit(raymond.id, 'svc-hospice', 'PLANNED', 180, 'Breathing and swallowing check', 'At home, Papakura', moana.id, moana.id);
+}
+
+// A general practice: a GP and a practice nurse with three enrolled patients.
+function set98(store: Store, password: string): void {
+  if (store.get("SELECT 1 FROM workforce_person WHERE username = 'aroha'")) return;
+  const S = 'SYNTHETIC';
+  const today = todayLocal();
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  store.insert('organisation', { id: 'org-practice', name: 'Rata Family Doctors', kind: 'GENERAL_PRACTICE', data_source: S });
+  store.insert('facility', { id: 'fac-practice', organisation_id: 'org-practice', name: 'Rata Family Doctors, Manurewa' });
+  store.insert('service', { id: 'svc-gp', organisation_id: 'org-practice', facility_id: 'fac-practice', name: 'General Practice', sector: 'Primary & community care', subject_label: 'Patient' });
+  const dest = (alias: string, label: string, role: string | null) =>
+    store.insert('destination', { id: newId(), organisation_id: 'org-practice', alias, label, kind: role ? 'ROLE_IN_SERVICE' : 'SERVICE', service_id: 'svc-gp', role_key: role, requires_acceptance: 0 });
+  dest('gp', 'GP, General Practice', 'gp');
+  dest('nurse', 'Practice nurse, General Practice', 'practice-nurse');
+  dest('team', 'General Practice team', null);
+
+  const pw = hashPassword(password);
+  const staff = (user: string, given: string, family: string, display: string, profession: string, regulator: string, reg: string, scope: string, title: string, role: string) => {
+    const wid = newWorker(store, pw, user, given, family, display);
+    store.insert('professional_authority', { id: newId(), workforce_person_id: wid, profession, regulator, registration_number: reg, scope, valid_from: '2026-04-01', valid_to: '2027-03-31', status: 'CURRENT', data_source: S });
+    const eid = newId();
+    store.insert('employment', { id: eid, workforce_person_id: wid, organisation_id: 'org-practice', employment_type: 'PERMANENT', start_date: '2023-05-01' });
+    const pos = newId();
+    store.insert('position', { id: pos, employment_id: eid, service_id: 'svc-gp', title, role_key: role, start_date: '2023-05-01' });
+    for (let d = -7; d < 28; d++) {
+      const date = addDays(today, d);
+      if ([0, 6].includes(new Date(`${date}T00:00:00`).getDay())) continue;
+      store.insert('roster_shift', { id: newId(), workforce_person_id: wid, position_id: pos, service_id: 'svc-gp', shift_date: date, start_time: '08:30', end_time: '17:00', state: 'PLANNED', data_source: S });
+    }
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Annual leave', hours: 72, as_at: today, data_source: S });
+    store.insert('leave_balance', { workforce_person_id: wid, leave_type: 'Sick leave', hours: 44, as_at: today, data_source: S });
+    return wid;
+  };
+  const aroha = staff('aroha', 'Aroha', 'Ngata', 'Dr Aroha Ngata', 'Medical Practitioner', 'Medical Council of New Zealand', 'SYN-MC-80412', 'Vocational: general practice', 'General Practitioner', 'gp');
+  staff('pania', 'Pania', 'Rewi', 'Pania Rewi', 'Registered Nurse', 'Nursing Council of New Zealand', 'SYN-RN-61233', 'Registered nurse', 'Practice Nurse', 'practice-nurse');
+
+  let mrn = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const patient = (given: string, family: string, dob: string, gender: string, nhi: string) => {
+    const person = newId();
+    store.insert('person', { id: person, family_name: family, given_name: given, date_of_birth: dob, gender, ethnicity: 'Maori', iwi: null, data_source: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'NHI', value: nhi, verification: S, created_at: at(9000) });
+    store.insert('external_identifier', { id: newId(), person_id: person, system: 'LOCAL_MRN', value: `TEST-${String(++mrn).padStart(5, '0')}`, verification: S, created_at: at(9000) });
+    store.insert('encounter', { id: newId(), person_id: person, service_id: 'svc-gp', location: 'Enrolled patient', kind: 'COMMUNITY', started_at: at(9000), state: 'ACTIVE' });
+    store.insert('allergy', { id: newId(), person_id: person, kind: 'NO_KNOWN_ALLERGIES', substance: null, reaction: null, severity: null, certainty: null, state: 'ACTIVE', source: 'Patient report at enrolment', recorded_by: aroha, recorded_at: at(9000), data_source: S });
+    return person;
+  };
+  patient('Wiremu', 'Hohepa', '1962-03-14', 'Male', 'ZZZ0315');
+  patient('Lani', 'Tuilagi', '1989-09-02', 'Female', 'ZZZ0316');
+  patient('Ngaire', 'Cooper', '1948-12-21', 'Female', 'ZZZ0317');
 }
