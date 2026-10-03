@@ -5,6 +5,7 @@ import { go } from '../app.js';
 import { workHeader } from './entry.js';
 import { formDialog as dialog, field, select } from '../lib/forms.js';
 import { retentionSections } from './retention.js';
+import { reviewSections } from './privacyreview.js';
 
 // Privacy requests: someone asks to see, correct or know about health information → who is asking
 // is checked → decided with reasons → the answer is sent. SHIFT sets no time limit or grounds.
@@ -88,7 +89,7 @@ function card(x, reload) {
 export async function privacyView() {
   const root = h('div');
   const load = async () => {
-    const [d, r] = await Promise.all([get('/api/work/privacy'), get('/api/work/retention')]);
+    const [d, r, v] = await Promise.all([get('/api/work/privacy'), get('/api/work/retention'), get('/api/work/privacy-reviews')]);
     const section = (title, rows, empty) => h('section', { class: 'stack' }, h('h2', { class: 'section-title paua' }, `${title} (${rows.length})`),
       rows.length ? rows.map((x) => card(x, load)) : h('div', { class: 'card empty' }, empty));
     mount(root,
@@ -100,6 +101,8 @@ export async function privacyView() {
       section('To decide', d.toDecide, 'Nothing waiting for a decision.'),
       section('To send', d.toSend, 'Nothing waiting to be sent.'),
       section('Closed in the last fortnight', d.closed, 'Nothing closed recently.'),
+      h('h2', { class: 'section-title' }, 'Who has opened records'),
+      ...reviewSections(v, load),
       h('h2', { class: 'section-title' }, 'Records retention and legal holds'),
       ...retentionSections(r, load),
     );

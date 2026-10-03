@@ -4667,4 +4667,37 @@ CREATE TABLE records_review (
 CREATE INDEX records_review_org ON records_review(organisation_id, state);
 `,
   },
+  {
+    version: 93,
+    name: 'privacy access review',
+    sql: `
+-- Privacy access review: who opened a record, the finding and what was done (entries 32, 33).
+CREATE TABLE privacy_review (
+  id TEXT PRIMARY KEY,
+  organisation_id TEXT NOT NULL REFERENCES organisation(id),
+  person_id TEXT NOT NULL REFERENCES person(id),
+  state TEXT NOT NULL,                  -- OPEN | FINDING | CLOSED
+  source TEXT NOT NULL,                 -- COMPLAINT | FLAGGED | ROUTINE | OTHER
+  why TEXT NOT NULL,
+  opened_by TEXT NOT NULL REFERENCES workforce_person(id),
+  opened_at TEXT NOT NULL,
+  finding TEXT,                         -- APPROPRIATE | NOT_APPROPRIATE | UNCLEAR
+  finding_note TEXT,
+  found_by TEXT REFERENCES workforce_person(id),
+  found_at TEXT,
+  outcome_note TEXT,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT
+);
+CREATE INDEX privacy_review_person ON privacy_review(person_id, state);
+CREATE TABLE privacy_review_step (
+  id TEXT PRIMARY KEY,
+  review_id TEXT NOT NULL REFERENCES privacy_review(id),
+  body TEXT NOT NULL,
+  by_id TEXT NOT NULL REFERENCES workforce_person(id),
+  at TEXT NOT NULL
+);
+CREATE INDEX privacy_review_step_review ON privacy_review_step(review_id);
+`,
+  },
 ];

@@ -73,6 +73,7 @@ import * as danger from '../domain/danger.ts';
 import * as observation from '../domain/observation.ts';
 import * as privacy from '../domain/privacy.ts';
 import * as retention from '../domain/retention.ts';
+import * as privacyReview from '../domain/privacyreview.ts';
 import * as trauma from '../domain/trauma.ts';
 import * as feeding from '../domain/feeding.ts';
 import * as antimicrobials from '../domain/antimicrobials.ts';
@@ -694,6 +695,9 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/reports/:id/:action', (req) => reports.act(store, work(req), req.params.id, req.params.action, {
     ...reportFields(req.body), outcome: str(req.body.outcome), note: str(req.body.note),
   }));
+  r.on('GET', '/api/work/privacy-reviews', (req) => privacyReview.list(store, work(req)));
+  r.on('POST', '/api/work/privacy-reviews', (req) => privacyReview.open(store, work(req), { nhi: str(req.body.nhi), source: str(req.body.source), why: str(req.body.why) }));
+  r.on('POST', '/api/work/privacy-reviews/:id/:action', (req) => privacyReview.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note), finding: str(req.body.finding) }));
   r.on('GET', '/api/work/retention', (req) => retention.list(store, work(req)));
   r.on('POST', '/api/work/retention/holds', (req) => retention.placeHold(store, work(req), { nhi: str(req.body.nhi), reason: str(req.body.reason), askedBy: str(req.body.askedBy), reference: str(req.body.reference) }));
   r.on('POST', '/api/work/retention/holds/:id/release', (req) => retention.releaseHold(store, work(req), req.params.id, { note: str(req.body.note) }));
