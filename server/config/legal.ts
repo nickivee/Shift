@@ -396,6 +396,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-AFTERHOURS-001',
+    question: 'What New Zealand requires of after-hours palliative care access: response times, who must answer and with what training, how an after-hours contact is triaged and recorded, and how it is handed to the day team (Health NZ palliative care service specifications and the Hospice New Zealand and Palliative Care Council standards).',
+    blocks: 'Response times, triage rules, advice content, on-call rosters and handover deadlines are not set by SHIFT. It records each contact as the clinician enters it (who made contact, the concern, the advice given and what came of it) and the day team\'s review.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-MATERNITY-001',
     question: 'What New Zealand requires of maternity records: the Maternity Services Notice and Primary Maternity Services Notice under the Public Health and Disability Act, the Midwifery Council\'s standards, how a birth is notified and registered, how the baby\'s own health record and NHI are created, and the national maternity data collections.',
     blocks: 'Due-date rules, risk thresholds, visit schedules, fetal monitoring, creating the baby\'s own record, NHI allocation and birth registration. SHIFT records the pregnancy as the midwife or doctor enters it (due date and how it was dated, gravida and parity, considerations), labour, the birth and how it was recorded from the organisation\'s own list, the baby in the clinician\'s words, and the postnatal stage, and who recorded each step.',

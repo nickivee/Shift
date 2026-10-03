@@ -174,7 +174,8 @@ export type Capability =
   | 'cd.register'
   | 'visit.plan'
   | 'visit.record'
-  | 'pregnancy.record';
+  | 'pregnancy.record'
+  | 'afterhours.record';
 
 export interface HomeCard {
   id: string;
@@ -266,6 +267,7 @@ const CARD = {
   recalls: { id: 'recalls', label: 'Recalls', required: true },
   followups: { id: 'followups', label: 'Follow-ups', required: true },
   visits: { id: 'visits', label: 'Visits', required: true },
+  afterhours: { id: 'afterhours', label: 'After-hours', required: true },
   surveillance: { id: 'surveillance', label: 'Surveillance', required: true },
   screening: { id: 'screening', label: 'Screening', required: true },
   infections: { id: 'infections', label: 'Infections', required: true },
@@ -542,11 +544,11 @@ export const ROLES: RoleConfig[] = [
 
 // Palliative care / hospice (matrix, "Older people, palliative & disability support"). The matrix names the
 // service and its tabs but not its positions, so a nurse and a doctor are set up from the shared roles and
-// the position names are provisional. Each sees the matrix tabs that SHIFT already has; After-hours has no screen yet, and Bereavement sits inside End of life.
+// the position names are provisional. Each sees the matrix tabs that SHIFT already has; Bereavement sits inside End of life.
 const roleOf = (key: string) => ROLES.find((r) => r.roleKey === key)!;
 const withViews = (r: RoleConfig, extra: string[]) => [...new Set([...r.views, ...extra])];
 const withCards = (r: RoleConfig, extra: HomeCard[]) => [...r.homeCards, ...extra.filter((c) => !r.homeCards.some((x) => x.id === c.id))];
-const HOSPICE_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; the After-hours tab is not built yet';
+const HOSPICE_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional';
 ROLES.push(
   {
     ...roleOf('arc-rn'),
@@ -555,17 +557,17 @@ ROLES.push(
     matrixRow: 'Palliative care / hospice',
     evidenceStatus: HOSPICE_EVIDENCE,
     keys: [...new Set([...roleOf('arc-rn').keys, '.goals', '.symptom'])],
-    views: withViews(roleOf('arc-rn'), ['symptoms', 'goals', 'death', 'support', 'equipment', 'visits']),
-    ownViews: [...new Set([...(roleOf('arc-rn').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'equipment', 'visits'])],
+    views: withViews(roleOf('arc-rn'), ['symptoms', 'goals', 'death', 'support', 'equipment', 'visits', 'afterhours']),
+    ownViews: [...new Set([...(roleOf('arc-rn').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'equipment', 'visits', 'afterhours'])],
     tabs: [
       { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'symptoms', label: 'Symptoms' }, { id: 'meds', label: 'Medicines' },
-      { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'equipment', label: 'Equipment' }, { id: 'support', label: 'Whānau' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'visits', label: 'Visits' }, { id: 'afterhours', label: 'After-hours' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'equipment', label: 'Equipment' }, { id: 'support', label: 'Whānau' },
       { id: 'death', label: 'End-of-life' },
     ],
-    capabilities: [...roleOf('arc-rn').capabilities, 'visit.plan', 'visit.record'],
-    homeCards: withCards(roleOf('arc-rn'), [CARD.symptoms, CARD.deaths, CARD.visits]),
+    capabilities: [...roleOf('arc-rn').capabilities, 'visit.plan', 'visit.record', 'afterhours.record'],
+    homeCards: withCards(roleOf('arc-rn'), [CARD.symptoms, CARD.deaths, CARD.visits, CARD.afterhours]),
     homeFour: ['workstation', 'tasks', 'symptoms', 'handover'],
-    ownCards: [...new Set([...(roleOf('arc-rn').ownCards ?? []), 'symptoms', 'deaths', 'visits'])],
+    ownCards: [...new Set([...(roleOf('arc-rn').ownCards ?? []), 'symptoms', 'deaths', 'visits', 'afterhours'])],
     escalatesTo: ['hospice-physician'],
   },
   {
@@ -575,15 +577,16 @@ ROLES.push(
     matrixRow: 'Palliative care / hospice',
     evidenceStatus: HOSPICE_EVIDENCE,
     keys: [...new Set([...roleOf('genmed-physician').keys, '.goals', '.symptom'])],
-    views: withViews(roleOf('genmed-physician'), ['symptoms', 'goals', 'death', 'support', 'equipment']),
-    ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), 'symptoms', 'goals', 'death', 'support'])],
+    views: withViews(roleOf('genmed-physician'), ['symptoms', 'goals', 'death', 'support', 'equipment', 'afterhours']),
+    ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), 'symptoms', 'goals', 'death', 'support', 'afterhours'])],
+    capabilities: [...roleOf('genmed-physician').capabilities, 'afterhours.record'],
     tabs: [
       { id: 'list', label: 'Caseload' }, { id: 'assess', label: 'Assessment' }, { id: 'symptoms', label: 'Symptoms' }, { id: 'meds', label: 'Medicines' },
-      { id: 'careplan', label: 'Care Plan' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'support', label: 'Whānau' }, { id: 'death', label: 'End-of-life' },
+      { id: 'careplan', label: 'Care Plan' }, { id: 'afterhours', label: 'After-hours' }, { id: 'goals', label: 'ACP/Goals' }, { id: 'support', label: 'Whānau' }, { id: 'death', label: 'End-of-life' },
     ],
-    homeCards: withCards(roleOf('genmed-physician'), [CARD.symptoms, CARD.deaths]),
+    homeCards: withCards(roleOf('genmed-physician'), [CARD.symptoms, CARD.deaths, CARD.afterhours]),
     homeFour: ['workstation', 'tasks', 'symptoms', 'deaths'],
-    ownCards: [...new Set([...(roleOf('genmed-physician').ownCards ?? []), 'symptoms', 'deaths'])],
+    ownCards: [...new Set([...(roleOf('genmed-physician').ownCards ?? []), 'symptoms', 'deaths', 'afterhours'])],
     consultsTo: undefined,
     refersTo: undefined,
   },

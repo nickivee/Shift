@@ -4939,4 +4939,31 @@ INSERT INTO rule_setting (id, jurisdiction_id, rule_key, value, version, status,
  ('rs-nz-birth-modes', 'NZ', 'pregnancy.birth_modes', '[{"code":"VAGINAL","label":"Vaginal birth"},{"code":"ASSISTED","label":"Assisted vaginal birth"},{"code":"CAESAREAN","label":"Caesarean birth"},{"code":"OTHER","label":"Another way, as written"}]', 1, 'ACTIVE', '2026-01-01', 'ORGANISATIONAL CONFIGURATION', 'ORG-SYN-001 v1', NULL, 'The organisation''s own list of ways a birth is recorded.', '2026-10-03T00:00:00.000Z', '2026-10-03T00:00:00.000Z');
 `,
   },
+  {
+    version: 99,
+    name: 'afterhours',
+    sql: `
+-- An after-hours contact about a person in a service's care: what was asked, the advice given, what came of it,
+-- and the day team's review. SHIFT sets no response time, triage rule or advice content (RR-AFTERHOURS-001).
+CREATE TABLE afterhours_contact (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- OPEN | REVIEWED | ENTERED_IN_ERROR
+  contact_at TEXT NOT NULL,
+  caller TEXT NOT NULL,                 -- who made contact
+  concern TEXT NOT NULL,                -- what they were worried about, in the clinician's words
+  advice TEXT NOT NULL,                 -- what was said or done, in the clinician's words
+  outcome TEXT NOT NULL,                -- what came of it
+  outcome_note TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  reviewed_by TEXT REFERENCES workforce_person(id),
+  reviewed_at TEXT,
+  review_note TEXT
+);
+CREATE INDEX afterhours_person ON afterhours_contact(person_id, contact_at);
+CREATE INDEX afterhours_service ON afterhours_contact(service_id, state, contact_at);
+`,
+  },
 ];

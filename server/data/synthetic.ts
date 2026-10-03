@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 100;
+const SET = 101;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -425,6 +425,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 98) set98(store, password);
     if (at < 99) set99(store, password);
     if (at < 100) set100(store);
+    if (at < 101) set101(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5876,4 +5877,30 @@ function set100(store: Store): void {
       }
     }
   });
+}
+
+// After-hours contacts about the hospice's patients: two waiting for the day team and one already reviewed.
+function set101(store: Store): void {
+  if (store.get("SELECT 1 FROM afterhours_contact LIMIT 1")) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const worker = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const nurse = worker('jane.doe');
+  const doctor = worker('john.doe');
+  const person = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id;
+  if (!nurse || !doctor) return;
+  const contact = (nhi: string, mins: number, caller: string, concern: string, advice: string, outcome: string, outcomeNote: string | null, by: string, review?: { mins: number; by: string; note: string }) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    const id = newId();
+    store.insert('afterhours_contact', {
+      id, person_id: pid, service_id: 'svc-hospice', state: review ? 'REVIEWED' : 'OPEN', contact_at: at(mins), caller, concern, advice, outcome, outcome_note: outcomeNote,
+      recorded_by: by, recorded_at: at(mins - 10), reviewed_by: review ? review.by : null, reviewed_at: review ? at(review.mins) : null, review_note: review ? review.note : null,
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'afterhours', object_id: id, from_state: null, to_state: 'OPEN', actor_id: by, work_context_id: null, at: at(mins - 10), reason: concern.slice(0, 200), transaction_id: null });
+    if (review) store.insert('state_transition', { id: newId(), object_type: 'afterhours', object_id: id, from_state: 'OPEN', to_state: 'REVIEWED', actor_id: review.by, work_context_id: null, at: at(review.mins), reason: review.note.slice(0, 200), transaction_id: null });
+  };
+  contact('ZZZ0309', 640, 'WHANAU', 'Breathless and anxious since midnight; the family cannot settle her.', 'Talked through the breathlessness plan on the fridge sheet; gave the as-needed dose as charted; rang back after an hour and she was calmer.', 'ADVICE', null, nurse);
+  contact('ZZZ0310', 420, 'PERSON', 'Pain in the back not eased by the usual tablets.', 'Checked what had been taken. On-call nurse arranged a visit for the morning; the as-needed dose was given at home meanwhile.', 'VISIT', 'Morning visit arranged for 08:00.', nurse);
+  contact('ZZZ0311', 3300, 'SERVICE', 'Night staff at the hospice unit asked about vomiting that had not stopped.', 'Doctor on call advised a change to the anti-sickness medicine and a review in the morning.', 'ADVICE', null, doctor,
+    { mins: 3000, by: nurse, note: 'Reviewed with the unit: vomiting settled on the new medicine; no further change.' });
 }

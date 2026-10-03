@@ -56,6 +56,7 @@ import { careDueView } from './views/caredue.js';
 import { recallsView } from './views/recalls.js';
 import { followupsView } from './views/followups.js';
 import { visitsView } from './views/visits.js';
+import { afterhoursView } from './views/afterhours.js';
 import { surveillanceView } from './views/surveillance.js';
 import { screeningView } from './views/screening.js';
 import { infectionsView } from './views/infections.js';
@@ -162,6 +163,7 @@ const routes = [
   [/^\/work\/recalls$/, () => recallsView(), { work: true }],
   [/^\/work\/followups$/, () => followupsView(), { work: true }],
   [/^\/work\/visits$/, () => visitsView(), { work: true }],
+  [/^\/work\/afterhours$/, () => afterhoursView(), { work: true }],
   [/^\/work\/surveillance$/, () => surveillanceView(), { work: true }],
   [/^\/work\/screening$/, () => screeningView(), { work: true }],
   [/^\/work\/infections$/, () => infectionsView(), { work: true }],
