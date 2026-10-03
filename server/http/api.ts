@@ -53,6 +53,7 @@ import * as followups from '../domain/followups.ts';
 import * as visits from '../domain/visits.ts';
 import * as pregnancy from '../domain/pregnancy.ts';
 import * as afterhours from '../domain/afterhours.ts';
+import * as education from '../domain/education.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
 import * as infections from '../domain/infections.ts';
@@ -553,6 +554,11 @@ export function buildApi(store: Store): Router {
   r.on('POST', '/api/work/visits/:id/:action', (req) => visits.act(store, work(req), req.params.id, req.params.action, {
     note: str(req.body.note), reason: str(req.body.reason), when: str(req.body.when),
   }));
+  r.on('GET', '/api/work/education', (req) => education.list(store, work(req)));
+  r.on('POST', '/api/work/patients/:id/education', (req) => education.record(store, work(req), req.params.id, {
+    when: str(req.body.when), topic: str(req.body.topic), givenTo: str(req.body.givenTo), understanding: str(req.body.understanding), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/education/:id/:action', (req) => education.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('GET', '/api/work/afterhours', (req) => afterhours.list(store, work(req)));
   r.on('POST', '/api/work/patients/:id/afterhours', (req) => afterhours.record(store, work(req), req.params.id, {
     when: str(req.body.when), caller: str(req.body.caller), concern: str(req.body.concern), advice: str(req.body.advice), outcome: str(req.body.outcome), note: str(req.body.note),

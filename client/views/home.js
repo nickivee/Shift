@@ -49,6 +49,7 @@ const DESCRIPTIONS = {
   caredue: () => 'Care falling due in your service: overdue, due now and coming up.',
   recalls: () => 'Recalls overdue, due in the next 30 days, booked, and missed.',
   followups: () => 'Follow-ups to take on, arrange, and record the outcome of.',
+  education: () => 'People who need more teaching, and education given in the last week.',
   afterhours: () => 'Contacts made outside usual hours that are waiting for the day team to review.',
   visits: () => 'Visits planned for people where they are: due now, today and coming up.',
   surveillance: () => 'Surveillance results to review, and checks overdue or due this week.',
@@ -84,7 +85,7 @@ const DESCRIPTIONS = {
 const TARGET = {
   workstation: '/work/records', tasks: '/work/tasks', search: '/work/search', handover: '/work/handover', received: '/work/received', knowledge: '/work/knowledge',
   vacancies: '/work/rostering/vacancies', swaps: '/work/rostering/swaps', leave: '/work/rostering/leave',
-  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', privacy: '/work/privacy', cdbook: '/work/controlled-drugs', rules: '/work/rules', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', recommendations: '/work/recommendations', requirements: '/work/requirements', caredue: '/work/care-due', recalls: '/work/recalls', followups: '/work/followups', visits: '/work/visits', afterhours: '/work/afterhours', surveillance: '/work/surveillance', screening: '/work/screening', infections: '/work/infections', antimicrobials: '/work/antimicrobials', sitechecks: '/work/sitechecks', readiness: '/work/readiness', variances: '/work/variances', declined: '/work/declined', priorities: '/work/priorities', arrivals: '/work/arrivals', duplicates: '/work/duplicates', breakglass: '/work/breakglass', delegation: '/work/delegation', downtime: '/work/downtime', codingqueries: '/work/coding-questions',
+  transfers: '/work/transfers', flow: '/work/flow', discharges: '/work/discharges', escalations: '/work/escalations', consults: '/work/consultations', wounds: '/work/wounds', careplans: '/work/careplans', referrals: '/work/referrals', appointments: '/work/appointments', alerts: '/work/alerts', communications: '/work/communications', monitoring: '/work/monitoring', restrictions: '/work/restrictions', meals: '/work/meals', equipment: '/work/equipment', moves: '/work/moves', absences: '/work/leave', preferences: '/work/preferences', capacity: '/work/capacity', whanau: '/work/whanau', interpreters: '/work/interpreters', external: '/work/external', coding: '/work/coding', privacy: '/work/privacy', cdbook: '/work/controlled-drugs', rules: '/work/rules', reports: '/work/reports', instruments: '/work/questionnaires', function: '/work/function', usual: '/work/usual', team: '/work/team', allocation: '/work/allocation', acuity: '/work/acuity', deterioration: '/work/deterioration', incidents: '/work/incidents', deaths: '/work/deaths', problems: '/work/problems', symptoms: '/work/symptoms', interventions: '/work/interventions', treatmentplans: '/work/treatment-plans', pathways: '/work/pathways', checklists: '/work/checklists', recommendations: '/work/recommendations', requirements: '/work/requirements', caredue: '/work/care-due', recalls: '/work/recalls', followups: '/work/followups', visits: '/work/visits', afterhours: '/work/afterhours', education: '/work/education', surveillance: '/work/surveillance', screening: '/work/screening', infections: '/work/infections', antimicrobials: '/work/antimicrobials', sitechecks: '/work/sitechecks', readiness: '/work/readiness', variances: '/work/variances', declined: '/work/declined', priorities: '/work/priorities', arrivals: '/work/arrivals', duplicates: '/work/duplicates', breakglass: '/work/breakglass', delegation: '/work/delegation', downtime: '/work/downtime', codingqueries: '/work/coding-questions',
 };
 
 export function openTab(tabId) {
@@ -130,6 +131,7 @@ export async function homeView() {
     if (want.includes('infections')) jobs.push(get('/api/work/infections').then((d) => (counts.infections = d.suspected.length + d.attention.length + d.isolation.notInPlace + d.isolation.reviewDue)));
     if (want.includes('screening')) jobs.push(get('/api/work/screening').then((d) => (counts.screening = (d.canReview ? d.toReview.length : 0) + d.toTell.length + d.toOffer.filter((x) => x.overdue).length)));
     if (want.includes('surveillance')) jobs.push(get('/api/work/surveillance').then((d) => (counts.surveillance = (d.canReview ? d.toReview.length : 0) + d.overdue.length)));
+    if (want.includes('education')) jobs.push(get('/api/work/education').then((d) => (counts.education = d.moreNeeded.length)));
     if (want.includes('afterhours')) jobs.push(get('/api/work/afterhours').then((d) => (counts.afterhours = d.toReview.length)));
     if (want.includes('visits')) jobs.push(get('/api/work/visits').then((d) => (counts.visits = d.overdue.length + d.today.length)));
     if (want.includes('followups')) jobs.push(get('/api/work/followups').then((d) => (counts.followups = d.toTake.length + d.toArrange.length + d.outcome.length)));
@@ -209,7 +211,7 @@ export async function homeView() {
       return sel;
     });
     dialog('Choose my four', (run, close) => h('div', { class: 'stack' },
-      h('p', { class: 'small' }, 'Pick the four functions you use most. The rest stay one tap away under More functions.'),
+      h('p', { class: 'small' }, 'Pick the four functions you use most. The rest stay in the sliders at the top of Home.'),
       slots.map((sel, i) => field(`Square ${i + 1}`, sel)),
       h('div', { class: 'row' },
         h('button', { class: 'btn primary', type: 'button', onclick: run(async () => {
@@ -227,22 +229,36 @@ export async function homeView() {
   };
 
   const draw = () => {
-    const list = (title, items, cls) => {
-      const groups = groupCards(items, (c) => c.id);
-      return items.length ? h('details', { class: cls }, h('summary', {}, `${title} (${items.length})`),
-        groups.map((g) => h('section', { class: 'stack' },
-          groups.length > 1 ? h('h3', { class: 'small muted' }, g.title) : null,
-          g.items.map((c) => h('div', { class: 'spread screen-row' },
-            h('span', {}, h('b', {}, c.label), h('div', { class: 'small muted' }, DESCRIPTIONS[c.id]?.(subject) ?? '')),
-            h('span', { class: 'row' },
-              h('button', { class: 'btn small', onclick: () => go(TARGET[c.id]) }, 'Open'),
-              h('button', { class: 'btn small', onclick: () => pinDialog(c) }, 'Put on Home'))))))) : null;
+    // A slider is a strip of functions at the top of Home. It is dragged sideways with the mouse, or swiped on a phone.
+    const slider = (title, items, cls, onPick, hint) => {
+      if (!items.length) return null;
+      items = groupCards(items, (c) => c.id).flatMap((g) => g.items);
+      const strip = h('div', { class: 'slider-strip', tabindex: '0', role: 'list', 'aria-label': title },
+        items.map((c) => h('button', { class: 'slider-chip', role: 'listitem', title: DESCRIPTIONS[c.id]?.(subject) ?? '', onclick: () => { if (!strip.dataset.dragged) onPick(c); } },
+          h('span', { class: 'slider-icon' }, icon(c.id)),
+          h('span', { class: 'slider-label' }, c.label),
+          counts[c.id] ? h('span', { class: 'slider-count' }, String(counts[c.id])) : null)));
+      let startX = 0; let startLeft = 0; let down = false;
+      strip.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        down = true; startX = e.clientX; startLeft = strip.scrollLeft; delete strip.dataset.dragged;
+      });
+      strip.addEventListener('pointermove', (e) => {
+        if (!down) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > 5) { strip.dataset.dragged = '1'; strip.classList.add('dragging'); }
+        strip.scrollLeft = startLeft - dx;
+      });
+      const end = () => { down = false; strip.classList.remove('dragging'); setTimeout(() => delete strip.dataset.dragged, 0); };
+      strip.addEventListener('pointerup', end);
+      strip.addEventListener('pointerleave', end);
+      return h('section', { class: `slider ${cls}` }, h('div', { class: 'slider-head' }, h('h2', {}, title), h('span', { class: 'small muted' }, hint)), strip);
     };
     mount(root,
       workHeader(),
+      slider('More functions', home.more, 'more-functions', (c) => go(TARGET[c.id]), 'Slide to see more. Tap one to open it.'),
+      slider('Add a function', home.add, 'add-functions', (c) => pinDialog(c), 'Slide to see more. Tap one to put it on Home.'),
       h('div', { class: 'grid-cards four' }, home.cards.map(card)),
-      list('More functions', home.more, 'more-functions'),
-      list('Add a function', home.add, 'more-functions add-functions'),
       h('div', { class: 'customise-bar' },
         h('button', { class: 'link-btn', onclick: fourDialog }, 'Choose my four'),
         h('span', { class: 'small muted' }, `${state.me.context.roleLabel} · ${state.me.context.matrixRow}`),
