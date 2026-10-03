@@ -611,4 +611,51 @@ ROLES.push({
   escalatesTo: undefined,
 });
 
+// General practice (matrix, "Primary & community care"): the GP and the practice nurse, set up from the general
+// medicine physician and nurse. Orders, Immunisation, Chronic Care and Education have no screen yet, and Schedule
+// is the appointments screen.
+const GP_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Orders, Immunisation, Chronic Care and Education tabs are not built yet';
+const GP_VIEWS = ['overview', 'history', 'problems', 'assess', 'meds', 'obs', 'results', 'screening', 'referrals', 'communications', 'notes', 'tasks', 'followups', 'recalls', 'appointments'];
+const NURSE_VIEWS = ['recalls', 'assess', 'obs', 'meds', 'screening', 'wounds', 'tasks', 'notes', 'appointments', 'followups'];
+ROLES.push(
+  {
+    ...roleOf('genmed-physician'),
+    roleKey: 'gp',
+    label: 'General Practitioner',
+    matrixRow: 'General practice / GP',
+    evidenceStatus: GP_EVIDENCE,
+    keys: [...new Set([...roleOf('genmed-physician').keys, '.progress'])],
+    views: withViews(roleOf('genmed-physician'), GP_VIEWS),
+    ownViews: [...new Set([...(roleOf('genmed-physician').ownViews ?? []), ...GP_VIEWS])],
+    tabs: [
+      { id: 'appointments', label: 'Schedule' }, { id: 'list', label: 'Patients' }, { id: 'overview', label: 'Patient Overview' }, { id: 'history', label: 'History' },
+      { id: 'problems', label: 'Problems' }, { id: 'assess', label: 'Assessment' }, { id: 'meds', label: 'Medicines' }, { id: 'obs', label: 'Observations' },
+      { id: 'results', label: 'Results' }, { id: 'screening', label: 'Preventive Care' }, { id: 'referrals', label: 'Referrals' },
+      { id: 'communications', label: 'Correspondence' }, { id: 'notes', label: 'Notes' }, { id: 'tasks', label: 'Inbox/Tasks' }, { id: 'followups', label: 'Follow-up' },
+    ],
+    homeFour: ['workstation', 'tasks', 'appointments', 'followups'],
+    consultsTo: undefined,
+    refersTo: undefined,
+  },
+  {
+    ...roleOf('genmed-rn'),
+    roleKey: 'practice-nurse',
+    label: 'Practice Nurse',
+    matrixRow: 'Practice nursing',
+    evidenceStatus: GP_EVIDENCE,
+    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'appointment.manage'],
+    views: withViews(roleOf('genmed-rn'), NURSE_VIEWS),
+    ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), ...NURSE_VIEWS])],
+    tabs: [
+      { id: 'appointments', label: 'Schedule' }, { id: 'list', label: 'Patients' }, { id: 'recalls', label: 'Recalls' }, { id: 'assess', label: 'Assessment' },
+      { id: 'obs', label: 'Observations' }, { id: 'meds', label: 'Medicines' }, { id: 'screening', label: 'Screening' }, { id: 'wounds', label: 'Wounds' },
+      { id: 'tasks', label: 'Tasks' }, { id: 'notes', label: 'Notes' },
+    ],
+    homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, [CARD.appointments, CARD.recalls, CARD.followups]),
+    homeFour: ['workstation', 'tasks', 'recalls', 'appointments'],
+    ownCards: [...new Set([...(roleOf('genmed-rn').ownCards ?? []).filter((c) => c !== 'cdbook'), 'appointments', 'recalls', 'followups'])],
+    escalatesTo: ['gp'],
+  },
+);
+
 export const ROLE_BY_KEY = new Map(ROLES.map((r) => [r.roleKey, r]));
