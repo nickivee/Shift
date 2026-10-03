@@ -66,6 +66,7 @@ import { visitsPanel } from './visits.js';
 import { pregnancyPanel } from './pregnancy.js';
 import { afterhoursPanel } from './afterhours.js';
 import { educationPanel } from './education.js';
+import { immunisationPanel } from './immunisation.js';
 import { chronicPanel } from './chronic.js';
 import { surveillancePanel } from './surveillance.js';
 import { screeningPanel } from './screening.js';
@@ -467,6 +468,7 @@ export async function workstationView(personId, initialView) {
       case 'visits': return visitsPanel(personId, d, () => go(`/work/patient/${personId}/visits`));
       case 'chronic': return chronicPanel(personId, d, () => go(`/work/patient/${personId}/chronic`));
       case 'education': return educationPanel(personId, d, () => go(`/work/patient/${personId}/education`));
+      case 'immunisation': return immunisationPanel(personId, d, () => go(`/work/patient/${personId}/immunisation`));
       case 'afterhours': return afterhoursPanel(personId, d, () => go(`/work/patient/${personId}/afterhours`));
       case 'pregnancy': return pregnancyPanel(personId, d, () => go(`/work/patient/${personId}/pregnancy`));
       case 'surveillance': return surveillancePanel(personId, d, () => go(`/work/patient/${personId}/surveillance`));

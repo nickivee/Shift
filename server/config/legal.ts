@@ -402,6 +402,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-IMMUNISATION-001',
+    question: 'What New Zealand requires for giving and recording immunisations: who may give each vaccine and under what authority (Medicines Act 1981, Medicines Regulations 1984, authorised vaccinator requirements, standing orders or prescription), consent and information required before vaccination (Code of Rights Right 6 and 7), what must be recorded (batch, expiry, site, who gave it), notifying the National Immunisation Register and what the person may opt out of, cold chain requirements, how adverse events are reported (CARM), and the ages, intervals, eligibility and catch-up rules of the National Immunisation Schedule as they change.',
+    blocks: 'Who may vaccinate, consent steps, notification to the National Immunisation Register, cold chain, adverse event reporting, and any due dates, intervals or eligibility are not set by SHIFT. It records the vaccine given or not given from the jurisdiction\'s own list (taken from the Health NZ National Immunisation Schedule page), when, the dose, the site and the batch number as the clinician writes them, any reaction, and corrections, and it works nothing out as due.',
+    category: 'NATIONAL/SECTOR STANDARD',
+  },
+  {
     ref: 'RR-EDUCATION-001',
     question: 'What New Zealand requires of patient education in general practice and other services: what must be explained and recorded (for example informed consent information under the Code of Health and Disability Services Consumers\' Rights, Right 6 and Right 7), health literacy and interpreter expectations, and any content or schedule a funder or the Royal New Zealand College of General Practitioners sets.',
     blocks: 'Education content, schedules, teaching materials and what counts as understood are not set by SHIFT. It records what the clinician explained, to whom, how well it was understood in their judgement, and whether more is needed.',
