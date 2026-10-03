@@ -50,14 +50,12 @@ export const RULE_KEYS: RuleKey[] = [
     what: 'The dates stock is counted as at. Each shows as due once it has passed.',
   },
   {
-    key: 'privacy.response_days', label: 'Time to answer a request for health information', group: 'Privacy', kind: 'int', min: 1, max: 365, unit: 'days', category: 'LAW', ref: 'RR-PRIVACY-001',
-    what: 'When set, a new privacy request gets its due date from this.',
-    waiting: 'Not set. The time limit has not been confirmed from a public official source.',
+    key: 'privacy.response_days', label: 'Time to answer a request for health information', group: 'Privacy', kind: 'int', min: 1, max: 365, unit: 'working days', category: 'LAW', ref: 'RR-PRIVACY-001',
+    what: 'A new privacy request gets its due date from this, counting weekdays only. Public holidays are not taken off, so the real limit can be a little later than the date shown.',
   },
   {
     key: 'retention.minimum_years', label: 'Minimum time to keep a health record', group: 'Records', kind: 'int', min: 1, max: 100, unit: 'years', category: 'REGULATION/CODE', ref: 'RR-RETENTION-001',
-    what: 'When set, it is shown on the record retention screen for the privacy officer to decide against.',
-    waiting: 'Not set. The retention period has not been confirmed from a public official source.',
+    what: 'It is shown on the record retention screen for the privacy officer to decide against, counted from the last time the person was seen.',
   },
 ];
 export const RULE_KEY = new Map(RULE_KEYS.map((k) => [k.key, k]));
