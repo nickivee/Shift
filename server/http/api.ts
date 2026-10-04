@@ -55,6 +55,7 @@ import * as pregnancy from '../domain/pregnancy.ts';
 import * as afterhours from '../domain/afterhours.ts';
 import * as education from '../domain/education.ts';
 import * as immunisation from '../domain/immunisation.ts';
+import * as eligibility from '../domain/eligibility.ts';
 import * as chronic from '../domain/chronic.ts';
 import * as surveillance from '../domain/surveillance.ts';
 import * as screening from '../domain/screening.ts';
@@ -564,6 +565,10 @@ export function buildApi(store: Store): Router {
     when: str(req.body.when), topic: str(req.body.topic), givenTo: str(req.body.givenTo), understanding: str(req.body.understanding), note: str(req.body.note),
   }));
   r.on('POST', '/api/work/education/:id/:action', (req) => education.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
+  r.on('POST', '/api/work/patients/:id/eligibility', (req) => eligibility.record(store, work(req), req.params.id, {
+    outcome: str(req.body.outcome), checkedOn: str(req.body.checkedOn), basis: str(req.body.basis), evidence: str(req.body.evidence), note: str(req.body.note),
+  }));
+  r.on('POST', '/api/work/eligibility/:id/:action', (req) => eligibility.act(store, work(req), req.params.id, req.params.action, { note: str(req.body.note) }));
   r.on('POST', '/api/work/patients/:id/immunisation', (req) => immunisation.record(store, work(req), req.params.id, {
     given: str(req.body.given), vaccine: str(req.body.vaccine), when: str(req.body.when), dose: str(req.body.dose), site: str(req.body.site), batch: str(req.body.batch),
     reason: str(req.body.reason), note: str(req.body.note),

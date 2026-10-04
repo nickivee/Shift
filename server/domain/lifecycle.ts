@@ -601,6 +601,11 @@ export const LIFECYCLES: Record<string, { table: string; initial: string; next: 
     initial: 'ACTIVE',
     next: { ACTIVE: ['ENDED', 'ENTERED_IN_ERROR'] },
   },
+  eligibility: {
+    table: 'eligibility_check',
+    initial: 'CHECKED',
+    next: { CHECKED: ['ENTERED_IN_ERROR'] },
+  },
   immunisation: {
     table: 'immunisation',
     initial: 'GIVEN',

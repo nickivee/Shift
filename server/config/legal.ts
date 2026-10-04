@@ -402,6 +402,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-ELIGIBILITY-001',
+    question: 'Who is eligible for publicly funded health and disability services in New Zealand and what evidence a provider must see (Health and Disability Services Eligibility Direction 2011 and any later changes to it): the categories of eligible people, time and residence requirements, what happens for people who are not eligible (including ACC cover and charging), how and when eligibility must be checked and recorded, and what must be kept. The Direction was not read from the official legislation site because it returned an access error and was not worked around.',
+    blocks: 'The categories, evidence rules and charging rules are not set by SHIFT, and SHIFT decides nothing. It records each check: the outcome the checker chose, what the eligibility is based on and what was seen in the checker\'s words, the date, and corrections. The Health NZ public page states that checking eligibility is every provider\'s responsibility and that eligibility is not retrospective; that is the only rule shown.',
+    category: 'LAW',
+  },
+  {
     ref: 'RR-IMMUNISATION-001',
     question: 'What New Zealand requires for giving and recording immunisations: who may give each vaccine and under what authority (Medicines Act 1981, Medicines Regulations 1984, authorised vaccinator requirements, standing orders or prescription), consent and information required before vaccination (Code of Rights Right 6 and 7), what must be recorded (batch, expiry, site, who gave it), notifying the National Immunisation Register and what the person may opt out of, cold chain requirements, how adverse events are reported (CARM), and the ages, intervals, eligibility and catch-up rules of the National Immunisation Schedule as they change.',
     blocks: 'Who may vaccinate, consent steps, notification to the National Immunisation Register, cold chain, adverse event reporting, and any due dates, intervals or eligibility are not set by SHIFT. It records the vaccine given or not given from the jurisdiction\'s own list (taken from the Health NZ National Immunisation Schedule page), when, the dose, the site and the batch number as the clinician writes them, any reaction, and corrections, and it works nothing out as due.',

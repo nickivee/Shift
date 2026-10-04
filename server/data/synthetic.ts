@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 104;
+const SET = 105;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -429,6 +429,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 102) set102(store);
     if (at < 103) set103(store);
     if (at < 104) set104(store);
+    if (at < 105) set105(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5975,4 +5976,25 @@ function set104(store: Store): void {
   rec('ZZZ0315', 2000, 'FLU', 'GIVEN', { dose: 'Annual dose', site: 'Left upper arm', batch: 'SYN-FLU-0001' });
   rec('ZZZ0316', 3000, 'TDAP', 'GIVEN', { dose: 'Booster', site: 'Right upper arm', batch: 'SYN-TD-0007', reaction: 'Sore arm for two days; settled with paracetamol.' });
   rec('ZZZ0317', 1500, 'RZV', 'NOT_GIVEN', { reason: 'DECLINED', note: 'Wants to think about it and talk to whānau first.' });
+}
+
+// Eligibility checks for the district nursing patients: one confirmed, one not yet confirmed.
+function set105(store: Store): void {
+  if (store.get('SELECT 1 FROM eligibility_check LIMIT 1')) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const worker = (u: string) => store.get<{ id: string }>('SELECT id FROM workforce_person WHERE username = ?', u)?.id;
+  const nurse = worker('jane.doe');
+  const person = (nhi: string) => store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = ?", nhi)?.person_id;
+  if (!nurse) return;
+  const check = (nhi: string, days: number, outcome: string, basis: string, evidence: string | null, note: string | null) => {
+    const pid = person(nhi);
+    if (!pid) return;
+    const id = newId();
+    store.insert('eligibility_check', {
+      id, person_id: pid, service_id: 'svc-community', state: 'CHECKED', outcome, basis, evidence, checked_on: at(days * 1440).slice(0, 10), note, recorded_by: nurse, recorded_at: at(days * 1440),
+    });
+    store.insert('state_transition', { id: newId(), object_type: 'eligibility', object_id: id, from_state: null, to_state: 'CHECKED', actor_id: nurse, work_context_id: null, at: at(days * 1440), reason: basis.slice(0, 200), transaction_id: null });
+  };
+  check('ZZZ0312', 20, 'ELIGIBLE', 'Says they are a New Zealand citizen', 'Passport seen (synthetic example)', null);
+  check('ZZZ0313', 3, 'UNCONFIRMED', 'Says they hold a resident visa', null, 'Visa document not seen yet; will ask at the next visit.');
 }
