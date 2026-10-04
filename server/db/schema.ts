@@ -5093,4 +5093,46 @@ CREATE INDEX eligibility_person ON eligibility_check(person_id, checked_on);
 CREATE INDEX eligibility_service ON eligibility_check(service_id, state, checked_on);
 `,
   },
+{
+    version: 105,
+    name: 'baby',
+    sql: `
+-- A baby's own record, linked to the mother, and the feeds recorded on it. SHIFT creates no NHI and sets no checks or feeding
+-- targets (RR-NEWBORN-001).
+CREATE TABLE baby_record (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES person(id),
+  mother_person_id TEXT NOT NULL REFERENCES person(id),
+  pregnancy_id TEXT NOT NULL REFERENCES pregnancy(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- ACTIVE | ENTERED_IN_ERROR
+  born_at TEXT NOT NULL,
+  note TEXT NOT NULL,                   -- how the baby is, in the midwife's words
+  opened_by TEXT NOT NULL REFERENCES workforce_person(id),
+  opened_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  closed_note TEXT
+);
+CREATE UNIQUE INDEX baby_person ON baby_record(person_id);
+CREATE INDEX baby_mother ON baby_record(mother_person_id, service_id);
+CREATE INDEX baby_pregnancy ON baby_record(pregnancy_id);
+CREATE TABLE baby_feed (
+  id TEXT PRIMARY KEY,
+  baby_person_id TEXT NOT NULL REFERENCES person(id),
+  service_id TEXT NOT NULL REFERENCES service(id),
+  state TEXT NOT NULL,                  -- GIVEN | ENTERED_IN_ERROR
+  method TEXT NOT NULL,
+  fed_at TEXT NOT NULL,
+  amount TEXT,                          -- as written
+  note TEXT,
+  recorded_by TEXT NOT NULL REFERENCES workforce_person(id),
+  recorded_at TEXT NOT NULL,
+  closed_by TEXT REFERENCES workforce_person(id),
+  closed_at TEXT,
+  closed_note TEXT
+);
+CREATE INDEX baby_feed_person ON baby_feed(baby_person_id, fed_at);
+`,
+  },
 ];

@@ -28,7 +28,7 @@ export const SYNTHETIC_USERS = [
   { username: 'jean.doe', label: 'Jean Doe, Registered Nurse whose practising certificate has expired' },
 ];
 
-const SET = 105;
+const SET = 106;
 
 export function loadSynthetic(store: Store, password: string): void {
   const S = 'SYNTHETIC';
@@ -430,6 +430,7 @@ export function extendSynthetic(store: Store, password: string): void {
     if (at < 103) set103(store);
     if (at < 104) set104(store);
     if (at < 105) set105(store);
+    if (at < 106) set106(store);
     store.run("INSERT INTO meta (key, value) VALUES ('synthetic_set', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", String(SET));
     audit(store, { space: 'SYSTEM', operation: 'SEED_SYNTHETIC', outcome: 'COMMITTED', reason: `Synthetic data set ${SET} added` });
   });
@@ -5997,4 +5998,32 @@ function set105(store: Store): void {
   };
   check('ZZZ0312', 20, 'ELIGIBLE', 'Says they are a New Zealand citizen', 'Passport seen (synthetic example)', null);
   check('ZZZ0313', 3, 'UNCONFIRMED', 'Says they hold a resident visa', null, 'Visa document not seen yet; will ask at the next visit.');
+}
+
+// A baby's own record at the maternity unit, opened for the mother who has given birth, with two feeds.
+function set106(store: Store): void {
+  if (store.get('SELECT 1 FROM baby_record LIMIT 1')) return;
+  const at = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString();
+  const midwife = store.get<{ id: string }>("SELECT id FROM workforce_person WHERE username = 'jill.doe'")?.id;
+  const mother = store.get<{ person_id: string }>("SELECT person_id FROM external_identifier WHERE system = 'NHI' AND value = 'ZZZ0320'")?.person_id;
+  if (!midwife || !mother) return;
+  const g = store.get<{ id: string; birth_at: string }>("SELECT id, birth_at FROM pregnancy WHERE person_id = ? AND state IN ('BIRTHED', 'POSTNATAL')", mother);
+  const p = store.get<{ given_name: string; family_name: string; data_source: string }>('SELECT given_name, family_name, data_source FROM person WHERE id = ?', mother);
+  if (!g || !p) return;
+  let n = store.get<{ n: number }>("SELECT count(*) AS n FROM external_identifier WHERE system = 'LOCAL_MRN'")!.n;
+  const babyId = newId();
+  store.insert('person', { id: babyId, family_name: p.family_name, given_name: `Baby of ${p.given_name}`, date_of_birth: g.birth_at.slice(0, 10), gender: null, ethnicity: null, iwi: null, data_source: p.data_source, created_at: g.birth_at });
+  store.insert('external_identifier', { id: newId(), person_id: babyId, system: 'LOCAL_MRN', value: `TEST-${String(++n).padStart(5, '0')}`, verification: 'SYNTHETIC', created_at: g.birth_at });
+  store.insert('encounter', { id: newId(), person_id: babyId, service_id: 'svc-maternity', location: 'With mother · Postnatal room 2', kind: 'INPATIENT', started_at: g.birth_at, state: 'ACTIVE' });
+  const rid = newId();
+  const note = 'Girl, 3.3 kg, cried at once, skin to skin and feeding well.';
+  store.insert('baby_record', { id: rid, person_id: babyId, mother_person_id: mother, pregnancy_id: g.id, service_id: 'svc-maternity', state: 'ACTIVE', born_at: g.birth_at, note, opened_by: midwife, opened_at: at(2880) });
+  store.insert('state_transition', { id: newId(), object_type: 'baby', object_id: rid, from_state: null, to_state: 'ACTIVE', actor_id: midwife, work_context_id: null, at: at(2880), reason: note, transaction_id: null });
+  const feed = (mins: number, method: string, amount: string | null, fnote: string | null) => {
+    const id = newId();
+    store.insert('baby_feed', { id, baby_person_id: babyId, service_id: 'svc-maternity', state: 'GIVEN', method, fed_at: at(mins), amount, note: fnote, recorded_by: midwife, recorded_at: at(mins - 5) });
+    store.insert('state_transition', { id: newId(), object_type: 'babyfeed', object_id: id, from_state: null, to_state: 'GIVEN', actor_id: midwife, work_context_id: null, at: at(mins - 5), reason: method, transaction_id: null });
+  };
+  feed(600, 'BREAST', 'Left breast, about 15 minutes', 'Latched well with a little help.');
+  feed(300, 'BREAST', 'Right breast, about 20 minutes', null);
 }

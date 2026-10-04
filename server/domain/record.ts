@@ -49,6 +49,7 @@ import { forPerson as afterhoursFor } from './afterhours.ts';
 import { forPerson as educationFor } from './education.ts';
 import { forPerson as immunisationFor } from './immunisation.ts';
 import { forPerson as eligibilityFor } from './eligibility.ts';
+import { forPerson as babyFor, feedsFor as babyFeedsFor } from './baby.ts';
 import { forPerson as chronicFor } from './chronic.ts';
 import { forPerson as surveillanceFor } from './surveillance.ts';
 import { forPerson as screeningFor } from './screening.ts';
@@ -512,6 +513,12 @@ export function retrieve(store: Store, ctx: WorkContext, personId: string, code:
       break;
     case 'education':
       body = educationFor(store, ctx, personId);
+      break;
+    case 'baby':
+      body = babyFor(store, ctx, personId);
+      break;
+    case 'babyfeeding':
+      body = babyFeedsFor(store, ctx, personId);
       break;
     case 'eligibility':
       body = eligibilityFor(store, ctx, personId);

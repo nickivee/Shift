@@ -179,6 +179,7 @@ export type Capability =
   | 'education.record'
   | 'immunisation.record'
   | 'eligibility.record'
+  | 'baby.record'
   | 'chronic.record';
 
 export interface HomeCard {
@@ -672,10 +673,9 @@ ROLES.push(
 );
 
 // Maternity (matrix, "Maternity, neonatal & child"): the midwife and the obstetric doctor, set up from the general
-// medicine nurse and physician. Labour and Birth sit inside the Pregnancy screen. Fetal Monitoring, Feeding, the
-// baby's own record, and Imaging have no screen yet (Operative Care is the Procedures screen, Investigations is the Results screen; orders are the Medicines and Investigations tabs).
-const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring, Feeding and Baby are not built yet (Operative Care is the Procedures screen); orders are the Medicines and Investigations tabs';
-const MID_VIEWS = ['pregnancy', 'assess', 'results', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
+// medicine nurse and physician. Labour and Birth sit inside the Pregnancy screen. Fetal Monitoring and Imaging have no screen yet (Operative Care is the Procedures screen, Investigations is the Results screen; orders are the Medicines and Investigations tabs).
+const MATERNITY_EVIDENCE = 'Matrix names the service, not its positions, so this position is provisional; Fetal Monitoring is not built yet (Operative Care is the Procedures screen; Baby and Feeding are the midwife tabs on the baby own record); orders are the Medicines and Investigations tabs';
+const MID_VIEWS = ['pregnancy', 'baby', 'babyfeeding', 'assess', 'results', 'meds', 'careplan', 'referrals', 'discharge', 'support', 'obs'];
 const OBS_VIEWS = ['pregnancy', 'problems', 'results', 'meds', 'procedures', 'consults', 'progress', 'discharge'];
 ROLES.push(
   {
@@ -685,11 +685,11 @@ ROLES.push(
     matrixRow: 'Maternity - midwife',
     evidenceStatus: MATERNITY_EVIDENCE,
     profession: 'Midwife',
-    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'pregnancy.record'],
+    capabilities: [...roleOf('genmed-rn').capabilities.filter((c) => c !== 'cd.register'), 'pregnancy.record', 'baby.record'],
     views: withViews(roleOf('genmed-rn'), MID_VIEWS),
     ownViews: [...new Set([...(roleOf('genmed-rn').ownViews ?? []), ...MID_VIEWS])],
     tabs: [
-      { id: 'list', label: 'Caseload' }, { id: 'pregnancy', label: 'Pregnancy' }, { id: 'assess', label: 'Assessment' }, { id: 'results', label: 'Investigations' }, { id: 'meds', label: 'Medicines' },
+      { id: 'list', label: 'Caseload' }, { id: 'pregnancy', label: 'Pregnancy' }, { id: 'baby', label: 'Baby' }, { id: 'babyfeeding', label: 'Feeding' }, { id: 'assess', label: 'Assessment' }, { id: 'results', label: 'Investigations' }, { id: 'meds', label: 'Medicines' },
       { id: 'careplan', label: 'Care Plan' }, { id: 'referrals', label: 'Referrals/Consults' }, { id: 'discharge', label: 'Transfer/Discharge' },
     ],
     homeCards: withCards({ ...roleOf('genmed-rn'), homeCards: roleOf('genmed-rn').homeCards.filter((c) => c.id !== 'cdbook') }, []),

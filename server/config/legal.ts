@@ -402,6 +402,12 @@ export const RESEARCH_REQUIREMENTS: ResearchRequirement[] = [
     category: 'NATIONAL/SECTOR STANDARD',
   },
   {
+    ref: 'RR-NEWBORN-001',
+    question: 'What New Zealand requires for a newborn baby\'s record: when and by whom an NHI is created for a baby and what details it needs (including babies not yet named and multiple births), how the baby is linked to the mother, birth registration, newborn screening and checks, Well Child Tamariki Ora handover, and infant feeding recording and standards. The Health NZ pages on the NHI for newborns refused automated reading (robots.txt) and were not worked around, so none of this has been confirmed.',
+    blocks: 'NHI creation for the baby, birth registration, screening and checks, handover timeframes and any feeding targets or amounts are not set by SHIFT. It opens a baby\'s own record linked to the mother with a placeholder name, the birth time and a local number only, with no NHI, and records feeds as the midwife writes them.',
+    category: 'REGULATION/CODE',
+  },
+  {
     ref: 'RR-ELIGIBILITY-001',
     question: 'Who is eligible for publicly funded health and disability services in New Zealand and what evidence a provider must see (Health and Disability Services Eligibility Direction 2011 and any later changes to it): the categories of eligible people, time and residence requirements, what happens for people who are not eligible (including ACC cover and charging), how and when eligibility must be checked and recorded, and what must be kept. The Direction was not read from the official legislation site because it returned an access error and was not worked around.',
     blocks: 'The categories, evidence rules and charging rules are not set by SHIFT, and SHIFT decides nothing. It records each check: the outcome the checker chose, what the eligibility is based on and what was seen in the checker\'s words, the date, and corrections. The Health NZ public page states that checking eligibility is every provider\'s responsibility and that eligibility is not retrospective; that is the only rule shown.',

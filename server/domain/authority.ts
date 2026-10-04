@@ -124,6 +124,7 @@ export type Operation =
   | { op: 'EDUCATION'; personId: string }
   | { op: 'IMMUNISATION'; personId: string }
   | { op: 'ELIGIBILITY'; personId: string }
+  | { op: 'BABY'; personId: string }
   | { op: 'CHRONIC'; personId: string }
   | { op: 'SURVEILLANCE'; personId: string }
   | { op: 'SCREENING'; personId: string }
@@ -401,6 +402,10 @@ export function evaluate(store: Store, ctx: WorkContext | null, o: Operation): A
       return need(ctx, 'chronic.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-CHRONIC-001'])
         : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record their long-term condition plans`));
+    case 'BABY':
+      return need(ctx, 'baby.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
+        ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-NEWBORN-001'])
+        : block(`Only a service caring for this ${ctx.subjectLabel.toLowerCase()} can see or record on the baby's record`));
     case 'ELIGIBILITY':
       return need(ctx, 'eligibility.record') ?? professional(ctx) ?? (['ENCOUNTER', 'CARE_RELATIONSHIP'].includes(rel)
         ? allow([ORG, 'LAW-NZ-002', 'LAW-NZ-005', 'RR-ELIGIBILITY-001'])
