@@ -7,6 +7,7 @@ import { transition, recordInitial, history } from './lifecycle.ts';
 import { ruleValue, requireRule } from './rulevalue.ts';
 import { STATES, REFS } from '../config/pregnancy.ts';
 import { newId, now, todayLocal, addDays, HttpError } from '../lib/util.ts';
+import { isBaby } from './baby.ts';
 
 // Pregnancy (matrix: Pregnancy tab for midwives and obstetric doctors): booked and antenatal, in labour,
 // baby born, postnatal, then care ends. SHIFT records what the clinician enters (RR-MATERNITY-001).
@@ -161,5 +162,5 @@ export function act(store: Store, ctx: WorkContext, id: string, action: string, 
 export function forPerson(store: Store, ctx: WorkContext, personId: string) {
   const can = may(store, ctx, personId);
   const all = store.all<Row>(`${Q} WHERE g.person_id = ? AND g.service_id = ? ORDER BY g.booked_at DESC`, personId, ctx.serviceId).map((r) => shape(store, ctx, r, can));
-  return { open: all.filter((x) => x.open), ended: all.filter((x) => !x.open), canBook: can && !all.some((x) => x.open), options: { modes: modes(store, ctx) } };
+  return { open: all.filter((x) => x.open), ended: all.filter((x) => !x.open), canBook: can && !all.some((x) => x.open) && !isBaby(store, personId), options: { modes: modes(store, ctx) } };
 }
